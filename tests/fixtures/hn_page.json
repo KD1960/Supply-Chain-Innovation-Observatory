@@ -1,0 +1,25 @@
+{
+  "hits": [
+    {
+      "objectID": "41234567",
+      "created_at": "2026-08-12T18:22:01.000Z",
+      "title": "Aurora expands driverless truck lanes to Phoenix",
+      "url": "https://example.test/aurora",
+      "points": 214,
+      "num_comments": 96,
+      "story_text": null
+    },
+    {
+      "objectID": "41234599",
+      "created_at": "2026-08-14T02:10:00.000Z",
+      "title": "Ask HN: what is your warehouse robotics stack?",
+      "url": null,
+      "points": 38,
+      "num_comments": 41,
+      "story_text": "We run AMRs in two buildings."
+    }
+  ],
+  "nbHits": 2,
+  "page": 0,
+  "nbPages": 1
+}
