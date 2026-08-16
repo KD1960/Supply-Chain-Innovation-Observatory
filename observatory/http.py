@@ -68,10 +68,18 @@ def fetch(
     sleep_fn: Callable[[float], Any] = time.sleep,
 ) -> Response:
     last_status = None
+    last_exception: requests.RequestException | None = None
     for attempt in range(retries + 1):
         if limiter is not None:
             limiter.wait()
-        raw = session.get(url, params=params, headers=headers, timeout=TIMEOUT_SECONDS)
+        try:
+            raw = session.get(url, params=params, headers=headers, timeout=TIMEOUT_SECONDS)
+        except requests.RequestException as e:
+            last_exception = e
+            if attempt == retries:
+                break
+            sleep_fn(_backoff_seconds(None, attempt))
+            continue
         last_status = raw.status_code
         if raw.status_code == 200:
             return Response(
@@ -85,11 +93,13 @@ def fetch(
         if attempt == retries:
             break
         sleep_fn(_backoff_seconds(raw, attempt))
+    if last_exception is not None:
+        raise HttpError(f"GET {url} failed with network error: {last_exception}") from last_exception
     raise HttpError(f"GET {url} still failing with status {last_status} after {retries} retries")
 
 
 def _backoff_seconds(raw: Any, attempt: int) -> float:
-    retry_after = raw.headers.get("Retry-After") if hasattr(raw, "headers") else None
+    retry_after = raw.headers.get("Retry-After") if raw is not None and hasattr(raw, "headers") else None
     if retry_after:
         try:
             return float(retry_after)

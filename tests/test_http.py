@@ -1,6 +1,7 @@
 import pytest
+import requests
 
-from observatory import http
+from observatory import http, config
 
 
 class FakeResponse:
@@ -12,7 +13,10 @@ class FakeResponse:
 
 
 class FakeSession:
-    """Returns queued responses in order and records every call."""
+    """Returns queued responses in order and records every call.
+
+    Queued entries can be FakeResponse objects or exceptions to raise.
+    """
 
     def __init__(self, responses):
         self._responses = list(responses)
@@ -20,7 +24,10 @@ class FakeSession:
 
     def get(self, url, params=None, headers=None, timeout=None):
         self.calls.append({"url": url, "params": params, "headers": headers})
-        return self._responses.pop(0)
+        response_or_exception = self._responses.pop(0)
+        if isinstance(response_or_exception, Exception):
+            raise response_or_exception
+        return response_or_exception
 
 
 def test_fetch_returns_body_on_success():
@@ -77,3 +84,26 @@ def test_rate_limiter_sleeps_the_remaining_interval():
     now[0] = 100.5
     limiter.wait()
     assert slept == [1.5]
+
+
+def test_fetch_retries_on_connection_error_then_succeeds():
+    slept = []
+    session = FakeSession([requests.ConnectionError("network down"), FakeResponse(200, "ok")])
+    result = http.fetch(session, "https://example.test/x", sleep_fn=slept.append)
+    assert result.text == "ok"
+    assert len(session.calls) == 2
+    assert slept == [1.0]
+
+
+def test_fetch_gives_up_on_timeout_after_retry_budget():
+    session = FakeSession([requests.Timeout("timeout")] * 4)
+    with pytest.raises(http.HttpError) as excinfo:
+        http.fetch(session, "https://example.test/x", retries=3, sleep_fn=lambda _: None)
+    assert "network error" in str(excinfo.value)
+    assert "timeout" in str(excinfo.value).lower()
+
+
+def test_make_session_sets_user_agent(monkeypatch):
+    monkeypatch.setenv("SEC_CONTACT_EMAIL", "test@example.com")
+    session = http.make_session()
+    assert session.headers["User-Agent"] == config.user_agent()
