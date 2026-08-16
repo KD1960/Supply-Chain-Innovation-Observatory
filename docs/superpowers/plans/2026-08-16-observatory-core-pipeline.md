@@ -3667,3 +3667,14 @@ Carried to the second plan, in this order:
 7. **`discover.py`** — rising-term extraction into `candidate_terms`.
 8. **`lexicon.py`** — the offline LLM authoring CLI (`propose`, `triage`, `diff`), `lexicon/CHANGELOG.md`, and the `patterns_changed_week` bump workflow.
 9. **Backfill** — `--rebuild` across the trailing 52 weeks for the sources that support historical queries.
+
+## Known limitations carried forward
+
+- **arXiv old-style identifiers.** `ArxivCollector.parse` derives the bare id with
+  `raw_id.rsplit("/", 1)[-1].split("v")[0]`, which drops the archive prefix on pre-April-2007
+  ids: `hep-th/9901001v1` becomes `9901001`, giving a wrong `doc_id` and a 404 URL, and letting
+  `hep-th/9901001` and `cs/9901001` collide. Unreachable today — `fetch_raw` only queries
+  current-week `submittedDate` windows — and the owner ruled on 2026-08-16 to leave it rather
+  than deviate from the plan. **Fix it before any backfill reaching earlier than April 2007:**
+  split on `/abs/` to keep the full id, then strip only a trailing version with
+  `re.sub(r"v\d+$", "", ...)`.

@@ -1,0 +1,10 @@
+pyproject.toml
+observatory/__init__.py
+observatory/config.py
+observatory/collectors/__init__.py
+supply_chain_observatory.egg-info/PKG-INFO
+supply_chain_observatory.egg-info/SOURCES.txt
+supply_chain_observatory.egg-info/dependency_links.txt
+supply_chain_observatory.egg-info/requires.txt
+supply_chain_observatory.egg-info/top_level.txt
+tests/test_config.py
