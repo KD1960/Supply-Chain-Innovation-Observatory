@@ -1513,7 +1513,9 @@ def test_parse_returns_nothing_for_an_empty_feed():
 
 def test_query_window_covers_the_whole_iso_week():
     query = ArxivCollector().date_filter("2026-W33")
-    assert query == "submittedDate:[202608100000+TO+202608170000]"
+    # A plain space, not the "+TO+" of arXiv's docs: requests percent-encodes a
+    # literal "+" to %2B, and arXiv then 500s on the malformed range.
+    assert query == "submittedDate:[202608100000 TO 202608170000]"
 ```
 
 - [ ] **Step 3: Run test to verify it fails**
@@ -1568,8 +1570,11 @@ class ArxivCollector(BaseCollector):
         """arXiv wants a half-open window, so the upper bound is the Monday after."""
         start, end = config.week_bounds(week)
         end_exclusive = end + dt.timedelta(days=1)
+        # A plain space around TO, not arXiv's documented "+TO+": the query goes
+        # through requests' params encoding, which turns a literal "+" into %2B
+        # and makes arXiv reject the range with a 500.
         return (
-            f"submittedDate:[{start.strftime('%Y%m%d')}0000+TO+"
+            f"submittedDate:[{start.strftime('%Y%m%d')}0000 TO "
             f"{end_exclusive.strftime('%Y%m%d')}0000]"
         )
 
@@ -1964,7 +1969,7 @@ AGENCY_SLUGS = (
     "federal-railroad-administration",
     "maritime-administration",
     "national-highway-traffic-safety-administration",
-    "customs-and-border-protection",
+    "u-s-customs-and-border-protection",  # one bad slug 400s the whole sweep
     "federal-highway-administration",
     "energy-department",
     "commerce-department",

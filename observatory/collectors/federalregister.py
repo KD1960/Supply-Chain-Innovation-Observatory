@@ -24,7 +24,7 @@ AGENCY_SLUGS = (
     "federal-railroad-administration",
     "maritime-administration",
     "national-highway-traffic-safety-administration",
-    "customs-and-border-protection",
+    "u-s-customs-and-border-protection",
     "federal-highway-administration",
     "energy-department",
     "commerce-department",

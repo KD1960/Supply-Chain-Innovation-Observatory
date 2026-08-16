@@ -35,4 +35,4 @@ def test_parse_returns_nothing_for_an_empty_feed():
 
 def test_query_window_covers_the_whole_iso_week():
     query = ArxivCollector().date_filter("2026-W33")
-    assert query == "submittedDate:[202608100000+TO+202608170000]"
+    assert query == "submittedDate:[202608100000 TO 202608170000]"

@@ -48,6 +48,13 @@ class Technology:
     include_res: tuple[re.Pattern, ...] = field(repr=False, default=())
     exclude_res: tuple[re.Pattern, ...] = field(repr=False, default=())
 
+    def __post_init__(self) -> None:
+        # Frozen dataclass: patterns are compiled here rather than trusted from
+        # the caller, so a Technology can never exist with an include pattern
+        # that silently fails to match anything.
+        object.__setattr__(self, "include_res", tuple(compile_pattern(p) for p in self.include))
+        object.__setattr__(self, "exclude_res", tuple(compile_pattern(p) for p in self.exclude))
+
 
 @dataclass(frozen=True)
 class Watchlist:
@@ -97,8 +104,6 @@ def load_watchlist(path: str | Path | None = None) -> Watchlist:
                 status=entry.get("status", "active"),
                 added_week=entry["added_week"],
                 patterns_changed_week=entry.get("patterns_changed_week", entry["added_week"]),
-                include_res=tuple(compile_pattern(p) for p in include),
-                exclude_res=tuple(compile_pattern(p) for p in exclude),
             )
         )
     return Watchlist(version=int(raw["lexicon_version"]), technologies=tuple(technologies))

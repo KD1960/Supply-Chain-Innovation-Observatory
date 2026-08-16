@@ -41,7 +41,7 @@ class ArxivCollector(BaseCollector):
         start, end = config.week_bounds(week)
         end_exclusive = end + dt.timedelta(days=1)
         return (
-            f"submittedDate:[{start.strftime('%Y%m%d')}0000+TO+"
+            f"submittedDate:[{start.strftime('%Y%m%d')}0000 TO "
             f"{end_exclusive.strftime('%Y%m%d')}0000]"
         )
 

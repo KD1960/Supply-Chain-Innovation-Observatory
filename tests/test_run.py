@@ -4,7 +4,7 @@ import pytest
 
 from observatory import http, run, store
 from observatory.collectors.base import BaseCollector, Document, RawPage
-from observatory.matcher import Technology, Watchlist, compile_pattern
+from observatory.matcher import Technology, Watchlist
 
 
 class StubCollector(BaseCollector):
@@ -34,12 +34,10 @@ class ExplodingCollector(BaseCollector):
 
 @pytest.fixture()
 def watchlist():
-    pattern = "autonomous truck(s|ing)?"
     return Watchlist(version=1, technologies=(
         Technology(id="autonomous_trucking", name="Autonomous trucking", family="vehicles",
-                   include=(pattern,), exclude=(), status="active",
-                   added_week="2020-W01", patterns_changed_week="2020-W01",
-                   include_res=(compile_pattern(pattern),)),
+                   include=("autonomous truck(s|ing)?",), exclude=(), status="active",
+                   added_week="2020-W01", patterns_changed_week="2020-W01"),
     ))
 
 
