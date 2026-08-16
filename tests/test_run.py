@@ -49,6 +49,26 @@ class PoisonedCollector(BaseCollector):
         raise ET.ParseError("mismatched tag: line 1, column 24")
 
 
+class WeeklyPayloadCollector(BaseCollector):
+    """Each week's raw file carries its own documents.
+
+    Needed to exercise the lookback: a run's raw legitimately holds documents
+    belonging to the week before it.
+    """
+
+    name = "arxiv"
+
+    def __init__(self, documents_by_week):
+        self._documents_by_week = documents_by_week
+
+    def fetch_raw(self, session, week):
+        yield RawPage(url=f"https://x.test/{week}", status=200,
+                      text=json.dumps(self._documents_by_week[week]))
+
+    def parse(self, text):
+        return [Document(**fields) for fields in json.loads(text)]
+
+
 class PartialSweepCollector(BaseCollector):
     """Writes pages, then dies — the truncated week that stays on disk."""
 
@@ -76,6 +96,9 @@ def conn(tmp_path, monkeypatch):
     monkeypatch.setattr(run.base.config, "RAW_DIR", tmp_path / "raw")
     monkeypatch.setattr(run.base.config, "RUN_LOG_PATH", tmp_path / "run_log.jsonl")
     monkeypatch.setattr(run.base.config, "OUTPUT_DIR", tmp_path / "output")
+    # main() opens its own connection from DB_PATH. Redirect it too, so a test
+    # that reaches main can never touch the real database.
+    monkeypatch.setattr(run.base.config, "DB_PATH", tmp_path / "observatory.db")
     connection = store.connect(":memory:")
     store.init_schema(connection)
     yield connection
@@ -189,6 +212,66 @@ def test_rebuild_rematches_raw_under_the_current_watchlist(conn, watchlist, tmp_
 
     assert store.observations_for(conn, "2026-W33", "freight_corridors")
     assert store.observations_for(conn, "2026-W33", "autonomous_trucking") == []
+
+
+def paper(doc_id, date):
+    return {"doc_id": doc_id, "date": date, "text": "",
+            "title": "Autonomous trucking corridor opens",
+            "url": f"https://x.test/{doc_id}"}
+
+
+def test_rebuild_folds_lookback_documents_into_the_earlier_weeks_signals(conn, watchlist, tmp_path):
+    # W33's query window reaches seven days back and picks up d2, which was
+    # published in W32 but indexed too late for W32's own run.
+    collector = WeeklyPayloadCollector({
+        "2026-W32": [paper("d1", "2026-08-05")],
+        "2026-W33": [paper("d2", "2026-08-06"), paper("d3", "2026-08-12")],
+    })
+    for week in ("2026-W32", "2026-W33"):
+        run.run_week(conn, week, watchlist, [collector], session=None,
+                     out_path=tmp_path / f"{week}.html")
+
+    # The late document is already filed under W32 as evidence, but W32's
+    # count was computed before it arrived.
+    assert len(store.observations_for(conn, "2026-W32", "autonomous_trucking")) == 2
+    assert store.get_signal(conn, "autonomous_trucking", "2026-W32", "arxiv_papers") == 1.0
+
+    run.rebuild(conn, watchlist, [collector])
+
+    # Ingest every week before counting any, and the number now matches the
+    # evidence list beneath it.
+    assert store.get_signal(conn, "autonomous_trucking", "2026-W32", "arxiv_papers") == 2.0
+    assert store.get_signal(conn, "autonomous_trucking", "2026-W33", "arxiv_papers") == 1.0
+
+    # Each week still gets its dated archive.
+    assert (tmp_path / "output" / "dashboard-2026-W32.html").exists()
+    assert (tmp_path / "output" / "dashboard-2026-W33.html").exists()
+
+
+def test_rebuild_keeps_ok_sources_per_week(conn, watchlist, tmp_path):
+    # arxiv succeeded in W32 and failed in W33. The second pass has to honour
+    # each week's own status, not the last one recorded.
+    collector = WeeklyPayloadCollector({"2026-W32": [paper("d1", "2026-08-05")]})
+    run.run_week(conn, "2026-W32", watchlist, [collector], session=None,
+                 out_path=tmp_path / "a.html")
+    store.set_source_status(conn, "arxiv", "2026-W33", "failed", "503")
+    (tmp_path / "raw" / "2026-W33" / "arxiv").mkdir(parents=True)
+
+    run.rebuild(conn, watchlist, [collector])
+
+    assert store.get_signal(conn, "autonomous_trucking", "2026-W32", "arxiv_papers") == 1.0
+    assert store.get_signal(conn, "autonomous_trucking", "2026-W33", "arxiv_papers") is None
+
+
+def test_rebuild_and_only_are_rejected_together(conn, capsys):
+    # clear_derived is unconditional, so replaying a filtered collector tuple
+    # would delete the other sources' rows and never rewrite them. The guard
+    # fires before main opens anything; the conn fixture redirects the paths
+    # anyway so a regression here cannot destroy real data.
+    with pytest.raises(SystemExit) as excinfo:
+        run.main(["--rebuild", "--only", "arxiv"])
+    assert excinfo.value.code == 2
+    assert "--rebuild always replays every source" in capsys.readouterr().err
 
 
 def test_run_week_produces_a_dashboard_file(conn, watchlist, tmp_path):

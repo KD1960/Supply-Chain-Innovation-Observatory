@@ -132,6 +132,13 @@ def run_week(
         ok_sources = fetch_week(conn, week, collectors, session)
 
     observations, ok_sources = ingest_week(conn, week, watchlist, collectors, ok_sources)
+    return _score_and_render(conn, week, watchlist, ok_sources, observations, out_path)
+
+
+def _score_and_render(
+    conn, week: str, watchlist, ok_sources: set[str], observations: int,
+    out_path: Path | None = None,
+) -> Path:
     signals = normalize.compute_signals(conn, week, watchlist, ok_sources)
     scored = score_week(conn, week, watchlist)
     path = render.render_dashboard(conn, week, watchlist, out_path)
@@ -151,11 +158,29 @@ def rebuild(conn, watchlist, collectors=COLLECTORS) -> list[Path]:
     INSERT OR IGNORE, so replaying over the existing rows would otherwise
     leave every one of them exactly as the old parser or the old patterns
     wrote it, and the only working rebuild would be deleting the database.
+
+    Two passes, and the order is the point. Each week's query window reaches
+    seven days back, so week W's raw routinely holds documents belonging to
+    W-1. Ingesting and scoring one week at a time would compute W-1's signals
+    before W's raw had been read, and the late documents would sit in
+    `observations` forever without ever reaching a count — the evidence list
+    and the number above it disagreeing permanently. So every week's raw is
+    ingested first, and only then is anything counted.
     """
     store.clear_derived(conn)
     weeks = sorted(path.name for path in config.RAW_DIR.glob("*-W*") if path.is_dir())
+
+    ingested: dict[str, tuple[int, set[str]]] = {}
+    for week in weeks:
+        print(f"Rebuilding {week}: reading raw")
+        ingested[week] = ingest_week(
+            conn, week, watchlist, collectors,
+            sources_ok_for_week(conn, week, collectors),
+        )
+
     return [
-        run_week(conn, week, watchlist, collectors, skip_fetch=True) for week in weeks
+        _score_and_render(conn, week, watchlist, ingested[week][1], ingested[week][0])
+        for week in weeks
     ]
 
 
@@ -181,6 +206,13 @@ def main(argv=None) -> int:
                         help="recompute every week that has raw data")
     parser.add_argument("--only", default=None, help="run a single collector by name")
     args = parser.parse_args(argv)
+    if args.rebuild and args.only:
+        # Clearing the derived tables and then replaying one collector would
+        # delete every other source's rows and never rewrite them, leaving a
+        # hole on a week that actually succeeded. Scoping the delete to the
+        # replayed source is worse: the derived tables would then disagree
+        # across sources about which lexicon produced them.
+        parser.error("--rebuild always replays every source; it cannot be combined with --only")
 
     config.load_dotenv()
     watchlist = matcher.load_watchlist()

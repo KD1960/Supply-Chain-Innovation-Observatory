@@ -26,8 +26,12 @@ def test_zscore_is_zero_for_a_flat_series_rather_than_dividing_by_zero():
 
 
 def test_zscore_carries_holes_forward_before_scoring():
-    # Twelve observed weeks, then a hole: the hole reuses the last value.
-    assert metrics.zscore([2.0] * 12 + [None] * 3) == 0.0
+    # The tail has to change the answer, or this guards nothing. Eleven zeroes
+    # and a spike, then three holes: carrying the spike forward pulls the mean
+    # up from 1/15 to 40/15 and halves the z-score. Dropping the holes instead
+    # would give 3.3166 — the value the same series without holes produces two
+    # tests above.
+    assert metrics.zscore([0.0] * 11 + [10.0] + [None] * 3) == pytest.approx(1.6583, abs=1e-3)
 
 
 # A source outage inside the warm-up window used to be scored as though the
@@ -53,6 +57,15 @@ def test_twelve_observed_weeks_followed_by_holes_still_scores():
     assert metrics.zscore(series) is not None
     assert metrics.normalize_series(series)[-1] is not None
     assert metrics.acceleration(series) is not None
+
+
+def test_acceleration_carries_holes_forward_before_measuring_the_slope():
+    # A straight line that stops. Carrying the last value forward flattens the
+    # recent slope and the acceleration goes sharply negative; dropping the
+    # holes instead would see an unbroken line and report 0.0, hiding the
+    # stall completely.
+    series = [float(i) for i in range(1, 13)] + [None] * 4
+    assert metrics.acceleration(series) == pytest.approx(-2.5)
 
 
 def test_acceleration_is_zero_for_a_straight_line():
