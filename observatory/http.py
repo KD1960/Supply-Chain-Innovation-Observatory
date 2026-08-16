@@ -83,7 +83,10 @@ def fetch(
         last_status = raw.status_code
         if raw.status_code == 200:
             return Response(
-                url=url,
+                # The resolved URL, params and redirects included: raw_fetch is
+                # the traceability record, and the bare endpoint cannot say
+                # which query produced which page.
+                url=raw.url,
                 status=raw.status_code,
                 text=raw.text,
                 content_type=raw.headers.get("Content-Type", ""),

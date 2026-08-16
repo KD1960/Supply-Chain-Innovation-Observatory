@@ -5,11 +5,11 @@ from observatory import http, config
 
 
 class FakeResponse:
-    def __init__(self, status_code, text="{}", headers=None):
+    def __init__(self, status_code, text="{}", headers=None, url="https://example.test/x"):
         self.status_code = status_code
         self.text = text
         self.headers = headers or {"Content-Type": "application/json"}
-        self.url = "https://example.test/x"
+        self.url = url
 
 
 class FakeSession:
@@ -35,6 +35,17 @@ def test_fetch_returns_body_on_success():
     result = http.fetch(session, "https://example.test/x")
     assert result.status == 200
     assert result.text == '{"ok": true}'
+
+
+def test_fetch_reports_the_resolved_url_not_the_bare_endpoint():
+    # raw_fetch.url is the traceability record. Every Hacker News page comes
+    # from one endpoint, so without the params it cannot say which query
+    # produced which page.
+    resolved = "https://example.test/x?query=freight&page=2"
+    session = FakeSession([FakeResponse(200, url=resolved)])
+    result = http.fetch(session, "https://example.test/x",
+                        params={"query": "freight", "page": 2})
+    assert result.url == resolved
 
 
 def test_fetch_retries_on_429_then_succeeds():

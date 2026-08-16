@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 .venv/
 .superpowers/
+supply_chain_observatory.egg-info/
