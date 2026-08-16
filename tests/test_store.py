@@ -1,25 +1,7 @@
 import pytest
-from dataclasses import dataclass
 
 from observatory import store
-
-# Task 4 will move this to observatory.matcher
-@dataclass
-class Observation:
-    source: str
-    week: str
-    tech_id: str
-    doc_id: str
-    doc_date: str
-    title: str
-    url: str
-    entity: str | None
-    entity_id: str | None
-    amount: float | None
-    lat: float | None
-    lon: float | None
-    matched_pattern: str
-    raw_ref: int
+from observatory.matcher import Observation
 
 
 @pytest.fixture()
