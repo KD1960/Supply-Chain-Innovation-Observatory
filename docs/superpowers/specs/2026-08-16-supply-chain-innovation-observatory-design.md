@@ -236,7 +236,11 @@ weights over the five stage scores. Range 1.0–5.0. This is the x-axis of the S
 ### 7.4 Headline metrics
 
 **Momentum** — is it speeding up? Let `S(w)` be the 4-week trailing mean of the composite
-signal (the mean of the five stage scores). Then
+signal. The composite is the per-week mean of every present signal *after each signal is
+centred and scaled against its own trailing window*. Normalising first is not optional:
+HN points run to the hundreds and arXiv papers to the dozens, so averaging raw magnitudes
+would let the loudest unit decide the ranking, and a technology would look fast merely
+because it happens to be tracked by a big-numbered signal. Then
 
 ```
 slope_now  = S(w)   - S(w-4)
