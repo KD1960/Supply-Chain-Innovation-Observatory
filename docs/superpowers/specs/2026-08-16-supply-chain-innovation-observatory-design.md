@@ -36,7 +36,8 @@ watchlist, and renders a single self-contained HTML dashboard.
 - No paid data sources (Crunchbase, PitchBook, Lightcast, Bloomberg).
 - No LLM inside the pipeline. Term matching and scoring are deterministic so that any
   week can be recomputed and will produce identical numbers. Interpretation stays with
-  the human reader.
+  the human reader. An LLM *is* used offline to author the lexicon (§5.1) — that is a
+  separate, human-approved command that never runs during a weekly run.
 - No forecasting or causal claims. The system describes observed signal movement.
 - No web server, database server, or hosted deployment. Local files only.
 - No user accounts, auth, or multi-tenancy.
@@ -68,9 +69,12 @@ by source-native document ID, so overlap is safe.
 
 ## 4. Watchlist
 
-`watchlist.yaml` holds ~32 technologies grouped into six families. Each entry:
+`watchlist.yaml` holds ~32 technologies grouped into six families, under a top-level
+`lexicon_version`. Each entry:
 
 ```yaml
+lexicon_version: 3
+technologies:
 - id: autonomous_trucking
   name: Autonomous trucking
   family: vehicles
@@ -83,6 +87,7 @@ by source-native document ID, so overlap is safe.
   cik_hints: [AURORA INNOVATION, KODIAK, WAYMO VIA]   # optional, EDGAR entity aid
   status: active
   added_week: 2026-W33
+  patterns_changed_week: 2026-W33   # set on every merged lexicon edit
 ```
 
 **Initial families and members.**
@@ -119,6 +124,48 @@ patterns, wrapped in word boundaries. Any `exclude` pattern match vetoes the doc
 that technology. A document may match multiple technologies; each match is one observation
 row recording which pattern fired, so any count can be traced back to its evidence.
 
+## 5.1 Lexicon authoring (LLM-assisted, offline)
+
+The quality of every number in this system depends on the quality of the word lists.
+Hand-writing regexes for 32 technologies produces thin, brittle coverage. So an LLM is used
+as an **authoring tool**, run deliberately by the user, never during a weekly run.
+
+```bash
+python -m observatory.lexicon propose autonomous_trucking   # expand one technology
+python -m observatory.lexicon propose --all                 # expand the whole watchlist
+python -m observatory.lexicon triage 2026-W33               # draft patterns for rising terms
+python -m observatory.lexicon diff                          # show proposals vs. current
+```
+
+**What it produces.** For each technology, the model is asked for: synonyms and spelling
+variants, common abbreviations, vendor and product names in the category, adjacent terms
+that should *not* match (false friends), and the terms practitioners use that researchers
+do not. Output is written to `lexicon/proposals/<tech_id>-<date>.yaml` — never directly to
+`watchlist.yaml`.
+
+**What it does not do.** It does not edit the watchlist, score anything, rank technologies,
+or write dashboard text. Merging a proposal is a human edit, reviewed as a normal diff.
+
+**Triage mode.** After a weekly run, `triage` reads that week's `candidate_terms` rows plus
+three example documents each, and drafts a candidate watchlist entry (id, name, family,
+include/exclude patterns) for the ones that look like real technologies rather than news
+noise. These land in `lexicon/proposals/candidates-<week>.yaml` for the same human review.
+The Rising Terms dashboard block itself is computed by the deterministic pipeline and is
+identical whether or not triage was ever run.
+
+**Versioning.** `watchlist.yaml` carries a top-level `lexicon_version` (integer, bumped on
+every merged change) and a changelog at `lexicon/CHANGELOG.md`. Every `weekly_metrics` row
+stores the `lexicon_version` used to compute it. Because widening a pattern changes historic
+counts, a `--rebuild` recomputes all weeks under the current lexicon so the series stays
+internally consistent; the dashboard footer states the lexicon version and the date of the
+last change, and the Movers block suppresses momentum for any technology whose patterns
+changed within the trailing 8 weeks — an acceleration caused by a wider net is not an
+acceleration in the world.
+
+**Cost and reproducibility.** Proposal files are committed to git, so the lexicon's
+provenance is auditable and the pipeline remains fully runnable by someone with no LLM
+access at all.
+
 ## 6. Data model
 
 SQLite at `data/observatory.db`. Raw JSON/XML responses live on disk at
@@ -139,6 +186,7 @@ weekly_metrics(tech_id TEXT, week TEXT, momentum REAL, sai REAL, lfi REAL,
                adoption INT, adoption_new INT,
                stage_idea REAL, stage_experiment REAL, stage_investment REAL,
                stage_deployment REAL, stage_diffusion REAL, position REAL,
+               lexicon_version INT,
                PRIMARY KEY(tech_id, week))
 candidate_terms(term TEXT, week TEXT, count INT, baseline REAL, ratio REAL,
                 status TEXT, PRIMARY KEY(term, week))
@@ -282,6 +330,13 @@ as a second self-contained file, `evidence.html`, keyed by anchor.
   the source red, and still renders a dashboard.
 - **Renderer smoke test** — generated HTML contains all seven blocks and no external
   `http(s)://` resource references.
+- **Determinism** — running the full pipeline twice over the same raw data produces
+  byte-identical `weekly_metrics` rows. This is the test that protects the no-LLM-at-runtime
+  rule; it fails loudly if anything nondeterministic creeps into the run.
+- **Lexicon isolation** — the weekly run imports no LLM client. Asserted by scanning
+  `run.py`'s import graph, so the rule cannot be broken by accident.
+- **Momentum suppression** — a technology whose `patterns_changed_week` is within 8 weeks
+  is excluded from the Movers block.
 
 ## 11. Operations
 
@@ -316,6 +371,7 @@ observatory/
     arxiv.py  hn.py  patentsview.py  github.py  usaspending.py
     edgar.py  federalregister.py  gdelt_doc.py  gdelt_geo.py
   matcher.py             watchlist compilation + document matching
+  lexicon.py             OFFLINE LLM authoring CLI (propose / triage / diff)
   normalize.py           observations -> weekly_signals
   metrics.py             z-scores, stages, momentum, SAI, LFI, adoption
   discover.py            candidate term extraction
@@ -324,6 +380,7 @@ observatory/
   render.py              Jinja2 -> dashboard.html, evidence.html
   templates/
 watchlist.yaml
+lexicon/ proposals/  CHANGELOG.md
 data/    raw/  observatory.db  run_log.jsonl
 output/  latest.html  dashboard-<week>.html  evidence.html
 tests/   fixtures/
@@ -337,12 +394,14 @@ tested with fixture data from the stage above it.
 ## 13. Build order
 
 1. Skeleton: config, http, store schema, CLI that does nothing but log.
-2. Watchlist + matcher, fully tested.
+2. Watchlist + matcher, fully tested. Then `lexicon propose --all` to build the real word
+   lists before any collector is pointed at live data — thin patterns would poison the
+   first weeks of history.
 3. Three keyless collectors (arXiv, Hacker News, Federal Register) end to end to first HTML.
 4. Metrics module against synthetic data.
 5. Remaining collectors: GDELT doc/geo, USAspending, EDGAR, GitHub, PatentsView.
 6. Full dashboard blocks, evidence drill-down, Build Map.
-7. Auto-discovery of rising terms.
+7. Auto-discovery of rising terms, then `lexicon triage`.
 8. Backfill: run `--rebuild` across the trailing 52 weeks where sources allow it, to give
    the first live dashboard real history instead of a cold start.
 
