@@ -26,7 +26,33 @@ def test_zscore_is_zero_for_a_flat_series_rather_than_dividing_by_zero():
 
 
 def test_zscore_carries_holes_forward_before_scoring():
-    assert metrics.zscore([2.0] + [None] * 11) == 0.0
+    # Twelve observed weeks, then a hole: the hole reuses the last value.
+    assert metrics.zscore([2.0] * 12 + [None] * 3) == 0.0
+
+
+# A source outage inside the warm-up window used to be scored as though the
+# padding were data: the repeated value shrinks the spread and inflates |z|,
+# and that inflated z propagates into stages, SAI, LFI and momentum.
+OUTAGE = [1.0, 2.0, 3.0, 4.0, 5.0] + [None] * 10
+
+
+def test_zscore_does_not_count_carried_forward_padding_as_history():
+    assert metrics.zscore(OUTAGE) is None
+
+
+def test_normalize_series_does_not_count_carried_forward_padding_as_history():
+    assert metrics.normalize_series(OUTAGE) == [None] * len(OUTAGE)
+
+
+def test_acceleration_does_not_count_carried_forward_padding_as_history():
+    assert metrics.acceleration(OUTAGE) is None
+
+
+def test_twelve_observed_weeks_followed_by_holes_still_scores():
+    series = [float(i) for i in range(1, 13)] + [None] * 4
+    assert metrics.zscore(series) is not None
+    assert metrics.normalize_series(series)[-1] is not None
+    assert metrics.acceleration(series) is not None
 
 
 def test_acceleration_is_zero_for_a_straight_line():

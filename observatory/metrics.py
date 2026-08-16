@@ -33,10 +33,21 @@ def mean_of_present(values: list[float | None]) -> float | None:
     return statistics.fmean(present) if present else None
 
 
+def observed(series: list[float | None]) -> int:
+    """Weeks we actually saw, counted before any carry-forward.
+
+    The history gate has to count these and not the carried series. A
+    five-week source outage pads ten identical values into the window; those
+    duplicates would pass a length check while shrinking the spread, which
+    inflates every z-score computed from them.
+    """
+    return sum(1 for value in series if value is not None)
+
+
 def zscore(series: list[float | None], min_periods: int = config.MIN_HISTORY_WEEKS) -> float | None:
-    filled = [value for value in carry_forward(series) if value is not None]
-    if len(filled) < min_periods:
+    if observed(series) < min_periods:
         return None
+    filled = [value for value in carry_forward(series) if value is not None]
     spread = statistics.pstdev(filled)
     if spread == 0:
         return 0.0
@@ -51,10 +62,10 @@ def normalize_series(series: list[float | None]) -> list[float | None]:
     unit decide the ranking, so each series is centred and scaled against
     its own trailing window before it joins the composite.
     """
+    if observed(series) < config.MIN_HISTORY_WEEKS:
+        return [None] * len(series)
     filled = carry_forward(series)
     present = [value for value in filled if value is not None]
-    if len(present) < config.MIN_HISTORY_WEEKS:
-        return [None] * len(series)
     centre = statistics.fmean(present)
     spread = statistics.pstdev(present)
     if spread == 0:
@@ -68,9 +79,9 @@ def trailing_mean(series: list[float], window: int) -> float:
 
 def acceleration(series: list[float | None]) -> float | None:
     """Change in the four-week slope: is growth itself speeding up?"""
-    filled = [value for value in carry_forward(series) if value is not None]
-    if len(filled) < config.MIN_HISTORY_WEEKS:
+    if observed(series) < config.MIN_HISTORY_WEEKS:
         return None
+    filled = [value for value in carry_forward(series) if value is not None]
     now = trailing_mean(filled, 4)
     four_back = trailing_mean(filled[:-4], 4)
     eight_back = trailing_mean(filled[:-8], 4)
