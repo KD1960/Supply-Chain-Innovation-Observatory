@@ -1537,6 +1537,7 @@ term discovery step something to mine.
 
 from __future__ import annotations
 
+import datetime as dt
 import re
 import xml.etree.ElementTree as ET
 from typing import Iterator
@@ -1564,12 +1565,12 @@ class ArxivCollector(BaseCollector):
     rate_limit_seconds = 3.0  # arXiv asks for one request every three seconds
 
     def date_filter(self, week: str) -> str:
+        """arXiv wants a half-open window, so the upper bound is the Monday after."""
         start, end = config.week_bounds(week)
-        # arXiv wants an inclusive-exclusive window; end + 1 day at midnight.
-        end_exclusive = end.strftime("%Y%m%d") + "0000"
+        end_exclusive = end + dt.timedelta(days=1)
         return (
             f"submittedDate:[{start.strftime('%Y%m%d')}0000+TO+"
-            f"{_next_day(end_exclusive)}]"
+            f"{end_exclusive.strftime('%Y%m%d')}0000]"
         )
 
     def fetch_raw(self, session, week: str) -> Iterator[RawPage]:
@@ -1619,13 +1620,6 @@ def _text(element, tag: str) -> str | None:
 
 def _clean(value: str | None) -> str | None:
     return None if value is None else _WHITESPACE.sub(" ", value).strip()
-
-
-def _next_day(stamp: str) -> str:
-    import datetime as dt
-
-    day = dt.datetime.strptime(stamp[:8], "%Y%m%d").date() + dt.timedelta(days=1)
-    return day.strftime("%Y%m%d") + "0000"
 ```
 
 - [ ] **Step 5: Run tests to verify they pass**
@@ -2514,11 +2508,11 @@ Expected: FAIL with `AttributeError: module 'observatory.metrics' has no attribu
 
 - [ ] **Step 3: Write the implementation**
 
-Append to `observatory/metrics.py`:
+First fix the imports at the top of `observatory/metrics.py`: add `import math` beside
+`import statistics`, and change `from . import config` to `from . import config, store`.
+`store` does not import `metrics`, so there is no cycle. Then append:
 
 ```python
-from . import store  # noqa: E402  (kept below the primitives for readability)
-
 SIGNALS_BY_STAGE: dict[str, tuple[str, ...]] = {
     "idea": ("arxiv_papers", "hn_points"),
     "experiment": ("patents", "gh_repos_new", "gh_commits", "gh_stars_delta"),
@@ -2629,8 +2623,7 @@ def _composite_series(series_list: list[list[float | None]]) -> list[float | Non
 
 
 def _exp(value: float) -> float:
-    import math
-
+    """Clamped exponential — softmax weights must not overflow on an outlier."""
     return math.exp(max(min(value, 20.0), -20.0))
 ```
 
