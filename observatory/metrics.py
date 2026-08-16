@@ -2,7 +2,8 @@
 
 Every function here is pure and takes plain lists, so the maths can be tested
 against series with known answers. Nothing in this module touches the network,
-the clock, or a model.
+the clock, or a model. The one exception is `compute_week`, which reads from
+the store to assemble those plain lists — but it still writes nothing.
 """
 
 from __future__ import annotations
@@ -40,6 +41,25 @@ def zscore(series: list[float | None], min_periods: int = config.MIN_HISTORY_WEE
     if spread == 0:
         return 0.0
     return (filled[-1] - statistics.fmean(filled)) / spread
+
+
+def normalize_series(series: list[float | None]) -> list[float | None]:
+    """Put one signal's weekly values on a unit scale.
+
+    Signals differ wildly in magnitude — HN points run to the hundreds,
+    arXiv papers to the dozens. Averaging them raw would let the loudest
+    unit decide the ranking, so each series is centred and scaled against
+    its own trailing window before it joins the composite.
+    """
+    filled = carry_forward(series)
+    present = [value for value in filled if value is not None]
+    if len(present) < config.MIN_HISTORY_WEEKS:
+        return [None] * len(series)
+    centre = statistics.fmean(present)
+    spread = statistics.pstdev(present)
+    if spread == 0:
+        return [None if value is None else 0.0 for value in filled]
+    return [None if value is None else (value - centre) / spread for value in filled]
 
 
 def trailing_mean(series: list[float], window: int) -> float:
@@ -140,7 +160,7 @@ def compute_week(conn, week: str, watchlist) -> list[dict]:
             series = store.signal_series(conn, tech.id, signal, weeks)
             z_by_signal[signal] = zscore(series)
             if any(value is not None for value in series):
-                composite_inputs.append(series)
+                composite_inputs.append(normalize_series(series))
 
         stages = stage_scores(z_by_signal)
         composite = _composite_series(composite_inputs)

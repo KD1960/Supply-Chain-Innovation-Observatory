@@ -80,6 +80,21 @@ def test_compute_week_ranks_the_accelerating_technology_higher(conn):
     assert rows["fast"]["momentum"] > rows["flat"]["momentum"]
 
 
+def test_compute_week_momentum_is_scale_independent(conn):
+    # hn_points runs to the hundreds while arxiv_papers runs to the dozens.
+    # A raw (unnormalized) composite would let noisy hn_points swamp a
+    # genuine arxiv_papers acceleration just because its numbers are bigger:
+    # this "noisy" series has no real trend, only jitter around 380, but its
+    # jitter alone produces a bigger raw delta than the accelerating series.
+    watchlist = Watchlist(version=1, technologies=(tech("noisy"), tech("accelerating")))
+    seed(conn, "noisy", "hn_points",
+         [379, 358, 418, 349, 404, 384, 347, 401, 344, 392, 348, 351, 391, 439])
+    seed(conn, "accelerating", "arxiv_papers",
+         [1, 1, 1, 1, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55])
+    rows = {row["tech_id"]: row for row in metrics.compute_week(conn, "2026-W33", watchlist)}
+    assert rows["accelerating"]["momentum"] > rows["noisy"]["momentum"]
+
+
 def test_compute_week_stamps_the_lexicon_version(conn):
     watchlist = Watchlist(version=7, technologies=(tech("a"),))
     seed(conn, "a", "arxiv_papers", [1] * 14)
@@ -101,3 +116,20 @@ def test_momentum_is_suppressed_after_a_recent_pattern_change(conn):
     assert rows["changed"]["momentum"] is None
     assert rows["stable"]["momentum"] is not None
     assert rows["rising"]["momentum"] > rows["stable"]["momentum"]
+
+
+def test_momentum_is_not_suppressed_exactly_at_the_cutoff(conn):
+    # The comparison is a strict `>`, so a pattern changed exactly 8 weeks
+    # back must not be suppressed.
+    week = "2026-W33"
+    at_cutoff = tech("at_cutoff", patterns_changed_week=config.week_offset(week, -8))
+    watchlist = Watchlist(
+        version=1, technologies=(at_cutoff, tech("stable"), tech("rising"))
+    )
+    seed(conn, "at_cutoff", "arxiv_papers", [1, 1, 1, 1, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55],
+         end_week=week)
+    seed(conn, "stable", "arxiv_papers", [5] * 14, end_week=week)
+    seed(conn, "rising", "arxiv_papers", [1, 1, 2, 2, 3, 3, 4, 6, 9, 13, 18, 24, 31, 39],
+         end_week=week)
+    rows = {row["tech_id"]: row for row in metrics.compute_week(conn, week, watchlist)}
+    assert rows["at_cutoff"]["momentum"] is not None
