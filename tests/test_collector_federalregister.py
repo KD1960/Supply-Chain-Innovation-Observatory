@@ -41,6 +41,11 @@ def test_parse_handles_an_empty_result_set():
     assert FederalRegisterCollector().parse(json.dumps({"results": []})) == []
 
 
+def test_date_window_opens_a_week_early_for_late_published_documents():
+    # 2026-W33 runs 2026-08-10 to 2026-08-16; both bounds are inclusive here.
+    assert FederalRegisterCollector().date_window("2026-W33") == ("2026-08-03", "2026-08-16")
+
+
 def test_agency_with_zero_id_is_preserved():
     payload = json.dumps({"results": [{
         "document_number": "2026-2", "publication_date": "2026-08-12",

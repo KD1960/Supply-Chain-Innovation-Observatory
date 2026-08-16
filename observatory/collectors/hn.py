@@ -34,7 +34,9 @@ class HackerNewsCollector(BaseCollector):
     rate_limit_seconds = 1.0
 
     def numeric_filters(self, week: str) -> str:
+        """A week-long lookback catches stories indexed after the last run."""
         start, end = config.week_bounds(week)
+        start = start - dt.timedelta(days=config.LOOKBACK_DAYS)
         start_epoch = int(
             dt.datetime.combine(start, dt.time.min, tzinfo=dt.timezone.utc).timestamp()
         )

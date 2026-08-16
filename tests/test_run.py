@@ -119,6 +119,25 @@ def test_ingest_week_is_idempotent(conn, watchlist):
     assert run.ingest_week(conn, "2026-W33", watchlist, [stub()], ok)[0] == 0
 
 
+def test_an_observation_is_keyed_by_the_documents_week_not_the_run_week(conn, watchlist):
+    # The lookback overlap means a run routinely sees last week's documents.
+    # 2026-08-05 is in 2026-W32, so that is where the observation belongs.
+    late = stub(date="2026-08-05")
+    ok = run.fetch_week(conn, "2026-W33", [late], session=None)
+    run.ingest_week(conn, "2026-W33", watchlist, [late], ok)
+
+    assert store.observations_for(conn, "2026-W32", "autonomous_trucking")
+    assert store.observations_for(conn, "2026-W33", "autonomous_trucking") == []
+
+
+def test_a_document_without_a_date_falls_back_to_the_run_week(conn, watchlist):
+    undated = stub(date=None)
+    ok = run.fetch_week(conn, "2026-W33", [undated], session=None)
+    run.ingest_week(conn, "2026-W33", watchlist, [undated], ok)
+
+    assert store.observations_for(conn, "2026-W33", "autonomous_trucking")
+
+
 def test_ingest_week_isolates_a_collector_whose_parse_raises(conn, watchlist, tmp_path):
     collectors = [stub(name="hn"), PoisonedCollector()]
     result = run.run_week(conn, "2026-W33", watchlist, collectors, session=None,

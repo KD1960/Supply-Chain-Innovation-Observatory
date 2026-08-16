@@ -36,6 +36,8 @@ def test_parse_handles_an_empty_result_set():
     assert HackerNewsCollector().parse(json.dumps({"hits": []})) == []
 
 
-def test_numeric_filters_bound_the_week():
+def test_numeric_filters_bound_the_week_plus_a_seven_day_lookback():
+    # 1786320000 is Monday 2026-08-10; the lower bound sits a week earlier at
+    # 2026-08-03 so late-indexed stories are still caught.
     filters = HackerNewsCollector().numeric_filters("2026-W33")
-    assert filters == "created_at_i>=1786320000,created_at_i<1786924800"
+    assert filters == "created_at_i>=1785715200,created_at_i<1786924800"

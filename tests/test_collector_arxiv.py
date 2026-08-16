@@ -33,6 +33,9 @@ def test_parse_returns_nothing_for_an_empty_feed():
     assert ArxivCollector().parse(empty) == []
 
 
-def test_query_window_covers_the_whole_iso_week():
+def test_query_window_covers_the_iso_week_plus_a_seven_day_lookback():
+    # 2026-W33 runs 2026-08-10 to 2026-08-16; the window opens on 2026-08-03 so
+    # a preprint indexed after last week's run is still seen, and closes on the
+    # Monday after because arXiv's upper bound is exclusive.
     query = ArxivCollector().date_filter("2026-W33")
-    assert query == "submittedDate:[202608100000 TO 202608170000]"
+    assert query == "submittedDate:[202608030000 TO 202608170000]"

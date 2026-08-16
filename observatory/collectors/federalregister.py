@@ -7,6 +7,7 @@ This is the regulatory half of the deployment signal.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 from typing import Iterator
 
@@ -35,16 +36,22 @@ class FederalRegisterCollector(BaseCollector):
     name = "federalregister"
     rate_limit_seconds = 1.0
 
+    def date_window(self, week: str) -> tuple[str, str]:
+        """Inclusive publication-date bounds, opened a week early so documents
+        posted after the last run are still picked up."""
+        start, end = config.week_bounds(week)
+        return (start - dt.timedelta(days=config.LOOKBACK_DAYS)).isoformat(), end.isoformat()
+
     def fetch_raw(self, session, week: str) -> Iterator[RawPage]:
         limiter = http.RateLimiter(self.rate_limit_seconds)
-        start, end = config.week_bounds(week)
+        gte, lte = self.date_window(week)
         for page in range(1, MAX_PAGES + 1):
             params = [
                 ("per_page", PAGE_SIZE),
                 ("page", page),
                 ("order", "oldest"),
-                ("conditions[publication_date][gte]", start.isoformat()),
-                ("conditions[publication_date][lte]", end.isoformat()),
+                ("conditions[publication_date][gte]", gte),
+                ("conditions[publication_date][lte]", lte),
                 ("fields[]", "document_number"),
                 ("fields[]", "publication_date"),
                 ("fields[]", "title"),

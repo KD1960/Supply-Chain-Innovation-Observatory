@@ -37,8 +37,13 @@ class ArxivCollector(BaseCollector):
     rate_limit_seconds = 3.0  # arXiv asks for one request every three seconds
 
     def date_filter(self, week: str) -> str:
-        """arXiv wants a half-open window, so the upper bound is the Monday after."""
+        """arXiv wants a half-open window, so the upper bound is the Monday after.
+
+        The lower bound reaches a week further back to catch late-indexed
+        preprints; each one is filed under its own submission week.
+        """
         start, end = config.week_bounds(week)
+        start = start - dt.timedelta(days=config.LOOKBACK_DAYS)
         end_exclusive = end + dt.timedelta(days=1)
         return (
             f"submittedDate:[{start.strftime('%Y%m%d')}0000 TO "

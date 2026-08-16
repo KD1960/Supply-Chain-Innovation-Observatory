@@ -22,6 +22,12 @@ RUN_LOG_PATH = DATA_DIR / "run_log.jsonl"
 MIN_HISTORY_WEEKS = 12
 TRAILING_WEEKS = 52
 
+# Every collector reaches this far back beyond the week it is processing, so a
+# document indexed after last week's run is still caught. Safe because each
+# observation is keyed by the document's own date and deduplicated on
+# (source, doc_id, tech_id).
+LOOKBACK_DAYS = 7
+
 
 def iso_week(d: dt.date) -> str:
     year, week, _ = d.isocalendar()
