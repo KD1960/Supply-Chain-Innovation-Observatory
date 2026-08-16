@@ -56,19 +56,19 @@ def scatter(
             cy = _scale(point.y, y_low, y_high, height - PADDING, PADDING)
             parts.append(
                 f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{point.size:.1f}" '
-                f'fill="{point.colour}" fill-opacity="0.75">'
+                f'fill="{escape(point.colour, quote=True)}" fill-opacity="0.75">'
                 f"<title>{escape(point.label, quote=True)}</title></circle>"
             )
     if x_label:
         parts.append(
             f'<text x="{width / 2:.0f}" y="{height - 12}" text-anchor="middle" '
-            f'font-size="12" fill="{TEXT_COLOUR}">{escape(x_label)}</text>'
+            f'font-size="12" fill="{TEXT_COLOUR}">{escape(x_label, quote=True)}</text>'
         )
     if y_label:
         parts.append(
             f'<text x="14" y="{height / 2:.0f}" text-anchor="middle" font-size="12" '
             f'fill="{TEXT_COLOUR}" transform="rotate(-90 14 {height / 2:.0f})">'
-            f"{escape(y_label)}</text>"
+            f"{escape(y_label, quote=True)}</text>"
         )
     parts.append("</svg>")
     return "".join(parts)

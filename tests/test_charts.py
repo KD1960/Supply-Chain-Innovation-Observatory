@@ -25,6 +25,26 @@ def test_scatter_labels_are_escaped():
     assert "<carts>" not in svg
 
 
+def test_scatter_colour_is_escaped():
+    svg = charts.scatter([charts.Point(1.0, 1.0, label="ok", colour='red" onmouseover="alert(1)"')])
+    # The colour string must be escaped so that quotes don't break out of the attribute
+    assert 'fill="red" onmouseover=' not in svg
+    assert "&quot;" in svg
+    assert 'red&quot; onmouseover=' in svg
+
+
+def test_scatter_axis_labels_are_escaped():
+    svg = charts.scatter(
+        [charts.Point(1.0, 1.0, label="test")],
+        x_label='X <label>',
+        y_label='Y & "test"'
+    )
+    assert "&lt;label&gt;" in svg
+    assert "&amp;" in svg
+    assert "&quot;" in svg
+    assert "<label>" not in svg
+
+
 def test_scatter_never_references_an_external_resource():
     # The opening tag carries the SVG xmlns, which is an identifier and not a
     # fetched resource. Everything after it must be free of URLs.
