@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supply Chain Innovation Observatory &middot; {{ week }}</title>
+<style>
+  :root { --ink: #1d2125; --muted: #6b7580; --rule: #e3e6e9; --bg: #ffffff;
+          --up: #1f7a4d; --down: #a33a3a; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 24px 96px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 17px; margin: 44px 0 12px; padding-bottom: 8px;
+       border-bottom: 1px solid var(--rule); }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .health { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; padding: 0; list-style: none; }
+  .chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--rule); }
+  .chip.ok { background: #edf7f1; border-color: #cfe8db; }
+  .chip.stale { background: #fdf6e8; border-color: #f0e0bb; }
+  .chip.failed { background: #fbeeee; border-color: #eccccc; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 600; color: var(--muted); font-size: 12px;
+       text-transform: uppercase; letter-spacing: 0.04em; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); } .down { color: var(--down); }
+  .empty { color: var(--muted); font-style: italic; }
+  footer { margin-top: 56px; color: var(--muted); font-size: 12px;
+           border-top: 1px solid var(--rule); padding-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Supply Chain Innovation Observatory</h1>
+  <p class="sub">Week {{ week }} &middot; generated {{ generated_for }} &middot; lexicon v{{ lexicon_version }}</p>
+
+  <h2>Source health</h2>
+  <ul class="health">
+    {% for source in sources %}
+      <li class="chip {{ source.status }}" title="{{ source.note }}">{{ source.name }}</li>
+    {% else %}
+      <li class="empty">No sources have run yet.</li>
+    {% endfor %}
+  </ul>
+
+  <h2>This Week's Movers</h2>
+  {% if movers %}
+  <table>
+    <thead><tr><th>Technology</th><th>Family</th><th class="num">Momentum</th>
+      <th class="num">Substance</th><th class="num">Lab&nbsp;&rarr;&nbsp;Field</th>
+      <th class="num">Adopters</th></tr></thead>
+    <tbody>
+    {% for mover in movers %}
+      <tr>
+        <td>{{ mover.name }}</td>
+        <td>{{ mover.family }}</td>
+        <td class="num {{ 'up' if mover.momentum > 0 else 'down' }}">{{ '%+.2f'|format(mover.momentum) }}</td>
+        <td class="num">{{ '%+.2f'|format(mover.sai) if mover.sai is not none else '—' }}</td>
+        <td class="num">{{ '%+.2f'|format(mover.lfi) if mover.lfi is not none else '—' }}</td>
+        <td class="num">{{ mover.adoption }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">Not enough history yet to rank movers.</p>
+  {% endif %}
+
+  <h2>Stage Board</h2>
+  <p class="sub">Horizontal: position in the pipeline, 1 = idea to 5 = diffusion. Vertical: momentum.</p>
+  {{ stage_board_svg }}
+
+  <h2>Substance vs. Attention</h2>
+  <p class="sub">Above the line, more building than talking.</p>
+  {{ substance_svg }}
+
+  <h2>Lab &rarr; Field Watch</h2>
+  {% if crossovers %}
+  <table>
+    <thead><tr><th>Technology</th><th class="num">Lab&nbsp;&rarr;&nbsp;Field</th><th>Trend</th></tr></thead>
+    <tbody>
+    {% for row in crossovers %}
+      <tr><td>{{ row.name }}</td><td class="num">{{ '%+.2f'|format(row.lfi) }}</td><td>{{ row.spark }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No technology has crossed into deployment this week.</p>
+  {% endif %}
+
+  <h2>Build Map</h2>
+  <p class="empty">Arrives with the USAspending collector in the next phase.</p>
+
+  <h2>Rising Terms</h2>
+  <p class="empty">Arrives with the discovery step in the next phase.</p>
+
+  {% if warming_up %}
+  <footer>
+    Warming up (fewer than 12 weeks of history, no scores yet):
+    {{ warming_up|join(', ') }}
+  </footer>
+  {% endif %}
+</main>
+</body>
+</html>
