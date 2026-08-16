@@ -1,0 +1,41 @@
+import json
+from pathlib import Path
+
+from observatory.collectors.federalregister import FederalRegisterCollector
+
+FIXTURE = Path(__file__).parent / "fixtures" / "federalregister_page.json"
+
+
+def test_parse_extracts_both_documents():
+    assert len(FederalRegisterCollector().parse(FIXTURE.read_text())) == 2
+
+
+def test_doc_id_uses_the_document_number():
+    first = FederalRegisterCollector().parse(FIXTURE.read_text())[0]
+    assert first.doc_id == "fedreg:2026-17421"
+    assert first.date == "2026-08-12"
+
+
+def test_agency_becomes_the_entity():
+    first = FederalRegisterCollector().parse(FIXTURE.read_text())[0]
+    assert first.entity == "Federal Motor Carrier Safety Administration"
+    assert first.entity_id == "200"
+
+
+def test_abstract_is_the_searchable_body():
+    first = FederalRegisterCollector().parse(FIXTURE.read_text())[0]
+    assert "driverless truck" in first.text
+
+
+def test_missing_agencies_do_not_raise():
+    payload = json.dumps({"results": [{
+        "document_number": "2026-1", "publication_date": "2026-08-12",
+        "title": "T", "abstract": None, "html_url": "https://x.test", "agencies": []
+    }]})
+    document = FederalRegisterCollector().parse(payload)[0]
+    assert document.entity is None
+    assert document.text == ""
+
+
+def test_parse_handles_an_empty_result_set():
+    assert FederalRegisterCollector().parse(json.dumps({"results": []})) == []

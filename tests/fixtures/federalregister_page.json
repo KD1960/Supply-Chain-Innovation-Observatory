@@ -1,0 +1,24 @@
+{
+  "count": 2,
+  "total_pages": 1,
+  "results": [
+    {
+      "document_number": "2026-17421",
+      "publication_date": "2026-08-12",
+      "title": "Automated Driving Systems for Commercial Motor Vehicles; Exemption",
+      "abstract": "FMCSA grants an exemption enabling driverless truck operations on designated corridors.",
+      "html_url": "https://www.federalregister.gov/documents/2026/08/12/2026-17421/automated-driving-systems",
+      "type": "Notice",
+      "agencies": [{"name": "Federal Motor Carrier Safety Administration", "id": 200}]
+    },
+    {
+      "document_number": "2026-17500",
+      "publication_date": "2026-08-14",
+      "title": "Port Infrastructure Development Program; Shore Power Grants",
+      "abstract": "MARAD announces awards supporting port electrification and shore power.",
+      "html_url": "https://www.federalregister.gov/documents/2026/08/14/2026-17500/port-infrastructure",
+      "type": "Notice",
+      "agencies": [{"name": "Maritime Administration", "id": 210}]
+    }
+  ]
+}
