@@ -19,6 +19,18 @@ CREATE TABLE IF NOT EXISTS sources (
     updated_at TEXT
 );
 
+-- `sources` holds only the latest state, which is all the health strip needs.
+-- Replaying an old week needs to know how that week went, not how the last one
+-- did, so every status write is also appended here, one row per source per week.
+CREATE TABLE IF NOT EXISTS source_runs (
+    source TEXT NOT NULL,
+    week TEXT NOT NULL,
+    status TEXT,
+    note TEXT,
+    updated_at TEXT,
+    PRIMARY KEY (source, week)
+);
+
 CREATE TABLE IF NOT EXISTS raw_fetch (
     id INTEGER PRIMARY KEY,
     source TEXT NOT NULL,
@@ -107,6 +119,30 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
 
 def init_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    # Databases written before source_runs existed know only each source's last
+    # week. Seed that, so replaying it does not find the source silently absent.
+    conn.execute(
+        "INSERT OR IGNORE INTO source_runs (source, week, status, note, updated_at) "
+        "SELECT name, last_run_week, status, note, updated_at FROM sources "
+        "WHERE last_run_week IS NOT NULL"
+    )
+    conn.commit()
+
+
+def clear_derived(conn: sqlite3.Connection) -> None:
+    """Drop everything computed from raw, ahead of a --rebuild.
+
+    Observations are written with INSERT OR IGNORE, so replaying a week over
+    existing rows changes nothing: without this, a rebuild after a parser fix
+    or a widened pattern returns exactly what the old code wrote. `raw_fetch`
+    and `sources`/`source_runs` are deliberately spared — the first is an
+    append-only log of fetch attempts, the second is what tells the replay
+    which weeks were complete.
+    """
+    conn.executescript(
+        "DELETE FROM observations; DELETE FROM weekly_signals; "
+        "DELETE FROM weekly_metrics;"
+    )
     conn.commit()
 
 
@@ -171,11 +207,26 @@ def set_source_status(conn, name: str, week: str, status: str, note: str = "") -
         "status = excluded.status, note = excluded.note, updated_at = excluded.updated_at",
         (name, week, status, note),
     )
+    conn.execute(
+        "INSERT INTO source_runs (source, week, status, note, updated_at) "
+        "VALUES (?, ?, ?, ?, datetime('now')) "
+        "ON CONFLICT (source, week) DO UPDATE SET status = excluded.status, "
+        "note = excluded.note, updated_at = excluded.updated_at",
+        (name, week, status, note),
+    )
     conn.commit()
 
 
 def source_statuses(conn) -> list[dict]:
     return [dict(row) for row in conn.execute("SELECT * FROM sources ORDER BY name")]
+
+
+def ok_sources_for_week(conn, week: str) -> set[str]:
+    """Sources whose recorded run for this week completed."""
+    rows = conn.execute(
+        "SELECT source FROM source_runs WHERE week = ? AND status = 'ok'", (week,)
+    ).fetchall()
+    return {row["source"] for row in rows}
 
 
 def upsert_metrics(conn, row: dict) -> None:
