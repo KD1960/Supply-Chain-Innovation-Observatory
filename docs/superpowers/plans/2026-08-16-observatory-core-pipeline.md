@@ -3675,6 +3675,29 @@ Carried to the second plan, in this order:
 
 ## Known limitations carried forward
 
+- **The watchlist patterns are broader than their own entry names — fix before trusting a
+  weekly cadence.** The first live run (2026-W33) produced 10 observations of which 9 were
+  off-concept. Four entries match far more than they claim: `humanoid_logistics` ("Humanoid
+  robots *in logistics*") matches a bare `humanoid robot(s)?`; `additive_spares`
+  ("…*for spare parts*") matches any `additive manufacturing`; `agentic_procurement`
+  ("…*for procurement*") matches any `agentic ai`; `demand_forecasting_ml` matches any
+  domain's `demand forecasting`. Two acronyms match across a hyphen because `\b` is
+  satisfied there: `\bAMRs?\b` caught "AMR-Pose" (underwater vehicles), and `\bTMS\b` will
+  catch transcranial magnetic stimulation. This is exactly what plan 2's offline
+  `lexicon propose --all` is built for — the domain judgement is the owner's, not an
+  implementer's. Because `--rebuild` now re-derives observations from raw, history
+  collected under the current thin lexicon *can* be repaired after the patterns are
+  tightened; that was not true before the final review.
+
+- **Carried into plan 2's collector work:** `http.fetch` treats only HTTP 200 as success.
+  GitHub's `/repos/{r}/stats` endpoints return **202** while computing statistics, so the
+  GitHub collector task must widen this to the 2xx range or handle 202 explicitly.
+
+- **Docs drift to reconcile in plan 2:** the design spec's §6 schema listing predates the
+  `source_runs` table added by the final review, and the code blocks in this plan still show
+  `sources_with_raw`, which was replaced by `sources_ok_for_week`. The shipped code is the
+  authority on both.
+
 - **arXiv old-style identifiers.** `ArxivCollector.parse` derives the bare id with
   `raw_id.rsplit("/", 1)[-1].split("v")[0]`, which drops the archive prefix on pre-April-2007
   ids: `hep-th/9901001v1` becomes `9901001`, giving a wrong `doc_id` and a 404 URL, and letting
