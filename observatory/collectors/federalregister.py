@@ -77,7 +77,7 @@ class FederalRegisterCollector(BaseCollector):
                     text=result.get("abstract") or "",
                     url=result.get("html_url"),
                     entity=first_agency.get("name"),
-                    entity_id=str(first_agency["id"]) if first_agency.get("id") else None,
+                    entity_id=str(first_agency["id"]) if "id" in first_agency else None,
                 )
             )
         return documents

@@ -39,3 +39,13 @@ def test_missing_agencies_do_not_raise():
 
 def test_parse_handles_an_empty_result_set():
     assert FederalRegisterCollector().parse(json.dumps({"results": []})) == []
+
+
+def test_agency_with_zero_id_is_preserved():
+    payload = json.dumps({"results": [{
+        "document_number": "2026-2", "publication_date": "2026-08-12",
+        "title": "T", "abstract": "A", "html_url": "https://x.test",
+        "agencies": [{"name": "Some Agency", "id": 0}]
+    }]})
+    document = FederalRegisterCollector().parse(payload)[0]
+    assert document.entity_id == "0"
