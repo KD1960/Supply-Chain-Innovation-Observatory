@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <opensearch:totalResults xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">2</opensearch:totalResults>
+  <entry>
+    <id>http://arxiv.org/abs/2608.01234v1</id>
+    <updated>2026-08-12T15:04:05Z</updated>
+    <published>2026-08-12T15:04:05Z</published>
+    <title>Fleet Learning for Autonomous Trucking on Interstate Corridors</title>
+    <summary>  We study closed-loop fleet learning for driverless truck operations
+across long-haul corridors.
+</summary>
+    <link href="http://arxiv.org/abs/2608.01234v1" rel="alternate" type="text/html"/>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2608.05678v2</id>
+    <updated>2026-08-14T09:00:00Z</updated>
+    <published>2026-08-13T09:00:00Z</published>
+    <title>Scheduling Warehouse Robots under Stochastic Demand</title>
+    <summary>An approximation algorithm for warehouse robotics fleets.</summary>
+    <link href="http://arxiv.org/abs/2608.05678v2" rel="alternate" type="text/html"/>
+    <category term="math.OC" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+</feed>
