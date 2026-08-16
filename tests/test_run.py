@@ -44,6 +44,7 @@ def watchlist():
 @pytest.fixture()
 def conn(tmp_path, monkeypatch):
     monkeypatch.setattr(run.base.config, "RAW_DIR", tmp_path / "raw")
+    monkeypatch.setattr(run.base.config, "RUN_LOG_PATH", tmp_path / "run_log.jsonl")
     connection = store.connect(":memory:")
     store.init_schema(connection)
     yield connection
@@ -92,6 +93,10 @@ def test_run_week_produces_a_dashboard_file(conn, watchlist, tmp_path):
                           session=None, out_path=output)
     assert result.exists()
     assert "Supply Chain Innovation Observatory" in result.read_text()
+
+    log_lines = (tmp_path / "run_log.jsonl").read_text().splitlines()
+    assert len(log_lines) == 1
+    assert json.loads(log_lines[0])["week"] == "2026-W33"
 
 
 def test_running_the_same_week_twice_gives_identical_metrics(conn, watchlist, tmp_path):
