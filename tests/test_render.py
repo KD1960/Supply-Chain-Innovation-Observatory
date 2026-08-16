@@ -77,11 +77,29 @@ def test_render_writes_a_file_containing_every_block(conn, watchlist, tmp_path):
         assert block in html
 
 
+def test_render_dashboard_without_out_path_writes_archive_and_latest(
+    conn, watchlist, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(render.config, "OUTPUT_DIR", tmp_path)
+    path = render.render_dashboard(conn, "2026-W33", watchlist)
+    assert path == tmp_path / "dashboard-2026-W33.html"
+    assert path.exists()
+    latest = tmp_path / "latest.html"
+    assert latest.exists()
+    assert latest.read_text() == path.read_text()
+
+
 def test_rendered_page_has_no_external_resources(conn, watchlist, tmp_path):
     path = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "dashboard.html")
     html = path.read_text()
-    external = re.findall(r'(?:src|href)="https?://[^"]+"', html)
-    assert external == []
+    attr_refs = re.findall(
+        r'\b(?:src|href)\s*=\s*[\'"](?:https?:)?//[^\'"]*[\'"]', html
+    )
+    url_refs = re.findall(
+        r'url\(\s*[\'"]?(?:https?:)?//[^)\'"]*[\'"]?\)', html
+    )
+    assert attr_refs == []
+    assert url_refs == []
 
 
 def test_rendered_page_states_the_lexicon_version(conn, watchlist, tmp_path):
