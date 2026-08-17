@@ -338,9 +338,19 @@ def test_rebuild_and_only_are_rejected_together(conn, capsys):
     assert "--rebuild always replays every source" in capsys.readouterr().err
 
 
-def test_backfill_and_only_are_rejected_together(conn, capsys):
+def test_backfill_and_only_are_rejected_together(conn, capsys, monkeypatch):
     # --backfill always ends in a full rebuild, which hits the same
-    # clear_derived-then-replay-one-source hole as --rebuild --only.
+    # clear_derived-then-replay-one-source hole as --rebuild --only. Unlike
+    # the --rebuild guard above, a regression here doesn't just fail an
+    # assertion: main's backfill branch opens a real session and fetches
+    # live, so a broken guard would have this test hammering arXiv and SEC on
+    # every `pytest` run. Make that structurally impossible rather than
+    # trusting the guard to keep working.
+    def no_network():
+        raise AssertionError("the test suite must not open a network session")
+
+    monkeypatch.setattr(run.http, "make_session", no_network)
+
     with pytest.raises(SystemExit) as excinfo:
         run.main(["--backfill", "3", "--only", "arxiv"])
     assert excinfo.value.code == 2
