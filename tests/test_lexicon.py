@@ -66,3 +66,43 @@ def test_prepare_says_so_when_there_are_no_candidates(watchlist, tmp_path):
     text = lexicon.prepare(connection, "2026-W33", watchlist, tmp_path / "req.md").read_text()
     assert "no candidate terms" in text.lower()
     connection.close()
+
+
+def test_request_escapes_markdown_syntax_in_untrusted_candidate_text(watchlist, tmp_path):
+    """Terms and titles are harvested from public APIs, unsanitised. A
+    backtick would break the `term` code span; a `]` followed by `(` would
+    splice in an attacker-chosen link destination. Both must come through
+    escaped rather than parsed as Markdown structure."""
+    connection = store.connect(":memory:")
+    store.init_schema(connection)
+    store.upsert_candidates(connection, "2026-W33", [
+        Candidate(term="weird`term", count=3, baseline=1.0, ratio=3.0,
+                  examples=[("Title with `backtick`, [brackets], and (parens)",
+                              "https://x.test/2")]),
+    ])
+    text = lexicon.prepare(connection, "2026-W33", watchlist, tmp_path / "req.md").read_text()
+    connection.close()
+    assert "weird\\`term" in text
+    assert "\\`backtick\\`" in text
+    assert "\\[brackets\\]" in text
+    assert "\\(parens\\)" in text
+
+
+def test_request_wraps_a_url_containing_a_closing_paren_in_angle_brackets(watchlist, tmp_path):
+    connection = store.connect(":memory:")
+    store.init_schema(connection)
+    store.upsert_candidates(connection, "2026-W33", [
+        Candidate(term="dark factory", count=3, baseline=1.0, ratio=3.0,
+                  examples=[("Title", "https://x.test/path(1)")]),
+    ])
+    text = lexicon.prepare(connection, "2026-W33", watchlist, tmp_path / "req.md").read_text()
+    connection.close()
+    assert "(<https://x.test/path(1)>)" in text
+
+
+def test_request_warns_candidate_text_is_untrusted_and_not_instructions(conn, watchlist, tmp_path):
+    text = lexicon.prepare(conn, "2026-W33", watchlist, tmp_path / "req.md").read_text()
+    assert "untrusted" in text.lower()
+    # It must appear before any actual candidate, not just anywhere in the file.
+    assert text.index("untrusted") > text.index("## Candidate terms")
+    assert text.index("untrusted") < text.index("### `dark factory`")
