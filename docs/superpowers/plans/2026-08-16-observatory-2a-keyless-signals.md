@@ -1298,37 +1298,61 @@ git commit -m "feat: SEC EDGAR collector counting distinct filers"
 
 ### Task 8: Register the collectors and run the pipeline for real
 
+**Deferral affecting this task.** Tasks 3 and 4 (GDELT doc and geo) could not be completed:
+GDELT rate-limited the project into an HTTP 429 IP cooldown during fixture capture, and it was
+still refusing requests forty minutes later. Rather than hand-write a fixture — the exact
+shortcut that shipped a broken collector in the previous plan — those two tasks are deferred
+and their drafts parked. So this task registers **five** collectors, not seven, and the
+aggregation-coverage test carries an explicit deferred set. When GDELT is reachable again,
+tasks 3 and 4 land and both lists shrink by their two entries.
+
 **Files:**
 - Modify: `observatory/run.py`
 - Test: `tests/test_run.py`
 
 **Interfaces:**
-- Consumes: all four new collectors.
-- Produces: `COLLECTORS` becomes a seven-collector tuple.
+- Consumes: `UsaspendingCollector`, `EdgarCollector`.
+- Produces: `COLLECTORS` becomes a five-collector tuple.
 
 - [ ] **Step 1: Write the failing test**
 
 Append to `tests/test_run.py`:
 
 ```python
+# Sources whose collectors are not built yet. GDELT is deferred from this plan
+# run (rate-limit cooldown during fixture capture); the rest arrive in plan 2B.
+DEFERRED_SOURCES = {"gdelt_doc", "gdelt_geo"}
+# Signals with no aggregation at all yet. The GDELT signals are NOT listed here:
+# task 1 already declared their aggregations, so they are produced — they simply
+# stay empty until their collector is registered.
+DEFERRED_SIGNALS = {"patents", "gh_repos_new", "gh_commits", "gh_stars_delta"}
+
+
 def test_every_collector_has_a_unique_name_and_a_rate_limit():
     names = [collector.name for collector in run.COLLECTORS]
     assert len(names) == len(set(names))
     assert set(names) == {
-        "arxiv", "hn", "federalregister",
-        "gdelt_doc", "gdelt_geo", "usaspending", "edgar",
+        "arxiv", "hn", "federalregister", "usaspending", "edgar",
     }
     for collector in run.COLLECTORS:
         assert collector.rate_limit_seconds > 0
 
 
-def test_every_aggregation_names_a_registered_collector():
+def test_every_aggregation_names_a_registered_or_knowingly_deferred_collector():
     """A signal whose source does not exist would silently never be written."""
     from observatory import normalize
 
-    names = {collector.name for collector in run.COLLECTORS}
+    names = {collector.name for collector in run.COLLECTORS} | DEFERRED_SOURCES
     for aggregation in normalize.AGGREGATIONS:
         assert aggregation.source in names, aggregation.signal
+
+
+def test_deferred_sources_are_really_absent():
+    """Keeps the allowance above honest — it must shrink when GDELT lands."""
+    names = {collector.name for collector in run.COLLECTORS}
+    assert not (names & DEFERRED_SOURCES), (
+        "a deferred source is now registered; remove it from DEFERRED_SOURCES"
+    )
 
 
 def test_every_stage_signal_is_produced_by_some_aggregation():
@@ -1336,9 +1360,8 @@ def test_every_stage_signal_is_produced_by_some_aggregation():
     from observatory import metrics, normalize
 
     produced = {aggregation.signal for aggregation in normalize.AGGREGATIONS}
-    expected_from_2b = {"patents", "gh_repos_new", "gh_commits", "gh_stars_delta"}
     for signal in metrics.ALL_SIGNALS:
-        if signal in expected_from_2b:
+        if signal in DEFERRED_SIGNALS:
             continue
         assert signal in produced, f"{signal} has no aggregation"
 ```
@@ -1350,14 +1373,12 @@ Expected: the collector-name test fails — the tuple still holds three.
 
 - [ ] **Step 3: Implement**
 
-In `observatory/run.py`, import and register the four new collectors:
+In `observatory/run.py`, import and register the two new collectors:
 
 ```python
 from .collectors.arxiv import ArxivCollector
 from .collectors.edgar import EdgarCollector
 from .collectors.federalregister import FederalRegisterCollector
-from .collectors.gdelt_doc import GdeltDocCollector
-from .collectors.gdelt_geo import GdeltGeoCollector
 from .collectors.hn import HackerNewsCollector
 from .collectors.usaspending import UsaspendingCollector
 
@@ -1365,12 +1386,12 @@ COLLECTORS = (
     ArxivCollector(),
     HackerNewsCollector(),
     FederalRegisterCollector(),
-    GdeltDocCollector(),
-    GdeltGeoCollector(),
     UsaspendingCollector(),
     EdgarCollector(),
 )
 ```
+
+Do not import the GDELT collectors — they do not exist in the tree.
 
 - [ ] **Step 4: Run the full suite**
 
@@ -1381,9 +1402,9 @@ Expected: all pass, including the guardrail tests.
 
 Run: `python -m observatory.run --week 2026-W33`
 
-This hits seven live APIs and will take several minutes — arXiv alone is rate-limited to one request every three seconds. That is normal, not a hang.
+This hits five live APIs and will take several minutes — arXiv alone is rate-limited to one request every three seconds. That is normal, not a hang.
 
-Report honestly what happened: the status of each of the seven sources, the observation count per source, and the signal counts. **If a source fails, report the actual error rather than retrying until it looks clean.** A genuinely broken endpoint is useful information and the run isolates it by design. If a collector fails on its very first live contact, that is what this step exists to find — diagnose it, fix the collector, and say so in your report.
+Report honestly what happened: the status of each of the five sources, the observation count per source, and the signal counts. **If a source fails, report the actual error rather than retrying until it looks clean.** A genuinely broken endpoint is useful information and the run isolates it by design. If a collector fails on its very first live contact, that is what this step exists to find — diagnose it, fix the collector, and say so in your report.
 
 - [ ] **Step 6: Commit**
 
