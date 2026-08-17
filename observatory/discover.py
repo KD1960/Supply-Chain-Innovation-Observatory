@@ -11,6 +11,7 @@ Everything here is deterministic: no model, no randomness, no clock.
 from __future__ import annotations
 
 import re
+import sys
 from collections import Counter
 from dataclasses import dataclass
 
@@ -92,10 +93,12 @@ def _documents_for_week(week: str, collectors) -> list:
     """Every document fetched for a week, matched or not, re-parsed from raw."""
     documents = []
     for collector in collectors:
-        for _, text in base.read_raw(collector.name, week):
+        for path, text in base.read_raw(collector.name, week):
             try:
                 documents.extend(collector.parse(text))
-            except Exception:  # a poisoned raw file must not stop discovery
+            except Exception as error:  # a poisoned raw file must not stop discovery
+                print(f"  ! discover: {collector.name} failed to parse {path}: {error}",
+                      file=sys.stderr)
                 continue
     return documents
 
@@ -131,8 +134,8 @@ def detect_rising(week: str, collectors, watchlist) -> RisingTerms:
         ratio = count / baseline if baseline else float(count)
         if ratio < MIN_RATIO:
             continue
-        if watchlist.match(term):
-            continue  # already covered by an active technology
+        if _already_covered(watchlist, term):
+            continue
         candidates.append(
             Candidate(term=term, count=count, baseline=round(baseline, 3),
                       ratio=round(ratio, 2), examples=_examples(documents, term))

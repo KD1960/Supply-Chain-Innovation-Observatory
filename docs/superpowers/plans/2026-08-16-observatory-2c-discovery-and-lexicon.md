@@ -605,14 +605,32 @@ def detect_rising(week: str, collectors, watchlist) -> list[Candidate]:
         ratio = count / baseline if baseline else float(count)
         if ratio < MIN_RATIO:
             continue
-        if watchlist.match(term):
-            continue  # already covered by an active technology
+        if _already_covered(watchlist, term):
+            continue  # an active technology's pattern already covers this phrase
         candidates.append(
             Candidate(term=term, count=count, baseline=round(baseline, 3),
                       ratio=round(ratio, 2), examples=_examples(documents, term))
         )
     candidates.sort(key=lambda candidate: (-candidate.ratio, candidate.term))
     return candidates
+
+
+def _already_covered(watchlist, term: str) -> bool:
+    """Does any active technology's pattern already cover this phrase?
+
+    Deliberately ignores `needs_context`. The context gate decides whether a
+    *document* counts; it has no bearing on whether a phrase is already in the
+    lexicon. Asking `watchlist.match(term)` here instead would fail for every
+    context-gated technology, because a bare two-word phrase almost never
+    carries a context word of its own — and nineteen of the shipped
+    technologies are context-gated.
+    """
+    for tech in watchlist.active:
+        if any(pattern.search(term) for pattern in tech.exclude_res):
+            continue
+        if any(pattern.search(term) for pattern in tech.include_res):
+            return True
+    return False
 
 
 def _examples(documents, term: str) -> list[tuple[str, str]]:
