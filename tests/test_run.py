@@ -404,3 +404,54 @@ def test_every_stage_signal_is_produced_by_some_aggregation():
         if signal in DEFERRED_SIGNALS:
             continue
         assert signal in produced, f"{signal} has no aggregation"
+
+
+def test_weeks_needing_fetch_skips_weeks_already_complete(conn):
+    weeks = ["2026-W30", "2026-W31", "2026-W32"]
+    collectors = [stub()]
+    for week in ("2026-W30", "2026-W32"):
+        store.set_source_status(conn, "stub", week, "ok", "")
+    assert run.weeks_needing_fetch(conn, weeks, collectors) == ["2026-W31"]
+
+
+def test_weeks_needing_fetch_retries_a_week_whose_source_failed(conn):
+    store.set_source_status(conn, "stub", "2026-W30", "failed", "timeout")
+    assert run.weeks_needing_fetch(conn, ["2026-W30"], [stub()]) == ["2026-W30"]
+
+
+def test_weeks_needing_fetch_requires_every_collector(conn):
+    """A week is complete only when every registered collector has run it."""
+    store.set_source_status(conn, "stub", "2026-W30", "ok", "")
+    two = [stub(), StubCollector([], [], name="second")]
+    assert run.weeks_needing_fetch(conn, ["2026-W30"], two) == ["2026-W30"]
+
+
+def test_backfill_fetches_oldest_first_and_returns_what_it_fetched(conn, watchlist, tmp_path):
+    calls = []
+
+    class RecordingCollector(StubCollector):
+        def fetch_raw(self, session, week):
+            calls.append(week)
+            yield from super().fetch_raw(session, week)
+
+    collector = RecordingCollector(
+        [RawPage(url="https://x.test/1", status=200, text=json.dumps({"ok": 1}))],
+        [Document(doc_id="d1", date="2026-08-12", title="Autonomous trucking corridor",
+                  text="", url="https://x.test/a")],
+    )
+    fetched = run.backfill(conn, watchlist, weeks_back=3, collectors=[collector], session=None)
+    assert calls == sorted(calls), "backfill must fetch oldest first"
+    assert fetched == calls
+
+
+def test_backfill_skips_weeks_it_has_already_fetched(conn, watchlist):
+    collector = stub()
+    first = run.backfill(conn, watchlist, weeks_back=2, collectors=[collector], session=None)
+    second = run.backfill(conn, watchlist, weeks_back=2, collectors=[collector], session=None)
+    assert first, "first pass should fetch something"
+    assert second == [], "second pass should find everything already fetched"
+
+
+def test_backfill_rejects_a_nonsensical_window(conn, watchlist):
+    with pytest.raises(ValueError):
+        run.backfill(conn, watchlist, weeks_back=0, collectors=[stub()], session=None)

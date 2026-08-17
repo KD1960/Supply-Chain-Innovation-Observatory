@@ -45,6 +45,34 @@ def fetch_week(conn, week: str, collectors, session) -> set[str]:
     return succeeded
 
 
+def weeks_needing_fetch(conn, weeks: list[str], collectors) -> list[str]:
+    """Weeks where some collector has not yet recorded a successful run.
+
+    This is what makes backfill resumable: a year of history is hours of
+    polite fetching, and it must survive being interrupted and restarted
+    without re-downloading what it already has.
+    """
+    wanted = {collector.name for collector in collectors}
+    return [week for week in weeks if not wanted <= store.ok_sources_for_week(conn, week)]
+
+
+def backfill(conn, watchlist, weeks_back: int, collectors=COLLECTORS, session=None) -> list[str]:
+    if weeks_back < 1:
+        raise ValueError(f"weeks_back must be at least 1, got {weeks_back}")
+
+    weeks = config.trailing_weeks(config.current_week(), weeks_back)
+    pending = weeks_needing_fetch(conn, weeks, collectors)
+    if not pending:
+        print(f"Backfill: all {len(weeks)} weeks already fetched")
+        return []
+
+    print(f"Backfill: {len(pending)} of {len(weeks)} weeks to fetch, oldest first")
+    for position, week in enumerate(pending, start=1):
+        print(f"  [{position}/{len(pending)}] {week}")
+        fetch_week(conn, week, collectors, session)
+    return pending
+
+
 def weeks_swept_by(week: str) -> list[str]:
     """Every ISO week a run for `week` actually looked at.
 
@@ -274,6 +302,8 @@ def main(argv=None) -> int:
                         help="recompute from raw files already on disk")
     parser.add_argument("--rebuild", action="store_true",
                         help="recompute every week that has raw data")
+    parser.add_argument("--backfill", type=int, default=None, metavar="WEEKS",
+                        help="fetch this many trailing weeks of history, then rebuild")
     parser.add_argument("--only", default=None, help="run a single collector by name")
     args = parser.parse_args(argv)
     if args.rebuild and args.only:
@@ -295,6 +325,11 @@ def main(argv=None) -> int:
     conn = store.connect()
     store.init_schema(conn)
     try:
+        if args.backfill is not None:
+            session = http.make_session()
+            backfill(conn, watchlist, args.backfill, collectors, session)
+            rebuild(conn, watchlist, collectors)
+            return 0
         if args.rebuild:
             rebuild(conn, watchlist, collectors)
             return 0
