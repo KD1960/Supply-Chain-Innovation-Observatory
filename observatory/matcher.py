@@ -45,6 +45,7 @@ class Technology:
     status: str
     added_week: str
     patterns_changed_week: str
+    needs_context: bool = False
     include_res: tuple[re.Pattern, ...] = field(repr=False, default=())
     exclude_res: tuple[re.Pattern, ...] = field(repr=False, default=())
 
@@ -60,6 +61,11 @@ class Technology:
 class Watchlist:
     version: int
     technologies: tuple[Technology, ...]
+    context: tuple[str, ...] = ()
+    context_res: tuple[re.Pattern, ...] = field(repr=False, default=())
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "context_res", tuple(compile_pattern(p) for p in self.context))
 
     @property
     def active(self) -> tuple[Technology, ...]:
@@ -74,7 +80,13 @@ class Watchlist:
     def match(self, text: str) -> list[tuple[str, str]]:
         """Return one (tech_id, matched_pattern) per matching active technology."""
         hits: list[tuple[str, str]] = []
+        # Terms like "humanoid robot" or "additive manufacturing" belong to every
+        # field, not ours. Those entries are marked needs_context and only count
+        # when the document also speaks our language somewhere.
+        has_context = any(pattern.search(text) for pattern in self.context_res)
         for tech in self.active:
+            if tech.needs_context and not has_context:
+                continue
             if any(pattern.search(text) for pattern in tech.exclude_res):
                 continue
             for source_pattern, compiled in zip(tech.include, tech.include_res):
@@ -104,9 +116,14 @@ def load_watchlist(path: str | Path | None = None) -> Watchlist:
                 status=entry.get("status", "active"),
                 added_week=entry["added_week"],
                 patterns_changed_week=entry.get("patterns_changed_week", entry["added_week"]),
+                needs_context=bool(entry.get("needs_context", False)),
             )
         )
-    return Watchlist(version=int(raw["lexicon_version"]), technologies=tuple(technologies))
+    return Watchlist(
+        version=int(raw["lexicon_version"]),
+        technologies=tuple(technologies),
+        context=tuple(raw.get("context", ()) or ()),
+    )
 
 
 def observations_for_document(

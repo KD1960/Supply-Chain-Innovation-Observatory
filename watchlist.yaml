@@ -1,16 +1,47 @@
-lexicon_version: 1
+lexicon_version: 2
+
+# Supply chain and operations vocabulary. A technology marked `needs_context`
+# only counts when the document also uses one of these words somewhere — that is
+# what separates "humanoid robots picking totes in a warehouse" from "humanoid
+# robots learn dexterous manipulation".
+#
+# Deliberately absent: a bare "manufacturing". It is as much a technology word as
+# a domain word, so it would let `additive_spares` satisfy its own gate.
+context:
+  - "supply chain(s)?"
+  - "logistics"
+  - "freight"
+  - "warehouse(s|ing)?"
+  - "distribution cent(er|re)(s)?"
+  - "fulfil(l)?ment"
+  - "procurement"
+  - "sourcing"
+  - "inventor(y|ies)"
+  - "shipping"
+  - "shipment(s)?"
+  - "cargo"
+  - "intermodal"
+  - "truck(s|ing)?"
+  - "\\b3PL\\b"
+  - "last[- ]mile"
+  - "supplier(s)?"
+  - "shop floor"
+  - "production line(s)?"
+  - "factor(y|ies)"
+  - "operations management"
+
 technologies:
   # --- Automation & robotics -------------------------------------------------
   - {id: warehouse_robotics, name: Warehouse robotics, family: automation,
      include: ["warehouse robot(s|ics)?", "autonomous mobile robot(s)?", "\\bAMRs?\\b",
                "automated storage and retrieval", "\\bAS/RS\\b"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: piece_picking, name: Piece-picking robotics, family: automation,
      include: ["piece[- ]picking", "robotic (item |piece )?picking", "bin picking"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: humanoid_logistics, name: Humanoid robots in logistics, family: automation,
      include: ["humanoid robot(s)?", "general[- ]purpose humanoid"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: autonomous_yard, name: Autonomous yard trucks, family: automation,
      include: ["autonomous yard (truck|tractor|spotter)(s)?", "yard automation"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
@@ -25,6 +56,10 @@ technologies:
   - {id: delivery_drones, name: Delivery drones, family: automation,
      include: ["delivery drone(s)?", "drone delivery", "\\bBVLOS\\b"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  - {id: robotic_manufacturing, name: Robotic manufacturing cells, family: automation,
+     include: ["robotic (manufacturing|assembly|welding)", "industrial robot(s)?",
+               "cobot(s)?", "collaborative robot(s)?"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
 
   # --- Vehicles & energy -----------------------------------------------------
   - {id: autonomous_trucking, name: Autonomous trucking, family: vehicles,
@@ -37,8 +72,7 @@ technologies:
                "zero[- ]emission truck(s)?"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: hydrogen_trucks, name: Hydrogen fuel cell trucks, family: vehicles,
-     include: ["hydrogen (fuel cell )?truck(s)?", "fuel cell electric truck(s)?",
-               "\\bFCEV\\b"],
+     include: ["hydrogen (fuel cell )?truck(s)?", "fuel cell electric truck(s)?"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: freight_charging, name: Freight EV charging infrastructure, family: vehicles,
      include: ["truck charging (corridor|depot|hub)(s)?", "megawatt charging",
@@ -48,17 +82,37 @@ technologies:
      include: ["shore power", "cold ironing", "port electrification"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
 
+  # --- Enterprise systems ----------------------------------------------------
+  - {id: erp, name: ERP platforms, family: enterprise,
+     include: ["enterprise resource planning", "\\bERP\\b", "S/4HANA", "SAP S/4"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  - {id: wms, name: Warehouse management systems, family: enterprise,
+     include: ["warehouse management system(s)?", "\\bWMS\\b"],
+     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  - {id: mes, name: Manufacturing execution systems, family: enterprise,
+     include: ["manufacturing execution system(s)?", "\\bMES\\b"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  - {id: sop_planning, name: Sales and operations planning, family: enterprise,
+     include: ["sales and operations planning", "\\bS&OP\\b",
+               "integrated business planning"],
+     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  - {id: advanced_planning, name: Advanced planning and scheduling, family: enterprise,
+     include: ["advanced planning (and scheduling|system(s)?)", "\\bAPS\\b",
+               "production scheduling software"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+
   # --- Digital planning & AI -------------------------------------------------
   - {id: agentic_procurement, name: Agentic AI for procurement, family: digital,
-     include: ["agentic (ai|procurement|sourcing)", "\\bai agent(s)? (for|in) (procurement|sourcing|supply chain)"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     include: ["agentic (ai|procurement|sourcing)",
+               "\\bai agent(s)? (for|in) (procurement|sourcing|supply chain)"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: supply_chain_digital_twin, name: Supply chain digital twins, family: digital,
      include: ["(supply chain|logistics|warehouse) digital twin(s)?",
                "digital twin of (the )?(supply chain|network)"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: demand_forecasting_ml, name: ML demand forecasting, family: digital,
-     include: ["demand forecasting", "demand sensing", "probabilistic forecast(ing|s)?"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     include: ["demand forecasting", "demand sensing"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: control_tower, name: Supply chain control towers, family: digital,
      include: ["(supply chain|logistics) control tower(s)?"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
@@ -69,7 +123,8 @@ technologies:
   - {id: tms_ai, name: AI transportation management, family: digital,
      include: ["transportation management system(s)?", "\\bTMS\\b",
                "\\bai\\b[^.]{0,30}route optimi[sz]ation"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: ["transcranial magnetic stimulation"],
+     needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: digital_freight, name: Digital freight matching, family: digital,
      include: ["digital freight (matching|brokerage|network)", "freight marketplace(s)?",
                "digital broker(age)?"],
@@ -78,16 +133,17 @@ technologies:
   # --- Data, identity & traceability ----------------------------------------
   - {id: item_level_rfid, name: Item-level RFID, family: traceability,
      include: ["item[- ]level rfid", "rfid tagging", "\\bRAIN RFID\\b"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: digital_product_passport, name: Digital product passport, family: traceability,
-     include: ["digital product passport(s)?", "\\bDPP\\b battery"],
+     include: ["digital product passport(s)?"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: gs1_2d, name: GS1 2D barcode transition, family: traceability,
      include: ["gs1 (digital link|sunrise)", "2d barcode(s)?", "sunrise 2027"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: blockchain_traceability, name: Blockchain traceability, family: traceability,
      include: ["blockchain (traceability|provenance)",
-               "distributed ledger[^.]{0,20}(supply chain|provenance)"],
+               "distributed ledger[^.]{0,20}(supply chain|provenance)",
+               "blockchain[^.]{0,30}(supply chain|provenance|logistics)"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: minerals_traceability, name: Critical minerals traceability, family: traceability,
      include: ["critical mineral(s)? (traceability|supply chain)",
@@ -101,31 +157,31 @@ technologies:
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: active_cold_packaging, name: Active cold chain packaging, family: physical,
      include: ["active (thermal |cold )?packaging", "phase change (material|packaging)"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: additive_spares, name: Additive manufacturing for spare parts, family: physical,
      include: ["additive manufacturing", "3d[- ]printed (spare |replacement )?part(s)?",
                "digital (parts )?inventory"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: microfactories, name: Microfactories and distributed manufacturing, family: physical,
      include: ["microfactor(y|ies)", "distributed manufacturing", "on[- ]demand manufacturing"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: microfulfillment, name: Microfulfillment automation, family: physical,
      include: ["micro[- ]fulfil(l)?ment", "dark store(s)?", "automated fulfil(l)?ment cent(er|re)"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: cv_inspection, name: Computer vision for damage inspection, family: physical,
      include: ["(damage|cargo|container) (detection|inspection)[^.]{0,20}(vision|ai)",
                "automated (damage|defect) inspection"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
 
   # --- Networks & resilience -------------------------------------------------
   - {id: risk_intelligence, name: Supply chain risk intelligence, family: networks,
      include: ["supply chain risk (intelligence|monitoring|platform)",
                "\\bn[- ]tier (visibility|mapping)", "supplier risk platform(s)?"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
-  - {id: nearshoring_analytics, name: Nearshoring and network redesign analytics, family: networks,
-     include: ["nearshoring", "reshoring", "network (re)?design optimi[sz]ation",
-               "friend[- ]shoring"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  - {id: nearshoring_analytics, name: Nearshoring and network redesign, family: networks,
+     include: ["nearshoring", "reshoring", "friend[- ]shoring",
+               "network (re)?design optimi[sz]ation"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: rail_intermodal_tech, name: Rail intermodal technology, family: networks,
      include: ["intermodal (terminal|technology|automation)",
                "positive train control", "automated (rail )?inspection portal(s)?"],
@@ -135,8 +191,8 @@ technologies:
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: private_5g_warehouse, name: Private 5G in warehouses, family: networks,
      include: ["private (5g|lte) network(s)?", "private cellular[^.]{0,20}(warehouse|factory)"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: quantum_logistics, name: Quantum optimization for logistics, family: networks,
      include: ["quantum (annealing|optimi[sz]ation)[^.]{0,30}(logistics|routing|supply chain)",
                "quantum[- ]inspired optimi[sz]ation"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}

@@ -69,7 +69,7 @@ by source-native document ID, so overlap is safe.
 
 ## 4. Watchlist
 
-`watchlist.yaml` holds ~32 technologies grouped into six families, under a top-level
+`watchlist.yaml` holds 41 technologies grouped into seven families, under a top-level
 `lexicon_version`. Each entry:
 
 ```yaml
@@ -94,7 +94,10 @@ technologies:
 
 - **Automation & robotics** — warehouse robotics (AMR/ASRS), piece-picking robotics,
   humanoid robots in logistics, autonomous yard trucks, port/terminal automation,
-  last-mile delivery robots, delivery drones.
+  last-mile delivery robots, delivery drones, robotic manufacturing cells.
+- **Enterprise systems** — ERP platforms, warehouse management systems, manufacturing
+  execution systems, sales and operations planning, advanced planning and scheduling.
+  This is the layer where operations technology adoption shows up first in SEC filings.
 - **Vehicles & energy** — autonomous trucking, electric heavy-duty trucks, hydrogen fuel
   cell trucks, freight EV charging infrastructure, port electrification / shore power.
 - **Digital planning & AI** — agentic AI for procurement, supply chain digital twins,
@@ -123,6 +126,23 @@ is lowercased and scanned with compiled regexes built from each technology's `in
 patterns, wrapped in word boundaries. Any `exclude` pattern match vetoes the document for
 that technology. A document may match multiple technologies; each match is one observation
 row recording which pattern fired, so any count can be traced back to its evidence.
+
+**Context gating.** Technology names divide into two kinds, and treating them alike is what
+poisoned the first live run — nine of its ten matches were off-concept. Some terms are
+self-scoping: an *autonomous truck* is freight by definition, and so are *cold chain*,
+*inland port*, and *shore power*. Others belong to every field at once: *humanoid robot*,
+*additive manufacturing*, *blockchain*, *demand forecasting*, *RFID*, *ERP*.
+
+Entries of the second kind carry `needs_context: true` and match only when the document
+also uses one of the shared `context` terms defined at the top of `watchlist.yaml` — supply
+chain, logistics, freight, warehouse, procurement, inventory, shop floor, factory, and so
+on. The gate is a document-level test, not a proximity window, so word order and distance
+do not matter; it is one shared vocabulary edited in one place rather than proximity rules
+hand-maintained across forty regexes.
+
+The context list deliberately omits a bare "manufacturing". It is as much a technology word
+as a domain word, so including it would let `additive_spares` satisfy its own gate — the
+failure mode that makes naive context matching useless.
 
 ## 5.1 Lexicon authoring (LLM-assisted, offline)
 
