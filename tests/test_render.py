@@ -120,3 +120,29 @@ def test_rendered_page_escapes_technology_names(conn, tmp_path):
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;" in html
     connection.close()
+
+
+def test_build_map_points_come_from_located_observations(conn, watchlist):
+    from observatory.matcher import Observation
+
+    store.upsert_observations(conn, [
+        Observation(source="usaspending", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="a1", doc_date="2026-08-12", title="Corridor award",
+                    url="u", entity="ACME", entity_id=None, amount=5_000_000.0,
+                    lat=34.27, lon=-111.66, matched_pattern="x", raw_ref=1),
+        Observation(source="arxiv", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="a2", doc_date="2026-08-12", title="A paper",
+                    url="u", entity=None, entity_id=None, amount=None,
+                    lat=None, lon=None, matched_pattern="x", raw_ref=1),
+    ])
+    points = render.build_map_points(conn, "2026-W33")
+    assert len(points) == 1
+    assert points[0].y == 34.27 and points[0].x == -111.66
+    assert "ACME" in points[0].label
+
+
+def test_dashboard_renders_the_build_map_block(conn, watchlist, tmp_path):
+    path = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html")
+    html = path.read_text()
+    assert "Build Map" in html
+    assert "Arrives with the USAspending collector" not in html

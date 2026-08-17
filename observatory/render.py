@@ -24,6 +24,8 @@ FAMILY_COLOURS = {
     "networks": "#5f7355",
 }
 MOVER_COUNT = 5
+MAP_MIN_RADIUS = 3.0
+MAP_MAX_RADIUS = 18.0
 
 
 def _environment() -> Environment:
@@ -102,7 +104,43 @@ def build_context(conn, week: str, watchlist) -> dict:
         ),
         "crossovers": crossovers,
         "warming_up": sorted(warming),
+        "build_map_svg": Markup(charts.build_map(build_map_points(conn, week))),
     }
+
+
+def build_map_points(conn, week: str) -> list[charts.Point]:
+    rows = conn.execute(
+        "SELECT tech_id, title, entity, amount, lat, lon FROM observations "
+        "WHERE week = ? AND lat IS NOT NULL AND lon IS NOT NULL",
+        (week,),
+    ).fetchall()
+    if not rows:
+        return []
+    amounts = [float(row["amount"] or 0) for row in rows]
+    largest = max(amounts) or 1.0
+    points = []
+    for row, amount in zip(rows, amounts):
+        share = (amount / largest) ** 0.5
+        label = " · ".join(
+            part for part in (row["entity"], row["title"], _money(amount)) if part
+        )
+        points.append(
+            charts.Point(
+                x=float(row["lon"]),
+                y=float(row["lat"]),
+                label=label,
+                size=MAP_MIN_RADIUS + share * (MAP_MAX_RADIUS - MAP_MIN_RADIUS),
+            )
+        )
+    return points
+
+
+def _money(amount: float) -> str:
+    if amount >= 1_000_000:
+        return f"${amount / 1_000_000:,.1f}M"
+    if amount > 0:
+        return f"${amount:,.0f}"
+    return ""
 
 
 def _lfi_history(conn, tech_id: str, week: str, weeks: int = 12) -> list[float | None]:

@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from html import escape
 
+from . import geo
+
 PADDING = 48
 AXIS_COLOUR = "#c9cdd2"
 TEXT_COLOUR = "#3d4348"
@@ -69,6 +71,36 @@ def scatter(
             f'<text x="14" y="{height / 2:.0f}" text-anchor="middle" font-size="12" '
             f'fill="{TEXT_COLOUR}" transform="rotate(-90 14 {height / 2:.0f})">'
             f"{escape(y_label, quote=True)}</text>"
+        )
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def build_map(points: list[Point], width: int = 720, height: int = 420) -> str:
+    """A US map without a coastline.
+
+    Drawing an accurate outline would mean vendoring geodata; instead each point
+    is placed by an equirectangular projection over the continental frame and
+    labelled, which answers the question the block asks — which places are
+    getting new capability — without pretending to cartographic precision.
+    """
+    min_lat, max_lat, min_lon, max_lon = geo.CONUS_BOUNDS
+    parts = [
+        f'<svg viewBox="0 0 {width} {height}" width="100%" '
+        f'xmlns="http://www.w3.org/2000/svg" role="img">',
+        f'<rect x="{PADDING}" y="{PADDING}" width="{width - 2 * PADDING}" '
+        f'height="{height - 2 * PADDING}" fill="#f7f8f9" stroke="{AXIS_COLOUR}" />',
+    ]
+    for point in points:
+        longitude = min(max(point.x, min_lon), max_lon)
+        latitude = min(max(point.y, min_lat), max_lat)
+        cx = _scale(longitude, min_lon, max_lon, PADDING, width - PADDING)
+        cy = _scale(latitude, min_lat, max_lat, height - PADDING, PADDING)
+        parts.append(
+            f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{point.size:.1f}" '
+            f'fill="{escape(point.colour, quote=True)}" fill-opacity="0.6" '
+            f'stroke="{escape(point.colour, quote=True)}">'
+            f"<title>{escape(point.label, quote=True)}</title></circle>"
         )
     parts.append("</svg>")
     return "".join(parts)

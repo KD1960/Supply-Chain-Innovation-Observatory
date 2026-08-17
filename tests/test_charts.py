@@ -1,3 +1,5 @@
+import re
+
 from observatory import charts
 
 
@@ -74,3 +76,46 @@ def test_sparkline_skips_missing_values_without_crashing():
 
 def test_sparkline_of_nothing_is_still_valid_svg():
     assert charts.sparkline([]).startswith("<svg")
+
+
+def test_build_map_returns_svg_with_a_circle_per_point():
+    svg = charts.build_map([
+        charts.Point(x=-111.66, y=34.27, label="Arizona", size=8.0),
+        charts.Point(x=-75.53, y=42.95, label="New York", size=4.0),
+    ])
+    assert svg.startswith("<svg")
+    assert svg.count("<circle") == 2
+
+
+def test_build_map_places_west_left_of_east():
+    """Longitude runs west-to-east, so a more negative longitude sits further left."""
+    svg = charts.build_map([
+        charts.Point(x=-124.0, y=45.0, label="west"),
+        charts.Point(x=-70.0, y=45.0, label="east"),
+    ])
+    xs = [float(v) for v in re.findall(r'<circle cx="([-\d.]+)"', svg)]
+    assert xs[0] < xs[1]
+
+
+def test_build_map_places_north_above_south():
+    svg = charts.build_map([
+        charts.Point(x=-100.0, y=48.0, label="north"),
+        charts.Point(x=-100.0, y=26.0, label="south"),
+    ])
+    ys = [float(v) for v in re.findall(r'cy="([-\d.]+)"', svg)]
+    assert ys[0] < ys[1]
+
+
+def test_build_map_clamps_points_outside_the_continental_frame():
+    svg = charts.build_map([charts.Point(x=-152.28, y=64.07, label="Alaska")])
+    assert "<circle" in svg
+    assert "nan" not in svg.lower()
+
+
+def test_build_map_of_nothing_is_still_valid_svg():
+    assert charts.build_map([]).startswith("<svg")
+
+
+def test_build_map_escapes_labels():
+    svg = charts.build_map([charts.Point(x=-100.0, y=40.0, label='<b>&"')])
+    assert "&lt;b&gt;" in svg and "<b>" not in svg
