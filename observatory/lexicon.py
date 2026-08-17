@@ -185,14 +185,20 @@ def check(conn, week: str, watchlist, proposals_path: Path | None = None) -> tup
             continue
 
         tech_id = entry.get("id", "(missing id)")
+
+        # `matcher.load_watchlist` reads id/name/family unconditionally
+        # (entry["..."]), so a proposal missing any of them would validate
+        # here but crash the next `observatory.run` only after being pasted
+        # into watchlist.yaml -- catch it now instead. `added_week` is a
+        # fourth such key, but unlike these three it is never part of the
+        # proposal itself: it's filled in by the human at merge time (the
+        # merge reminder below covers it), so it isn't checked here.
+        for required in ("id", "name", "family"):
+            if required not in entry:
+                problems.append(Problem(tech_id, f"missing '{required}', which watchlist.yaml requires"))
+
         if tech_id in existing:
             problems.append(Problem(tech_id, f"id {tech_id} already exists in the watchlist"))
-
-        # `matcher.load_watchlist` reads `entry["name"]` unconditionally, so a
-        # proposal missing it would validate here but crash the run the moment
-        # it's pasted into watchlist.yaml -- catch it now instead.
-        if "name" not in entry:
-            problems.append(Problem(tech_id, "missing 'name', which watchlist.yaml requires"))
 
         # A bare string for `include`/`exclude` is a common shape mistake --
         # YAML accepts it, and iterating it character by character would blame
@@ -259,9 +265,10 @@ def main(argv=None) -> int:
             print(block)
             print(
                 "No problems found. Paste the block above into watchlist.yaml, then bump "
-                "lexicon_version and set patterns_changed_week on each changed entry -- "
-                "momentum is suppressed for 8 weeks after a pattern change, and that "
-                "suppression keys off patterns_changed_week."
+                "lexicon_version; set added_week on each new entry (watchlist.yaml requires "
+                "it and the proposal never carries it); and set patterns_changed_week on "
+                "each entry whose patterns changed -- momentum is suppressed for 8 weeks "
+                "after a pattern change, and that suppression keys off patterns_changed_week."
             )
             return 0
     finally:

@@ -52,6 +52,8 @@ success it prints a paste-ready YAML block: copy that into the `technologies`
 list in `watchlist.yaml`, then by hand:
 
 - bump `lexicon_version` at the top of the file
+- set `added_week` on each new entry — `watchlist.yaml` requires it and the
+  proposal never carries it
 - set `patterns_changed_week` on each entry you added or changed
 
 Momentum is suppressed for the eight weeks following `patterns_changed_week`,

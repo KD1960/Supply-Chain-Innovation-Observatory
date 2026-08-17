@@ -285,3 +285,36 @@ def test_check_reports_a_problem_when_name_is_missing(conn, watchlist, tmp_path)
     """)
     problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
     assert any("name" in problem.message for problem in problems)
+
+
+def test_check_reports_a_problem_when_family_is_missing(conn, watchlist, tmp_path):
+    """Same failure mode as a missing `name`: `matcher.load_watchlist` reads
+    `entry["family"]` unconditionally, so this would otherwise validate
+    cleanly and crash the next run after being pasted in."""
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            include: ["dark factor(y|ies)"]
+            exclude: []
+            needs_context: true
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("family" in problem.message for problem in problems)
+
+
+def test_check_reports_a_problem_when_id_is_missing(conn, watchlist, tmp_path):
+    """`matcher.load_watchlist` reads `entry["id"]` unconditionally too. The
+    `tech_id = entry.get("id", "(missing id)")` fallback exists only to give
+    other problem messages something to label themselves with -- on its own
+    it does not raise a problem, so this case needs its own check."""
+    path = write_proposal(tmp_path, """
+        technologies:
+          - name: Dark factories
+            family: physical
+            include: ["dark factor(y|ies)"]
+            exclude: []
+            needs_context: true
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("id" in problem.message for problem in problems)
