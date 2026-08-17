@@ -108,6 +108,68 @@ def test_detect_rising_ignores_a_term_the_watchlist_already_matches(monkeypatch,
     assert "cold chain monitoring" not in terms
 
 
+@pytest.fixture()
+def context_gated_watchlist():
+    return Watchlist(
+        version=1,
+        technologies=(
+            Technology(id="piece_picking", name="Piece picking", family="physical",
+                       include=("bin picking",), exclude=(), status="active",
+                       added_week="2020-W01", patterns_changed_week="2020-W01",
+                       needs_context=True),
+        ),
+        context=("logistics",),
+    )
+
+
+def test_detect_rising_excludes_a_context_gated_technologys_own_vocabulary(
+    monkeypatch, context_gated_watchlist,
+):
+    """A short 2-4 word phrase almost never carries a separate context word
+    alongside the technology's own vocabulary, so routing the already-covered
+    check through Watchlist.match (which requires context for a needs_context
+    technology) would let this term slip through as a "new" discovery even
+    though piece_picking already covers it."""
+    weeks = {"2026-W33": documents(*["bin picking automation"] * 6)}
+    for week in config_weeks_before("2026-W33", 12):
+        weeks[week] = []
+    collector = FakeCollector(weeks)
+    monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
+
+    terms = {
+        c.term for c in
+        discover.detect_rising("2026-W33", [collector], context_gated_watchlist).candidates
+    }
+    assert "bin picking" not in terms
+
+
+def test_detect_rising_still_honours_an_exclude_pattern(monkeypatch):
+    """An exclude pattern must still veto a match: a technology whose exclude
+    fires on a term must not treat that term as already covered."""
+    watchlist_with_exclude = Watchlist(
+        version=1,
+        technologies=(
+            Technology(id="piece_picking", name="Piece picking", family="physical",
+                       include=("bin picking",), exclude=("bin picking automation",),
+                       status="active",
+                       added_week="2020-W01", patterns_changed_week="2020-W01"),
+        ),
+        context=(),
+    )
+    weeks = {"2026-W33": documents(*["bin picking automation"] * 6)}
+    for week in config_weeks_before("2026-W33", 12):
+        weeks[week] = []
+    collector = FakeCollector(weeks)
+    monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
+
+    terms = {
+        c.term for c in
+        discover.detect_rising("2026-W33", [collector], watchlist_with_exclude).candidates
+    }
+    assert "bin picking automation" in terms, "the exclude pattern should veto the cover check"
+    assert "bin picking" not in terms, "the plain include pattern still covers this shorter term"
+
+
 def test_detect_rising_requires_the_minimum_count(monkeypatch, watchlist):
     weeks = {"2026-W33": documents(*["dark factory retrofit"] * 2)}
     for week in config_weeks_before("2026-W33", 12):

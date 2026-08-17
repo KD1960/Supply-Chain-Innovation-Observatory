@@ -110,6 +110,26 @@ def week_phrase_counts(week: str, collectors) -> Counter:
     return counts
 
 
+def _already_covered(watchlist, term: str) -> bool:
+    """Whether an active technology's own pattern already covers this term.
+
+    Deliberately bypasses `Watchlist.match`'s `needs_context` gate. That gate
+    answers a different question — whether a *document* counts, given its
+    full text may or may not mention the field this project cares about — and
+    a short 2-to-4 word candidate phrase essentially never carries both a
+    technology's vocabulary and a separate context word in the same string.
+    Routing through `match` would make this check silently fail for every
+    context-gated technology, so it goes straight to the compiled include and
+    exclude patterns instead.
+    """
+    for tech in watchlist.active:
+        if any(pattern.search(term) for pattern in tech.exclude_res):
+            continue
+        if any(pattern.search(term) for pattern in tech.include_res):
+            return True
+    return False
+
+
 def detect_rising(week: str, collectors, watchlist) -> RisingTerms:
     """Phrases spiking against their own trailing baseline that nothing matches yet.
 
