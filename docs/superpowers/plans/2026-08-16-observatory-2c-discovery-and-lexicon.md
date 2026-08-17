@@ -682,8 +682,16 @@ git commit -m "feat: rising-term detection from raw, including unmatched documen
 - Test: `tests/test_render.py`
 
 **Interfaces:**
-- Consumes: `store.candidates_for_week`.
-- Produces: context key `rising_terms` — a list of dicts with `term`, `count`, `baseline`, `ratio`, `examples`.
+- Consumes: `store.candidates_for_week`, `discover.MAX_CANDIDATES`.
+- Produces: context keys `rising_terms` (a list of dicts with `term`, `count`, `baseline`, `ratio`, `examples`) and `rising_total` (the number that qualified before truncation).
+
+**Carried from task 3:** `detect_rising` returns `RisingTerms(candidates, total)` because the
+list is capped at `MAX_CANDIDATES = 25` — against live raw, 227 terms qualified. The block must
+say *"the 25 strongest of 227"* rather than showing 25 and implying that is all there was; this
+project's standard is that a number on the page never silently understates what is behind it.
+That total is not persisted yet, so this task adds a `total` column to `candidate_terms`, has
+`upsert_candidates` write it, has `candidates_for_week` return it, and passes it to the run's
+call site.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -738,14 +746,22 @@ Expected: `KeyError: 'rising_terms'` and the placeholder-text assertions failing
 
 - [ ] **Step 3: Implement**
 
-In `observatory/render.py`, add `"rising_terms": store.candidates_for_week(conn, week)` to the dictionary `build_context` returns.
+In `observatory/render.py`, add both keys to the dictionary `build_context` returns:
+`"rising_terms": store.candidates_for_week(conn, week)` and `"rising_total"`, taken from the
+`total` column those rows now carry (they all share one value; fall back to the row count when
+there are no rows). Add a test asserting the block says "the 25 strongest of 227" — or whatever
+the equivalent is for your fixture — when the stored total exceeds the row count, and says
+nothing of the sort when it does not.
 
 Replace the Rising Terms placeholder in `observatory/templates/dashboard.html.j2`:
 
 ```html
   <h2>Rising Terms</h2>
   <p class="sub">Phrases spiking against their own 12-week baseline that no active
-     technology matches yet. Promote one by adding it to <code>watchlist.yaml</code>.</p>
+     technology matches yet. Promote one by adding it to <code>watchlist.yaml</code>.
+     {% if rising_total > rising_terms|length %}
+       Showing the {{ rising_terms|length }} strongest of {{ rising_total }}.
+     {% endif %}</p>
   {% if rising_terms %}
   <table>
     <thead><tr><th>Term</th><th class="num">This week</th><th class="num">Baseline</th>
