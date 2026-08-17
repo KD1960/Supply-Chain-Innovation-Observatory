@@ -46,6 +46,32 @@ def test_hits_without_a_cik_are_skipped():
     assert EdgarCollector().parse(payload) == []
 
 
+def test_hits_with_an_empty_cik_are_skipped():
+    payload = json.dumps({"hits": {"hits": [
+        {"_id": "x:doc.htm", "_source": {"ciks": [""], "display_names": ["Nobody"], "file_date": "2026-08-12"}},
+    ]}})
+    assert EdgarCollector().parse(payload) == []
+
+
+def test_a_non_numeric_cik_falls_back_to_the_browse_edgar_url_instead_of_raising():
+    payload = json.dumps({"hits": {"hits": [
+        {"_id": "a:doc.htm", "_source": {"ciks": ["ABCDE12345"], "display_names": ["Weird"], "file_date": "2026-08-12"}},
+    ]}})
+    documents = EdgarCollector().parse(payload)
+    assert len(documents) == 1
+    assert documents[0].url == (
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=ABCDE12345"
+    )
+
+
+def test_a_short_cik_is_zero_padded_to_ten_digits():
+    payload = json.dumps({"hits": {"hits": [
+        {"_id": "a:doc.htm", "_source": {"ciks": ["320193"], "display_names": ["Apple Inc."], "file_date": "2026-08-12"}},
+    ]}})
+    documents = EdgarCollector().parse(payload)
+    assert documents[0].entity_id == "0000320193"
+
+
 def test_parse_handles_an_empty_result_set():
     assert EdgarCollector().parse(json.dumps({"hits": {"hits": []}})) == []
 

@@ -68,7 +68,7 @@ class EdgarCollector(BaseCollector):
         for hit in hits:
             source = hit.get("_source") or {}
             ciks = source.get("ciks") or []
-            if not ciks:
+            if not ciks or not str(ciks[0]).strip():
                 continue
             cik = str(ciks[0]).strip().zfill(10)
             names = source.get("display_names") or []
@@ -100,7 +100,11 @@ def _filing_url(hit_id: str | None, cik: str) -> str:
     if not hit_id or ":" not in hit_id:
         return f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}"
     accession, _, document = hit_id.partition(":")
+    try:
+        numeric_cik = int(cik)
+    except ValueError:
+        return f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}"
     return (
-        f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
+        f"https://www.sec.gov/Archives/edgar/data/{numeric_cik}/"
         f"{accession.replace('-', '')}/{document}"
     )
