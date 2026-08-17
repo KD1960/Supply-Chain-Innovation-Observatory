@@ -1,0 +1,152 @@
+{
+  "took": 22,
+  "timed_out": false,
+  "_shards": {"total": 50, "successful": 50, "skipped": 0, "failed": 0},
+  "hits": {
+    "total": {"value": 5, "relation": "eq"},
+    "max_score": 9.242311,
+    "hits": [
+      {
+        "_index": "edgar_file",
+        "_id": "0001193125-26-067145:aesi-20251231.htm",
+        "_score": 9.242311,
+        "_source": {
+          "ciks": ["0001984060"],
+          "period_ending": "2025-12-31",
+          "file_num": ["001-41828"],
+          "display_names": ["Atlas Energy Solutions Inc.  (AESI)  (CIK 0001984060)"],
+          "xsl": null,
+          "sequence": 1,
+          "root_forms": ["10-K"],
+          "file_date": "2026-02-24",
+          "biz_states": ["TX"],
+          "sics": ["1311"],
+          "form": "10-K",
+          "adsh": "0001193125-26-067145",
+          "film_num": ["26672002"],
+          "biz_locations": ["Austin, TX"],
+          "file_type": "10-K",
+          "file_description": "10-K",
+          "inc_states": ["DE"],
+          "items": []
+        }
+      },
+      {
+        "_index": "edgar_file",
+        "_id": "0001984060-26-000012:aesi-20260630.htm",
+        "_score": 4.101,
+        "_source": {
+          "ciks": ["0001984060"],
+          "period_ending": "2026-06-30",
+          "file_num": ["001-41828"],
+          "display_names": ["Atlas Energy Solutions Inc.  (AESI)  (CIK 0001984060)"],
+          "xsl": null,
+          "sequence": 1,
+          "root_forms": ["10-Q"],
+          "file_date": "2026-08-05",
+          "biz_states": ["TX"],
+          "sics": ["1311"],
+          "form": "10-Q",
+          "adsh": "0001984060-26-000012",
+          "film_num": ["26699001"],
+          "biz_locations": ["Austin, TX"],
+          "file_type": "10-Q",
+          "file_description": "10-Q",
+          "inc_states": ["DE"],
+          "items": []
+        }
+      },
+      {
+        "_index": "edgar_file",
+        "_id": "0001828108-26-000016:aur-20251231.htm",
+        "_score": 9.065319,
+        "_source": {
+          "ciks": ["0001828108"],
+          "period_ending": "2025-12-31",
+          "file_num": ["001-40216"],
+          "display_names": ["Aurora Innovation, Inc.  (AUR, AUROW)  (CIK 0001828108)"],
+          "xsl": null,
+          "sequence": 1,
+          "root_forms": ["10-K"],
+          "file_date": "2026-02-11",
+          "biz_states": ["PA"],
+          "sics": ["7373"],
+          "form": "10-K",
+          "adsh": "0001828108-26-000016",
+          "film_num": ["26621953"],
+          "biz_locations": ["Pittsburgh, PA"],
+          "file_type": "10-K",
+          "file_description": "10-K",
+          "inc_states": ["DE"],
+          "items": []
+        }
+      },
+      {
+        "_index": "edgar_file",
+        "_id": "0001193125-26-116518:aeva-20251231.htm",
+        "_score": 8.248074,
+        "_source": {
+          "ciks": ["0001789029"],
+          "period_ending": "2025-12-31",
+          "file_num": ["001-39204"],
+          "display_names": ["Aeva Technologies, Inc.  (AEVA, AEVAW)  (CIK 0001789029)"],
+          "xsl": null,
+          "sequence": 1,
+          "root_forms": ["10-K"],
+          "file_date": "2026-03-20",
+          "biz_states": ["CA"],
+          "sics": ["3714"],
+          "form": "10-K",
+          "adsh": "0001193125-26-116518",
+          "film_num": ["26775966"],
+          "biz_locations": ["Mountain View, CA"],
+          "file_type": "10-K",
+          "file_description": "10-K",
+          "inc_states": ["DE"],
+          "items": []
+        }
+      },
+      {
+        "_index": "edgar_file",
+        "_id": "0001692063-26-000013:sndr-20251231.htm",
+        "_score": 3.1229553,
+        "_source": {
+          "ciks": ["0001692063"],
+          "period_ending": "2025-12-31",
+          "file_num": ["001-38054"],
+          "display_names": ["Schneider National, Inc.  (SNDR)  (CIK 0001692063)"],
+          "xsl": null,
+          "sequence": 1,
+          "root_forms": ["10-K"],
+          "file_date": "2026-02-20",
+          "biz_states": ["WI"],
+          "sics": ["4213"],
+          "form": "10-K",
+          "adsh": "0001692063-26-000013",
+          "film_num": ["26659479"],
+          "biz_locations": ["Green Bay, WI"],
+          "file_type": "10-K",
+          "file_description": "10-K",
+          "inc_states": ["WI"],
+          "items": []
+        }
+      }
+    ]
+  },
+  "query": {
+    "_source": {"exclude": ["doc_text"]},
+    "query": {
+      "bool": {
+        "must": [{"match_phrase": {"doc_text": "autonomous trucking"}}],
+        "must_not": [],
+        "should": [],
+        "filter": [
+          {"terms": {"root_forms": ["10-K"]}},
+          {"range": {"file_date": {"gte": "2026-01-01", "lte": "2026-08-17"}}}
+        ]
+      }
+    },
+    "from": 0,
+    "size": 100
+  }
+}
