@@ -3,6 +3,7 @@ be rebuilt from the raw files on disk, so the schema is free to change."""
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import asdict
 from pathlib import Path
@@ -96,6 +97,7 @@ CREATE TABLE IF NOT EXISTS candidate_terms (
     baseline REAL,
     ratio REAL,
     status TEXT,
+    examples TEXT,
     PRIMARY KEY (term, week)
 );
 """
@@ -291,3 +293,30 @@ def observations_for(conn, week: str, tech_id: str, source: str | None = None) -
         query += " AND source = ?"
         params.append(source)
     return [dict(row) for row in conn.execute(query + " ORDER BY doc_date DESC", params)]
+
+
+def upsert_candidates(conn, week: str, candidates) -> int:
+    candidates = list(candidates)
+    for candidate in candidates:
+        conn.execute(
+            "INSERT INTO candidate_terms (term, week, count, baseline, ratio, status, examples) "
+            "VALUES (?, ?, ?, ?, ?, 'new', ?) "
+            "ON CONFLICT (term, week) DO UPDATE SET count = excluded.count, "
+            "baseline = excluded.baseline, ratio = excluded.ratio, examples = excluded.examples",
+            (candidate.term, week, candidate.count, candidate.baseline, candidate.ratio,
+             json.dumps(candidate.examples)),
+        )
+    conn.commit()
+    return len(candidates)
+
+
+def candidates_for_week(conn, week: str) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM candidate_terms WHERE week = ? ORDER BY ratio DESC, term", (week,)
+    ).fetchall()
+    result = []
+    for row in rows:
+        record = dict(row)
+        record["examples"] = json.loads(record.get("examples") or "[]")
+        result.append(record)
+    return result

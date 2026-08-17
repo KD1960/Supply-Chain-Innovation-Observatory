@@ -13,7 +13,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import config, http, matcher, metrics, normalize, render, store
+from . import config, discover, http, matcher, metrics, normalize, render, store
 from .collectors import base
 from .collectors.arxiv import ArxivCollector
 from .collectors.edgar import EdgarCollector
@@ -215,20 +215,22 @@ def run_week(
     for other in sorted((set(new_by_week) & swept) - {week}):
         _score_and_render(
             conn, other, watchlist, scoring_sources(conn, other, collectors),
-            new_by_week[other], latest=False,
+            new_by_week[other], collectors, latest=False,
         )
 
     return _score_and_render(
-        conn, week, watchlist, ok_sources, new_by_week.get(week, 0), out_path
+        conn, week, watchlist, ok_sources, new_by_week.get(week, 0), collectors, out_path
     )
 
 
 def _score_and_render(
-    conn, week: str, watchlist, ok_sources: set[str], observations: int,
+    conn, week: str, watchlist, ok_sources: set[str], observations: int, collectors,
     out_path: Path | None = None, latest: bool = True,
 ) -> Path:
     signals = normalize.compute_signals(conn, week, watchlist, ok_sources)
     scored = score_week(conn, week, watchlist)
+    candidates = discover.detect_rising(week, collectors, watchlist)
+    store.upsert_candidates(conn, week, candidates)
     path = render.render_dashboard(conn, week, watchlist, out_path, latest=latest)
 
     _append_run_log(week, ok_sources, observations, signals, scored, path)
@@ -277,7 +279,7 @@ def rebuild(conn, watchlist, collectors=COLLECTORS) -> list[Path]:
     return [
         _score_and_render(conn, week, watchlist,
                           scoring_sources(conn, week, collectors),
-                          new_by_week.get(week, 0))
+                          new_by_week.get(week, 0), collectors)
         for week in weeks
     ]
 

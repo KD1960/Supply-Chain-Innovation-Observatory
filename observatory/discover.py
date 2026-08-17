@@ -11,6 +11,11 @@ Everything here is deterministic: no model, no randomness, no clock.
 from __future__ import annotations
 
 import re
+from collections import Counter
+from dataclasses import dataclass
+
+from . import config
+from .collectors import base
 
 MIN_TOKENS = 2
 MAX_TOKENS = 4
@@ -55,3 +60,77 @@ def _runs(tokens: list[str]) -> list[list[str]]:
     if current:
         runs.append(current)
     return runs
+
+
+MIN_COUNT = 5
+MIN_RATIO = 3.0
+BASELINE_WEEKS = 12
+MAX_EXAMPLES = 3
+
+
+@dataclass(frozen=True)
+class Candidate:
+    term: str
+    count: int
+    baseline: float
+    ratio: float
+    examples: list[tuple[str, str]]
+
+
+def _documents_for_week(week: str, collectors) -> list:
+    """Every document fetched for a week, matched or not, re-parsed from raw."""
+    documents = []
+    for collector in collectors:
+        for _, text in base.read_raw(collector.name, week):
+            try:
+                documents.extend(collector.parse(text))
+            except Exception:  # a poisoned raw file must not stop discovery
+                continue
+    return documents
+
+
+def week_phrase_counts(week: str, collectors) -> Counter:
+    counts: Counter = Counter()
+    for document in _documents_for_week(week, collectors):
+        counts.update(set(extract_phrases(document.title)))
+    return counts
+
+
+def detect_rising(week: str, collectors, watchlist) -> list[Candidate]:
+    """Phrases spiking against their own trailing baseline that nothing matches yet."""
+    current = week_phrase_counts(week, collectors)
+    if not current:
+        return []
+
+    history: Counter = Counter()
+    baseline_weeks = config.trailing_weeks(config.week_offset(week, -1), BASELINE_WEEKS)
+    for past in baseline_weeks:
+        history.update(week_phrase_counts(past, collectors))
+
+    documents = _documents_for_week(week, collectors)
+    candidates = []
+    for term, count in current.items():
+        if count < MIN_COUNT:
+            continue
+        baseline = history[term] / len(baseline_weeks)
+        ratio = count / baseline if baseline else float(count)
+        if ratio < MIN_RATIO:
+            continue
+        if watchlist.match(term):
+            continue  # already covered by an active technology
+        candidates.append(
+            Candidate(term=term, count=count, baseline=round(baseline, 3),
+                      ratio=round(ratio, 2), examples=_examples(documents, term))
+        )
+    candidates.sort(key=lambda candidate: (-candidate.ratio, candidate.term))
+    return candidates
+
+
+def _examples(documents, term: str) -> list[tuple[str, str]]:
+    found = []
+    for document in documents:
+        if term in extract_phrases(document.title):
+            found.append((document.title, document.url))
+            if len(found) == MAX_EXAMPLES:
+                break
+    return found

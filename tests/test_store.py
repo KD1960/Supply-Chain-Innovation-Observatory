@@ -97,3 +97,26 @@ def test_metrics_round_trip(conn):
     assert len(rows) == 1
     assert rows[0]["momentum"] == 1.5
     assert rows[0]["lexicon_version"] == 1
+
+
+def test_candidates_round_trip(conn):
+    from observatory.discover import Candidate
+
+    store.upsert_candidates(conn, "2026-W33", [
+        Candidate(term="dark factory", count=6, baseline=1.0, ratio=6.0,
+                  examples=[("Dark factory retrofit", "https://x.test/1")]),
+    ])
+    rows = store.candidates_for_week(conn, "2026-W33")
+    assert len(rows) == 1
+    assert rows[0]["term"] == "dark factory"
+    assert rows[0]["ratio"] == 6.0
+    assert rows[0]["status"] == "new"
+
+
+def test_candidates_upsert_is_idempotent(conn):
+    from observatory.discover import Candidate
+
+    candidate = Candidate(term="dark factory", count=6, baseline=1.0, ratio=6.0, examples=[])
+    store.upsert_candidates(conn, "2026-W33", [candidate])
+    store.upsert_candidates(conn, "2026-W33", [candidate])
+    assert len(store.candidates_for_week(conn, "2026-W33")) == 1

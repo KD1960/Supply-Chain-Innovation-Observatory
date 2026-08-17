@@ -44,3 +44,101 @@ def test_extract_phrases_handles_empty_and_none():
 def test_stopwords_cover_the_obvious_connectives():
     for word in ("the", "a", "of", "for", "and", "in", "on", "with", "to"):
         assert word in discover.STOPWORDS
+
+
+import json
+from collections import Counter
+
+import pytest
+
+from observatory.collectors.base import BaseCollector, Document, RawPage
+from observatory.matcher import Technology, Watchlist
+
+
+class FakeCollector(BaseCollector):
+    """Serves canned documents per week without touching the network or disk."""
+
+    name = "fake"
+
+    def __init__(self, by_week):
+        self._by_week = by_week
+
+    def documents_for(self, week):
+        return self._by_week.get(week, [])
+
+
+@pytest.fixture()
+def watchlist():
+    return Watchlist(
+        version=1,
+        technologies=(
+            Technology(id="cold_chain_iot", name="Cold chain IoT", family="physical",
+                       include=("cold chain monitoring",), exclude=(), status="active",
+                       added_week="2020-W01", patterns_changed_week="2020-W01"),
+        ),
+        context=("logistics",),
+    )
+
+
+def documents(*titles):
+    return [Document(doc_id=f"d{i}", date="2026-08-12", title=title, text="",
+                     url=f"https://x.test/{i}") for i, title in enumerate(titles)]
+
+
+def test_detect_rising_surfaces_a_term_that_spikes(monkeypatch, watchlist):
+    weeks = {"2026-W33": documents(*["dark factory retrofit"] * 6)}
+    for week in config_weeks_before("2026-W33", 12):
+        weeks[week] = documents("unrelated shipping news")
+    collector = FakeCollector(weeks)
+    monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
+
+    rising = discover.detect_rising("2026-W33", [collector], watchlist)
+    terms = {candidate.term for candidate in rising}
+    assert "dark factory" in terms
+
+
+def test_detect_rising_ignores_a_term_the_watchlist_already_matches(monkeypatch, watchlist):
+    weeks = {"2026-W33": documents(*["cold chain monitoring rollout"] * 8)}
+    for week in config_weeks_before("2026-W33", 12):
+        weeks[week] = []
+    collector = FakeCollector(weeks)
+    monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
+
+    terms = {c.term for c in discover.detect_rising("2026-W33", [collector], watchlist)}
+    assert "cold chain monitoring" not in terms
+
+
+def test_detect_rising_requires_the_minimum_count(monkeypatch, watchlist):
+    weeks = {"2026-W33": documents(*["dark factory retrofit"] * 2)}
+    for week in config_weeks_before("2026-W33", 12):
+        weeks[week] = []
+    collector = FakeCollector(weeks)
+    monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
+    assert discover.detect_rising("2026-W33", [collector], watchlist) == []
+
+
+def test_detect_rising_requires_the_minimum_ratio(monkeypatch, watchlist):
+    weeks = {"2026-W33": documents(*["dark factory retrofit"] * 6)}
+    for week in config_weeks_before("2026-W33", 12):
+        weeks[week] = documents(*["dark factory retrofit"] * 6)
+    collector = FakeCollector(weeks)
+    monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
+    assert discover.detect_rising("2026-W33", [collector], watchlist) == []
+
+
+def test_candidates_carry_example_documents(monkeypatch, watchlist):
+    weeks = {"2026-W33": documents(*[f"dark factory retrofit {n}" for n in range(6)])}
+    for week in config_weeks_before("2026-W33", 12):
+        weeks[week] = []
+    collector = FakeCollector(weeks)
+    monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
+
+    rising = {c.term: c for c in discover.detect_rising("2026-W33", [collector], watchlist)}
+    examples = rising["dark factory"].examples
+    assert 1 <= len(examples) <= discover.MAX_EXAMPLES
+    assert all(title and url for title, url in examples)
+
+
+def config_weeks_before(week, count):
+    from observatory import config
+    return config.trailing_weeks(config.week_offset(week, -1), count)
