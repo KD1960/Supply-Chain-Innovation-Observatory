@@ -229,14 +229,15 @@ def _score_and_render(
 ) -> Path:
     signals = normalize.compute_signals(conn, week, watchlist, ok_sources)
     scored = score_week(conn, week, watchlist)
-    candidates = discover.detect_rising(week, collectors, watchlist)
-    store.upsert_candidates(conn, week, candidates)
+    rising = discover.detect_rising(week, collectors, watchlist)
+    store.upsert_candidates(conn, week, rising.candidates)
     path = render.render_dashboard(conn, week, watchlist, out_path, latest=latest)
 
-    _append_run_log(week, ok_sources, observations, signals, scored, path)
+    _append_run_log(week, ok_sources, observations, signals, scored, rising, path)
     print(
         f"{week}: {observations} new observations, {signals} signals, "
-        f"{scored} scored -> {path}"
+        f"{scored} scored, {len(rising.candidates)} of {rising.total} rising "
+        f"candidates -> {path}"
     )
     return path
 
@@ -284,7 +285,7 @@ def rebuild(conn, watchlist, collectors=COLLECTORS) -> list[Path]:
     ]
 
 
-def _append_run_log(week, ok_sources, observations, signals, scored, path) -> None:
+def _append_run_log(week, ok_sources, observations, signals, scored, rising, path) -> None:
     config.RUN_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with config.RUN_LOG_PATH.open("a") as handle:
         handle.write(json.dumps({
@@ -293,6 +294,8 @@ def _append_run_log(week, ok_sources, observations, signals, scored, path) -> No
             "new_observations": observations,
             "signals_written": signals,
             "technologies_scored": scored,
+            "rising_candidates_shown": len(rising.candidates),
+            "rising_candidates_total": rising.total,
             "output": str(path),
         }) + "\n")
 

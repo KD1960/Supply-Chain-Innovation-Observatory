@@ -93,7 +93,7 @@ def test_detect_rising_surfaces_a_term_that_spikes(monkeypatch, watchlist):
     monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
 
     rising = discover.detect_rising("2026-W33", [collector], watchlist)
-    terms = {candidate.term for candidate in rising}
+    terms = {candidate.term for candidate in rising.candidates}
     assert "dark factory" in terms
 
 
@@ -104,7 +104,7 @@ def test_detect_rising_ignores_a_term_the_watchlist_already_matches(monkeypatch,
     collector = FakeCollector(weeks)
     monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
 
-    terms = {c.term for c in discover.detect_rising("2026-W33", [collector], watchlist)}
+    terms = {c.term for c in discover.detect_rising("2026-W33", [collector], watchlist).candidates}
     assert "cold chain monitoring" not in terms
 
 
@@ -114,7 +114,9 @@ def test_detect_rising_requires_the_minimum_count(monkeypatch, watchlist):
         weeks[week] = []
     collector = FakeCollector(weeks)
     monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
-    assert discover.detect_rising("2026-W33", [collector], watchlist) == []
+    rising = discover.detect_rising("2026-W33", [collector], watchlist)
+    assert rising.candidates == []
+    assert rising.total == 0
 
 
 def test_detect_rising_requires_the_minimum_ratio(monkeypatch, watchlist):
@@ -123,7 +125,9 @@ def test_detect_rising_requires_the_minimum_ratio(monkeypatch, watchlist):
         weeks[week] = documents(*["dark factory retrofit"] * 6)
     collector = FakeCollector(weeks)
     monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
-    assert discover.detect_rising("2026-W33", [collector], watchlist) == []
+    rising = discover.detect_rising("2026-W33", [collector], watchlist)
+    assert rising.candidates == []
+    assert rising.total == 0
 
 
 def test_candidates_carry_example_documents(monkeypatch, watchlist):
@@ -133,10 +137,34 @@ def test_candidates_carry_example_documents(monkeypatch, watchlist):
     collector = FakeCollector(weeks)
     monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
 
-    rising = {c.term: c for c in discover.detect_rising("2026-W33", [collector], watchlist)}
+    rising = {c.term: c for c in discover.detect_rising("2026-W33", [collector], watchlist).candidates}
     examples = rising["dark factory"].examples
     assert 1 <= len(examples) <= discover.MAX_EXAMPLES
     assert all(title and url for title, url in examples)
+
+
+def test_detect_rising_caps_the_result_and_reports_the_full_total(monkeypatch, watchlist):
+    """40 distinct terms qualify; only MAX_CANDIDATES may come back, and they
+    must be the highest-ratio ones, with `total` disclosing the true count."""
+    term_count = discover.MAX_CANDIDATES + 15
+    titles = []
+    for index in range(term_count):
+        titles.extend([f"widget{index:02d} spike"] * (discover.MIN_COUNT + index))
+    weeks = {"2026-W33": documents(*titles)}
+    for week in config_weeks_before("2026-W33", 12):
+        weeks[week] = []
+    collector = FakeCollector(weeks)
+    monkeypatch.setattr(discover, "_documents_for_week", lambda week, collectors: collector.documents_for(week))
+
+    rising = discover.detect_rising("2026-W33", [collector], watchlist)
+
+    assert rising.total == term_count
+    assert len(rising.candidates) == discover.MAX_CANDIDATES
+    expected_top_terms = {
+        f"widget{index:02d} spike"
+        for index in range(term_count - discover.MAX_CANDIDATES, term_count)
+    }
+    assert {c.term for c in rising.candidates} == expected_top_terms
 
 
 def config_weeks_before(week, count):

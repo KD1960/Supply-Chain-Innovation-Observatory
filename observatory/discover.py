@@ -66,6 +66,7 @@ MIN_COUNT = 5
 MIN_RATIO = 3.0
 BASELINE_WEEKS = 12
 MAX_EXAMPLES = 3
+MAX_CANDIDATES = 25
 
 
 @dataclass(frozen=True)
@@ -75,6 +76,16 @@ class Candidate:
     baseline: float
     ratio: float
     examples: list[tuple[str, str]]
+
+
+@dataclass(frozen=True)
+class RisingTerms:
+    """A review queue, not a data dump: `candidates` is capped at
+    `MAX_CANDIDATES` so a human can actually read it. `total` discloses how
+    many qualified before the cap, so a truncated list never quietly passes
+    itself off as the whole picture."""
+    candidates: list[Candidate]
+    total: int
 
 
 def _documents_for_week(week: str, collectors) -> list:
@@ -96,11 +107,15 @@ def week_phrase_counts(week: str, collectors) -> Counter:
     return counts
 
 
-def detect_rising(week: str, collectors, watchlist) -> list[Candidate]:
-    """Phrases spiking against their own trailing baseline that nothing matches yet."""
+def detect_rising(week: str, collectors, watchlist) -> RisingTerms:
+    """Phrases spiking against their own trailing baseline that nothing matches yet.
+
+    Capped at `MAX_CANDIDATES`, ratio descending, with the full qualifying
+    count carried alongside so a truncated list is visibly truncated.
+    """
     current = week_phrase_counts(week, collectors)
     if not current:
-        return []
+        return RisingTerms(candidates=[], total=0)
 
     history: Counter = Counter()
     baseline_weeks = config.trailing_weeks(config.week_offset(week, -1), BASELINE_WEEKS)
@@ -123,7 +138,7 @@ def detect_rising(week: str, collectors, watchlist) -> list[Candidate]:
                       ratio=round(ratio, 2), examples=_examples(documents, term))
         )
     candidates.sort(key=lambda candidate: (-candidate.ratio, candidate.term))
-    return candidates
+    return RisingTerms(candidates=candidates[:MAX_CANDIDATES], total=len(candidates))
 
 
 def _examples(documents, term: str) -> list[tuple[str, str]]:
