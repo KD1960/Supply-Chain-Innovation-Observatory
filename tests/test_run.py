@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from observatory import http, run, store
+from observatory import config, http, run, store
 from observatory.collectors.base import BaseCollector, Document, RawPage
 from observatory.matcher import Technology, Watchlist
 
@@ -469,6 +469,30 @@ def test_backfill_skips_weeks_it_has_already_fetched(conn):
     second = run.backfill(conn, weeks_back=2, collectors=[collector], session=None)
     assert first, "first pass should fetch something"
     assert second == [], "second pass should find everything already fetched"
+
+
+def test_backfill_refetches_only_the_collectors_a_week_is_missing(conn):
+    """A week is pending while any one collector is missing, but the ones that
+    already recorded `ok` for it must not be fetched again. Otherwise a source
+    that fails systematically on historical weeks makes every restart repeat
+    the other four sources' requests for that week -- arXiv's among them, at
+    three seconds apiece -- and the week never converges."""
+    calls = []
+
+    class RecordingCollector(StubCollector):
+        def fetch_raw(self, session, week):
+            calls.append((self.name, week))
+            yield from super().fetch_raw(session, week)
+
+    good = RecordingCollector([], [], name="good")
+    flaky = RecordingCollector([], [], name="flaky")
+    week = config.week_offset(config.current_week(), -1)
+    store.set_source_status(conn, "good", week, "ok", "")
+
+    run.backfill(conn, weeks_back=2, collectors=[good, flaky], session=None)
+
+    assert (good.name, week) not in calls, "a collector already ok for this week was refetched"
+    assert (flaky.name, week) in calls
 
 
 def test_backfill_rejects_a_nonsensical_window(conn):

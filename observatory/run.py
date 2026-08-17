@@ -45,6 +45,18 @@ def fetch_week(conn, week: str, collectors, session) -> set[str]:
     return succeeded
 
 
+def collectors_needing_fetch(conn, week: str, collectors) -> list:
+    """The collectors that have not recorded a successful run for this week.
+
+    Resumability is per collector, not per week. A source that fails
+    systematically on historical weeks would otherwise keep its week pending
+    forever, and every restart would repeat the other four sources' requests
+    for it -- arXiv's among them, at three seconds apiece.
+    """
+    recorded = store.ok_sources_for_week(conn, week)
+    return [collector for collector in collectors if collector.name not in recorded]
+
+
 def weeks_needing_fetch(conn, weeks: list[str], collectors) -> list[str]:
     """Weeks where some collector has not yet recorded a successful run.
 
@@ -52,8 +64,7 @@ def weeks_needing_fetch(conn, weeks: list[str], collectors) -> list[str]:
     polite fetching, and it must survive being interrupted and restarted
     without re-downloading what it already has.
     """
-    wanted = {collector.name for collector in collectors}
-    return [week for week in weeks if not wanted <= store.ok_sources_for_week(conn, week)]
+    return [week for week in weeks if collectors_needing_fetch(conn, week, collectors)]
 
 
 def backfill(conn, weeks_back: int, collectors=COLLECTORS, session=None) -> list[str]:
@@ -68,8 +79,10 @@ def backfill(conn, weeks_back: int, collectors=COLLECTORS, session=None) -> list
 
     print(f"Backfill: {len(pending)} of {len(weeks)} weeks to fetch, oldest first")
     for position, week in enumerate(pending, start=1):
-        print(f"  [{position}/{len(pending)}] {week}")
-        fetch_week(conn, week, collectors, session)
+        missing = collectors_needing_fetch(conn, week, collectors)
+        print(f"  [{position}/{len(pending)}] {week}: "
+              f"{', '.join(collector.name for collector in missing)}")
+        fetch_week(conn, week, missing, session)
     return pending
 
 
