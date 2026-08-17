@@ -1233,6 +1233,55 @@ git commit -m "feat: lexicon check validates proposals before a human merges the
 
 ---
 
+## Outcome
+
+All six tasks completed; 283 tests pass. The final whole-branch review found one defect that
+only an end-to-end view could see, and it defeated the branch's whole purpose:
+
+**The discovery loop could not close.** `candidate_terms` was never cleared, so a term the owner
+promoted to `watchlist.yaml` kept appearing in Rising Terms and in every later `lexicon prepare`
+request. Worse, the table grew past its own 25-row cap and the disclosed total was read off a
+stale row — reading "26 of 225" when the truth was 25 of 221, compounding every cycle. A week's
+candidate rows are now replaced rather than merged.
+
+Alongside it, three ways a proposal could pass `check` and then count zero forever: a broken
+`exclude` regex (compiled by `load_watchlist` but not by `check`, so it killed the next run
+after merge), an empty `include`, and an `exclude` that vetoed its own evidence.
+
+## Carried forward
+
+- **`--only` now replaces rather than merges a week's candidates.** Discovery is scoped to the
+  collector tuple, so `python -m observatory.run --only arxiv` writes an arxiv-only candidate set
+  over the week's full one, degrading Rising Terms to a single source until the next full run.
+  Previously it merged, which was wrong differently. `--rebuild --only` is already rejected;
+  either extend that guard to discovery on a plain run, or skip discovery when `--only` is set.
+- **An empty candidate list wipes the week's stored rows**, reachable on an ordinary weekly run —
+  not just `--rebuild` — when a prior week's raw is missing or unparseable, because
+  `detect_rising` short-circuits to an empty result and the replacement then deletes. Honest
+  semantics for "replace, not merge", but a one-line guard skipping the write when discovery
+  short-circuits on absent raw would close it.
+- **The README's backfill ceiling understates the cap.** It says about forty-five requests per
+  week at full pagination; the real figure is fifty-three (arXiv 10 + HN 10 + Federal Register 20
+  + USAspending 5 + EDGAR 8). The floor figure of twelve is exact.
+- **URL scheme is checked in one of three places.** The Rising Terms link now renders only for
+  `http(s)`, but `evidence.html.j2` renders observation URLs and `lexicon._md_link` writes example
+  URLs into a Markdown destination with no such guard. Same rationale applies to both.
+- **`candidate_terms.status` is vestigial** — written as the constant `'new'`, read by nothing.
+  Spec §4 says the user "promotes or ignores" a candidate, but nothing records an ignore, so a
+  rejected term returns every week it qualifies. A dismissal path belongs in a later plan; note
+  that the replacement semantics above would eat any curation stored there, so it needs its own
+  design rather than a column reuse.
+- **Discovery's baseline divides by a constant twelve** regardless of how many of those weeks have
+  raw on disk, so an unfetched week counts as a zero week — the shape `metrics.observed()` exists
+  to refuse. Every current candidate has a baseline of 0.0 for this reason. Revisit once a
+  backfill gives real history.
+- **Discovery mines all five collectors**, while spec §4 scopes it to arXiv, Hacker News, and the
+  Federal Register. That is why Federal Register boilerplate dominates the current list. Either
+  record the broadening in the spec or narrow it back.
+- **`week_phrase_counts` re-parses each week's raw about a dozen times across a `--rebuild`.**
+  Measured at roughly sixty seconds for a 52-week rebuild, against a fetch phase measured in
+  hours. Parked deliberately.
+
 ## What this plan does not cover
 
 - **GDELT (plan 2A tasks 3 and 4)** — still blocked by a rate-limit cooldown. Redo them from plan 2A as written, starting from a real capture.
