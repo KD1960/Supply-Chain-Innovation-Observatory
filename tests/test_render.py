@@ -242,6 +242,14 @@ def test_unplaceable_awards_are_counted_rather_than_dropped(conn, watchlist, tmp
                     doc_id="p3", doc_date="2026-08-12", title="A paper", url="u",
                     entity=None, entity_id=None, amount=None, lat=None, lon=None,
                     matched_pattern="x", raw_ref=1),
+        # hn puts a story's points in `amount` and never sets coordinates. The
+        # map's candidates are defined by source, not by having an amount, so
+        # counting this as an award that could not be placed would fabricate a
+        # number in the very block that exists to stop the page fabricating.
+        Observation(source="hn", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="p4", doc_date="2026-08-12", title="Show HN: a truck",
+                    url="u", entity=None, entity_id=None, amount=214.0,
+                    lat=None, lon=None, matched_pattern="x", raw_ref=1),
     ])
 
     assert render.unplaced_award_count(conn, "2026-W33") == 1

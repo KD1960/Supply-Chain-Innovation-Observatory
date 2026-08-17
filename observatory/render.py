@@ -126,15 +126,21 @@ def build_context(conn, week: str, watchlist) -> dict:
 
 
 def unplaced_award_count(conn, week: str) -> int:
-    """Awards with dollars but no coordinates.
+    """Federal awards whose place of performance would not resolve.
 
     The map draws only what it can place, so a week whose places would not
     resolve looks exactly like a quiet week. Spec §8 block 6: unresolvable
     locations are counted in a footnote rather than dropped silently.
+
+    What makes an observation a map candidate is its source, not the presence
+    of an amount: `hn` puts a story's points in `amount` and never sets
+    coordinates, so counting every amount without a location would report
+    Hacker News stories as federal awards that could not be placed.
     """
     row = conn.execute(
-        "SELECT COUNT(*) AS total FROM observations "
-        "WHERE week = ? AND amount IS NOT NULL AND (lat IS NULL OR lon IS NULL)",
+        "SELECT COUNT(*) AS total FROM observations WHERE week = ? "
+        "AND source = 'usaspending' AND amount IS NOT NULL "
+        "AND (lat IS NULL OR lon IS NULL)",
         (week,),
     ).fetchone()
     return int(row["total"])
