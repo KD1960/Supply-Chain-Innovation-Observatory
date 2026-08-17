@@ -118,3 +118,44 @@ def test_make_session_sets_user_agent(monkeypatch):
     monkeypatch.setenv("SEC_CONTACT_EMAIL", "test@example.com")
     session = http.make_session()
     assert session.headers["User-Agent"] == config.user_agent()
+
+
+class FakePostSession:
+    def __init__(self, responses):
+        self._responses = list(responses)
+        self.calls = []
+
+    def post(self, url, json=None, headers=None, timeout=None):
+        self.calls.append({"url": url, "json": json, "headers": headers})
+        result = self._responses.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+
+def test_fetch_post_sends_the_payload_as_json():
+    session = FakePostSession([FakeResponse(200, '{"results": []}')])
+    result = http.fetch_post(session, "https://example.test/s", {"filters": {"a": 1}})
+    assert result.status == 200
+    assert session.calls[0]["json"] == {"filters": {"a": 1}}
+
+
+def test_fetch_post_retries_on_server_error():
+    slept = []
+    session = FakePostSession([FakeResponse(500), FakeResponse(200, "ok")])
+    assert http.fetch_post(session, "https://example.test/s", {}, sleep_fn=slept.append).text == "ok"
+    assert slept == [1.0]
+
+
+def test_fetch_post_retries_network_errors_like_fetch_does():
+    slept = []
+    session = FakePostSession([requests.ConnectionError("reset"), FakeResponse(200, "ok")])
+    assert http.fetch_post(session, "https://example.test/s", {}, sleep_fn=slept.append).text == "ok"
+    assert slept == [1.0]
+
+
+def test_fetch_post_fails_fast_on_client_error():
+    session = FakePostSession([FakeResponse(400)])
+    with pytest.raises(http.HttpError):
+        http.fetch_post(session, "https://example.test/s", {}, sleep_fn=lambda _: None)
+    assert len(session.calls) == 1

@@ -67,38 +67,69 @@ def fetch(
     retries: int = 3,
     sleep_fn: Callable[[float], Any] = time.sleep,
 ) -> Response:
+    return _with_retries(
+        lambda: session.get(url, params=params, headers=headers, timeout=TIMEOUT_SECONDS),
+        url, retries, limiter, sleep_fn,
+    )
+
+
+def fetch_post(
+    session: Any,
+    url: str,
+    payload: dict,
+    *,
+    headers: dict | None = None,
+    limiter: RateLimiter | None = None,
+    retries: int = 3,
+    sleep_fn: Callable[[float], Any] = time.sleep,
+) -> Response:
+    return _with_retries(
+        lambda: session.post(url, json=payload, headers=headers, timeout=TIMEOUT_SECONDS),
+        url, retries, limiter, sleep_fn,
+    )
+
+
+def _with_retries(
+    send: Callable[[], Any],
+    url: str,
+    retries: int,
+    limiter: RateLimiter | None,
+    sleep_fn: Callable[[float], Any],
+) -> Response:
     last_status = None
     last_exception: requests.RequestException | None = None
     for attempt in range(retries + 1):
         if limiter is not None:
             limiter.wait()
         try:
-            raw = session.get(url, params=params, headers=headers, timeout=TIMEOUT_SECONDS)
+            raw = send()
         except requests.RequestException as e:
             last_exception = e
+            last_status = None
             if attempt == retries:
                 break
             sleep_fn(_backoff_seconds(None, attempt))
             continue
+        last_exception = None
         last_status = raw.status_code
         if raw.status_code == 200:
             return Response(
                 # The resolved URL, params and redirects included: raw_fetch is
                 # the traceability record, and the bare endpoint cannot say
                 # which query produced which page.
-                url=raw.url,
+                url=getattr(raw, "url", url),
                 status=raw.status_code,
                 text=raw.text,
                 content_type=raw.headers.get("Content-Type", ""),
             )
         if raw.status_code not in RETRYABLE_STATUSES:
-            raise HttpError(f"GET {url} failed with status {raw.status_code}")
+            raise HttpError(f"{url} failed with status {raw.status_code}")
         if attempt == retries:
             break
         sleep_fn(_backoff_seconds(raw, attempt))
     if last_exception is not None:
-        raise HttpError(f"GET {url} failed with network error: {last_exception}") from last_exception
-    raise HttpError(f"GET {url} still failing with status {last_status} after {retries} retries")
+        raise HttpError(f"{url} failed with network error: {last_exception}") from last_exception
+    raise HttpError(f"{url} still failing with status {last_status} after {retries} retries")
 
 
 def _backoff_seconds(raw: Any, attempt: int) -> float:
