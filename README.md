@@ -21,6 +21,9 @@ Other forms:
     python -m observatory.run --only arxiv      # a single collector
 
 Output lands in `output/latest.html` — one self-contained file, no server needed.
+Every count on it links to `output/evidence.html`, which lists each observation
+behind the week's numbers alongside the document and the regex pattern that
+matched it, so any number can be traced back to its evidence.
 
 ## Design rules
 

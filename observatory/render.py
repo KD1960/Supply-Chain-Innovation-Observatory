@@ -43,12 +43,15 @@ def build_context(conn, week: str, watchlist) -> dict:
     rows = store.metrics_for_week(conn, week)
 
     scored = [row for row in rows if row.get("momentum") is not None]
-    warming = [names.get(row["tech_id"], row["tech_id"]) for row in rows
-               if row.get("momentum") is None]
+    warming = [
+        {"tech_id": row["tech_id"], "name": names.get(row["tech_id"], row["tech_id"])}
+        for row in rows if row.get("momentum") is None
+    ]
     scored.sort(key=lambda row: row["momentum"], reverse=True)
 
     movers = [
         {
+            "tech_id": row["tech_id"],
             "name": names.get(row["tech_id"], row["tech_id"]),
             "family": families.get(row["tech_id"], ""),
             "momentum": row["momentum"],
@@ -103,7 +106,7 @@ def build_context(conn, week: str, watchlist) -> dict:
                            y_label="Lab to field")
         ),
         "crossovers": crossovers,
-        "warming_up": sorted(warming),
+        "warming_up": sorted(warming, key=lambda tech: tech["name"]),
         "build_map_svg": Markup(charts.build_map(build_map_points(conn, week))),
     }
 
@@ -155,6 +158,37 @@ def _lfi_history(conn, tech_id: str, week: str, weeks: int = 12) -> list[float |
     return [by_week.get(w) for w in config.trailing_weeks(week, weeks)]
 
 
+def evidence_context(conn, week: str, watchlist) -> dict:
+    names = {tech.id: tech.name for tech in watchlist.technologies}
+    rows = conn.execute(
+        "SELECT tech_id, source, doc_id, doc_date, title, url, entity, matched_pattern "
+        "FROM observations WHERE week = ? ORDER BY tech_id, doc_date DESC",
+        (week,),
+    ).fetchall()
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        grouped.setdefault(row["tech_id"], []).append(dict(row))
+    return {
+        "week": week,
+        "lexicon_version": watchlist.version,
+        "groups": [
+            {"tech_id": tech_id, "name": names.get(tech_id, tech_id), "rows": group}
+            for tech_id, group in sorted(grouped.items())
+        ],
+    }
+
+
+def render_evidence(conn, week: str, watchlist, out_path: Path | None = None) -> Path:
+    context = evidence_context(conn, week, watchlist)
+    html = _environment().get_template("evidence.html.j2").render(**context)
+    target = Path(out_path) if out_path else config.OUTPUT_DIR / f"evidence-{week}.html"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(html)
+    if out_path is None:
+        (config.OUTPUT_DIR / "evidence.html").write_text(html)
+    return target
+
+
 def render_dashboard(conn, week: str, watchlist, out_path: Path | None = None) -> Path:
     context = build_context(conn, week, watchlist)
     html = _environment().get_template("dashboard.html.j2").render(**context)
@@ -163,4 +197,6 @@ def render_dashboard(conn, week: str, watchlist, out_path: Path | None = None) -
     target.write_text(html)
     if out_path is None:
         (config.OUTPUT_DIR / "latest.html").write_text(html)
+    evidence_target = None if out_path is None else target.parent / "evidence.html"
+    render_evidence(conn, week, watchlist, evidence_target)
     return target

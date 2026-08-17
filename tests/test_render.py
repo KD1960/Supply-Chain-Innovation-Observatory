@@ -58,7 +58,7 @@ def test_context_ranks_movers_by_momentum(conn, watchlist):
 def test_context_excludes_warming_up_technologies_from_movers(conn, watchlist):
     context = render.build_context(conn, "2026-W33", watchlist)
     assert "Quiet tech" not in [mover["name"] for mover in context["movers"]]
-    assert "Quiet tech" in context["warming_up"]
+    assert "Quiet tech" in [tech["name"] for tech in context["warming_up"]]
 
 
 def test_context_reports_source_health(conn, watchlist):
@@ -199,3 +199,59 @@ def test_dashboard_renders_the_build_map_block(conn, watchlist, tmp_path):
     assert "Arrives with the USAspending collector" not in html
     build_map_section = html.split("<h2>Build Map</h2>", 1)[1].split("<h2>", 1)[0]
     assert "<svg" in build_map_section
+
+
+def test_evidence_page_lists_every_observation_with_its_pattern(conn, watchlist, tmp_path):
+    from observatory.matcher import Observation
+
+    store.upsert_observations(conn, [
+        Observation(source="arxiv", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="a1", doc_date="2026-08-12",
+                    title="Fleet learning for driverless trucks",
+                    url="https://arxiv.org/abs/1", entity=None, entity_id=None,
+                    amount=None, lat=None, lon=None,
+                    matched_pattern="driverless truck(s|ing)?", raw_ref=1),
+    ])
+    path = render.render_evidence(conn, "2026-W33", watchlist, tmp_path / "e.html")
+    html = path.read_text()
+    assert "Fleet learning for driverless trucks" in html
+    assert "driverless truck(s|ing)?" in html
+    assert "https://arxiv.org/abs/1" in html
+
+
+def test_evidence_page_groups_by_technology_with_a_stable_anchor(conn, watchlist, tmp_path):
+    from observatory.matcher import Observation
+
+    store.upsert_observations(conn, [
+        Observation(source="arxiv", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="a1", doc_date="2026-08-12", title="T", url="u",
+                    entity=None, entity_id=None, amount=None, lat=None, lon=None,
+                    matched_pattern="x", raw_ref=1),
+    ])
+    html = render.render_evidence(conn, "2026-W33", watchlist, tmp_path / "e.html").read_text()
+    assert 'id="autonomous_trucking"' in html
+
+
+def test_evidence_page_escapes_hostile_titles(conn, watchlist, tmp_path):
+    from observatory.matcher import Observation
+
+    store.upsert_observations(conn, [
+        Observation(source="arxiv", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="a1", doc_date="2026-08-12",
+                    title="<script>alert(1)</script>", url="u",
+                    entity=None, entity_id=None, amount=None, lat=None, lon=None,
+                    matched_pattern="x", raw_ref=1),
+    ])
+    html = render.render_evidence(conn, "2026-W33", watchlist, tmp_path / "e.html").read_text()
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_evidence_page_has_no_external_resources(conn, watchlist, tmp_path):
+    html = render.render_evidence(conn, "2026-W33", watchlist, tmp_path / "e.html").read_text()
+    assert not re.findall(r'\b(?:src|href)\s*=\s*[\'"](?:https?:)?//[^\'"]*[\'"]', html)
+
+
+def test_dashboard_links_movers_to_their_evidence(conn, watchlist, tmp_path):
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    assert "evidence.html#" in html
