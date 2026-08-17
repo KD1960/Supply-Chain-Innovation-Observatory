@@ -54,7 +54,7 @@ The second half addresses a defect the first live run exposed: nine of ten match
 
 **Interfaces:**
 - Consumes: `fetch_week`, `rebuild`, `config.trailing_weeks`, `config.current_week`, `store.ok_sources_for_week`, `collectors.base.read_raw`.
-- Produces: `weeks_needing_fetch(conn, weeks, collectors) -> list[str]`; `backfill(conn, watchlist, weeks_back: int, collectors=COLLECTORS, session=None) -> list[str]` returning the weeks it fetched; a `--backfill N` CLI flag.
+- Produces: `weeks_needing_fetch(conn, weeks, collectors) -> list[str]`; `backfill(conn, weeks_back: int, collectors=COLLECTORS, session=None) -> list[str]` returning the weeks it fetched; a `--backfill N` CLI flag.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -145,7 +145,7 @@ def weeks_needing_fetch(conn, weeks: list[str], collectors) -> list[str]:
     return [week for week in weeks if not wanted <= store.ok_sources_for_week(conn, week)]
 
 
-def backfill(conn, watchlist, weeks_back: int, collectors=COLLECTORS, session=None) -> list[str]:
+def backfill(conn, weeks_back: int, collectors=COLLECTORS, session=None) -> list[str]:
     if weeks_back < 1:
         raise ValueError(f"weeks_back must be at least 1, got {weeks_back}")
 
@@ -169,12 +169,15 @@ Then extend the CLI. In `main`, add the argument:
                         help="fetch this many trailing weeks of history, then rebuild")
 ```
 
-and handle it before the `--rebuild` branch:
+`--backfill` must reject `--only` the same way `--rebuild` already does — a backfill ends in a
+full rebuild, and `rebuild` clears every derived table before replaying, so a narrowed collector
+tuple would wipe the other sources' data and never rewrite it. Add that `parser.error` guard
+beside the existing one, then handle the flag before the `--rebuild` branch:
 
 ```python
     if args.backfill is not None:
         session = http.make_session()
-        backfill(conn, watchlist, args.backfill, collectors, session)
+        backfill(conn, args.backfill, collectors, session)
         rebuild(conn, watchlist, collectors)
         return 0
 ```
