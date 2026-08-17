@@ -78,7 +78,7 @@ class EdgarCollector(BaseCollector):
                     doc_id=f"edgar:{hit.get('_id')}",
                     date=(source.get("file_date") or None),
                     title=name,
-                    text=term or "",
+                    text=term,
                     url=_filing_url(hit.get("_id"), cik),
                     entity=name,
                     entity_id=cik,
@@ -87,12 +87,24 @@ class EdgarCollector(BaseCollector):
         return documents
 
 
-def _query_term(payload: dict) -> str | None:
+def _query_term(payload: dict) -> str:
+    """The echoed query term, or an exception — never a degraded empty string.
+
+    Technology attribution rests entirely on this echo. Swallowing a missing
+    one would leave `text` empty, collapse every haystack to the filer name,
+    and match nothing: edgar_filings and edgar_filers would fall to zero for
+    every technology while the source still reported `ok`. `fetch_week` and
+    `ingest_week` isolate a raising source and mark it failed, so raising
+    turns that silent zero into an honest hole.
+    """
     try:
         clauses = payload["query"]["query"]["bool"]["must"]
         return clauses[0]["match_phrase"]["doc_text"]
-    except (KeyError, IndexError, TypeError):
-        return None
+    except (KeyError, IndexError, TypeError) as error:
+        raise ValueError(
+            "EDGAR response did not echo the query term back; "
+            "without it no filing can be attributed to a technology"
+        ) from error
 
 
 def _filing_url(hit_id: str | None, cik: str) -> str:
