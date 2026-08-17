@@ -86,6 +86,46 @@ def test_init_schema_migrates_a_pre_existing_candidate_terms_table():
     connection.close()
 
 
+def test_init_schema_backfills_total_for_pre_existing_rows():
+    """Adding the `total` column with no DEFAULT and no backfill would leave
+    every legacy row NULL, and the render path crashes on that (see
+    render.build_context). The honest backfill for a row written before
+    `total` existed is the number of stored rows for that row's own week --
+    counted per week, not globally, since two different weeks' candidate
+    lists are unrelated truncations."""
+    import sqlite3
+
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    connection.execute(
+        "CREATE TABLE candidate_terms (term TEXT NOT NULL, week TEXT NOT NULL, "
+        "count INTEGER, baseline REAL, ratio REAL, status TEXT, "
+        "PRIMARY KEY (term, week))"
+    )
+    connection.executemany(
+        "INSERT INTO candidate_terms (term, week, count, baseline, ratio, status) "
+        "VALUES (?, ?, 6, 1.0, 6.0, 'new')",
+        [
+            ("dark factory", "2026-W20"),
+            ("vision language", "2026-W20"),
+            ("multi agent", "2026-W21"),
+        ],
+    )
+    connection.commit()
+
+    store.init_schema(connection)
+
+    rows = connection.execute(
+        "SELECT term, week, total FROM candidate_terms ORDER BY week, term"
+    ).fetchall()
+    totals = {(row["term"], row["week"]): row["total"] for row in rows}
+    assert None not in totals.values()
+    assert totals[("dark factory", "2026-W20")] == 2
+    assert totals[("vision language", "2026-W20")] == 2
+    assert totals[("multi agent", "2026-W21")] == 1
+    connection.close()
+
+
 def test_init_schema_migration_is_idempotent():
     import sqlite3
 

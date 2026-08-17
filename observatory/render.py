@@ -103,7 +103,15 @@ def build_context(conn, week: str, watchlist) -> dict:
     crossovers.sort(key=lambda row: row["lfi"], reverse=True)
 
     rising_terms = store.candidates_for_week(conn, week)
-    rising_total = rising_terms[0]["total"] if rising_terms else len(rising_terms)
+    if rising_terms:
+        stored_total = rising_terms[0]["total"]
+        # A legacy row written before the `total` column existed, or one a
+        # future backfill gap misses, carries NULL rather than a real count.
+        # Falling back to the row count -- what a reader can already see --
+        # is honest; letting NULL reach the template crashes the whole render.
+        rising_total = len(rising_terms) if stored_total is None else stored_total
+    else:
+        rising_total = 0
 
     return {
         "week": week,

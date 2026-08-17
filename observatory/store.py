@@ -113,10 +113,16 @@ METRIC_COLUMNS = [
 # `CREATE TABLE IF NOT EXISTS` is a no-op against a table that already
 # exists, no matter how its definition in `SCHEMA` has since changed, so
 # every column added after the table's first release needs an explicit,
-# additive entry here -- append to this list, in the order added.
-MIGRATIONS: list[tuple[str, str, str]] = [
-    ("candidate_terms", "examples", "TEXT"),
-    ("candidate_terms", "total", "INTEGER"),
+# additive entry here -- append to this list, in the order added. The
+# fourth element is optional backfill SQL, run once right after the column
+# is added, for columns where leaving existing rows at the SQL-level NULL
+# default would be actively wrong rather than merely unknown.
+MIGRATIONS: list[tuple[str, str, str, str | None]] = [
+    ("candidate_terms", "examples", "TEXT", None),
+    ("candidate_terms", "total", "INTEGER",
+     "UPDATE candidate_terms SET total = "
+     "(SELECT COUNT(*) FROM candidate_terms c2 WHERE c2.week = candidate_terms.week) "
+     "WHERE total IS NULL"),
 ]
 
 
@@ -132,12 +138,16 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
 
 def _migrate(conn: sqlite3.Connection) -> None:
     """Add any column in `MIGRATIONS` that this database's table doesn't have
-    yet. Additive only -- never drops or rewrites a column, never touches
-    existing rows -- and a no-op on a database that already has it."""
-    for table, column, definition in MIGRATIONS:
+    yet, and backfill it where declared. Additive only -- never drops or
+    rewrites a column -- and a no-op on a database that already has the
+    column, so it never re-runs the backfill over rows a later, unrelated
+    write set to NULL on purpose."""
+    for table, column, definition, backfill in MIGRATIONS:
         existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
         if column not in existing:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+            if backfill:
+                conn.execute(backfill)
 
 
 def init_schema(conn: sqlite3.Connection) -> None:

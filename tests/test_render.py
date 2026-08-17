@@ -457,3 +457,25 @@ def test_rising_terms_block_says_nothing_of_truncation_when_the_list_is_whole(
     store.upsert_candidates(conn, "2026-W33", candidates, total=5)
     html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
     assert "strongest of" not in html
+
+
+def test_rising_terms_survive_a_null_total(conn, watchlist, tmp_path):
+    """A row can carry a NULL total when it predates the `total` column and
+    the migration's backfill missed it -- the guard in build_context exists
+    for exactly that case, distinct from the migration's own backfill (see
+    test_store.test_init_schema_backfills_total_for_pre_existing_rows). Set
+    it to NULL by hand here, after a normal upsert, to simulate that gap
+    directly rather than relying on the migration to reproduce it."""
+    from observatory.discover import Candidate
+
+    store.upsert_candidates(conn, "2026-W33", [
+        Candidate(term="dark factory", count=7, baseline=1.0, ratio=7.0, examples=[]),
+    ])
+    conn.execute("UPDATE candidate_terms SET total = NULL WHERE week = '2026-W33'")
+    conn.commit()
+
+    context = render.build_context(conn, "2026-W33", watchlist)
+    assert context["rising_total"] == 1
+
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    assert "dark factory" in html
