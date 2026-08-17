@@ -168,14 +168,16 @@ def clear_derived(conn: sqlite3.Connection) -> None:
 
     Observations are written with INSERT OR IGNORE, so replaying a week over
     existing rows changes nothing: without this, a rebuild after a parser fix
-    or a widened pattern returns exactly what the old code wrote. `raw_fetch`
+    or a widened pattern returns exactly what the old code wrote. Candidate
+    terms go too: they are derived from the same raw, and a widened pattern is
+    exactly what stops one of them qualifying. `raw_fetch`
     and `sources`/`source_runs` are deliberately spared — the first is an
     append-only log of fetch attempts, the second is what tells the replay
     which weeks were complete.
     """
     conn.executescript(
         "DELETE FROM observations; DELETE FROM weekly_signals; "
-        "DELETE FROM weekly_metrics;"
+        "DELETE FROM weekly_metrics; DELETE FROM candidate_terms;"
     )
     conn.commit()
 
@@ -328,19 +330,28 @@ def observations_for(conn, week: str, tech_id: str, source: str | None = None) -
 
 
 def upsert_candidates(conn, week: str, candidates, total: int | None = None) -> int:
-    """`total` is how many candidates qualified before `detect_rising` capped
+    """A week's rows are replaced, not merged, so what is stored is always
+    exactly what the current run computed. Merging keeps a term that has
+    stopped qualifying forever -- above all the term the owner has just
+    promoted to the watchlist, which is the point of the whole discovery loop.
+    That term would go on appearing on the dashboard and in the next lexicon
+    request, the week's row count would climb past `MAX_CANDIDATES`, and the
+    week would hold two different `total`s, the stale one on the highest-ratio
+    row that render and lexicon both read the total from. `clear_derived`
+    drops the table as well, but that runs only on a --rebuild; this holds on
+    an ordinary weekly run.
+
+    `total` is how many candidates qualified before `detect_rising` capped
     the list at `MAX_CANDIDATES`; it defaults to the row count so a caller
     that doesn't yet know about truncation still gets a consistent value."""
     candidates = list(candidates)
     total = len(candidates) if total is None else total
+    conn.execute("DELETE FROM candidate_terms WHERE week = ?", (week,))
     for candidate in candidates:
         conn.execute(
             "INSERT INTO candidate_terms "
             "(term, week, count, baseline, ratio, status, examples, total) "
-            "VALUES (?, ?, ?, ?, ?, 'new', ?, ?) "
-            "ON CONFLICT (term, week) DO UPDATE SET count = excluded.count, "
-            "baseline = excluded.baseline, ratio = excluded.ratio, "
-            "examples = excluded.examples, total = excluded.total",
+            "VALUES (?, ?, ?, ?, ?, 'new', ?, ?)",
             (candidate.term, week, candidate.count, candidate.baseline, candidate.ratio,
              json.dumps(candidate.examples), total),
         )

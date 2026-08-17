@@ -218,3 +218,52 @@ def test_candidates_upsert_is_idempotent(conn):
     store.upsert_candidates(conn, "2026-W33", [candidate])
     store.upsert_candidates(conn, "2026-W33", [candidate])
     assert len(store.candidates_for_week(conn, "2026-W33")) == 1
+
+
+def test_candidates_upsert_replaces_the_weeks_rows(conn):
+    """A term stops qualifying — most importantly because the owner just
+    promoted it to the watchlist, which is the point of the discovery loop.
+    Merging would keep its row forever: it would stay on the dashboard and in
+    the next lexicon request, push the table past MAX_CANDIDATES, and leave two
+    different `total`s stored for one week, so the highest-ratio row that
+    render and lexicon read the total from could carry a stale one."""
+    from observatory.discover import Candidate
+
+    first = [
+        Candidate(term="multi agent", count=9, baseline=1.0, ratio=9.0, examples=[]),
+        Candidate(term="dark factory", count=6, baseline=1.0, ratio=6.0, examples=[]),
+        Candidate(term="vision language", count=5, baseline=1.0, ratio=5.0, examples=[]),
+    ]
+    store.upsert_candidates(conn, "2026-W33", first, total=225)
+
+    second = [
+        Candidate(term="dark factory", count=6, baseline=1.0, ratio=6.0, examples=[]),
+        Candidate(term="vision language", count=5, baseline=1.0, ratio=5.0, examples=[]),
+    ]
+    store.upsert_candidates(conn, "2026-W33", second, total=221)
+
+    rows = store.candidates_for_week(conn, "2026-W33")
+    assert [row["term"] for row in rows] == ["dark factory", "vision language"]
+    assert {row["total"] for row in rows} == {221}
+
+
+def test_candidates_upsert_leaves_other_weeks_alone(conn):
+    from observatory.discover import Candidate
+
+    store.upsert_candidates(conn, "2026-W32", [
+        Candidate(term="dark factory", count=6, baseline=1.0, ratio=6.0, examples=[]),
+    ])
+    store.upsert_candidates(conn, "2026-W33", [
+        Candidate(term="vision language", count=5, baseline=1.0, ratio=5.0, examples=[]),
+    ])
+    assert [row["term"] for row in store.candidates_for_week(conn, "2026-W32")] == ["dark factory"]
+
+
+def test_clear_derived_drops_candidate_terms(conn):
+    from observatory.discover import Candidate
+
+    store.upsert_candidates(conn, "2026-W33", [
+        Candidate(term="dark factory", count=6, baseline=1.0, ratio=6.0, examples=[]),
+    ])
+    store.clear_derived(conn)
+    assert store.candidates_for_week(conn, "2026-W33") == []
