@@ -188,8 +188,25 @@ def check(conn, week: str, watchlist, proposals_path: Path | None = None) -> tup
         if tech_id in existing:
             problems.append(Problem(tech_id, f"id {tech_id} already exists in the watchlist"))
 
+        # `matcher.load_watchlist` reads `entry["name"]` unconditionally, so a
+        # proposal missing it would validate here but crash the run the moment
+        # it's pasted into watchlist.yaml -- catch it now instead.
+        if "name" not in entry:
+            problems.append(Problem(tech_id, "missing 'name', which watchlist.yaml requires"))
+
+        # A bare string for `include`/`exclude` is a common shape mistake --
+        # YAML accepts it, and iterating it character by character would blame
+        # the pattern compiler for something the compiler never saw.
+        include = entry.get("include", ())
+        if not isinstance(include, list):
+            problems.append(Problem(tech_id, f"'include' must be a list of patterns, not {include!r}"))
+            include = ()
+        exclude = entry.get("exclude", ())
+        if not isinstance(exclude, list):
+            problems.append(Problem(tech_id, f"'exclude' must be a list of patterns, not {exclude!r}"))
+
         compiled = []
-        for pattern in entry.get("include", ()):
+        for pattern in include:
             try:
                 compiled.append(matcher.compile_pattern(pattern))
             except re.error as error:

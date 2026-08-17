@@ -236,3 +236,52 @@ def test_check_rejects_invalid_yaml_syntax(conn, watchlist, tmp_path):
     path = write_proposal(tmp_path, "technologies: [unclosed\n")
     problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
     assert problems and all(isinstance(p, lexicon.Problem) for p in problems)
+
+
+def test_check_reports_a_clear_problem_when_include_is_a_bare_string(conn, watchlist, tmp_path):
+    """A YAML scalar where a sequence was meant -- e.g. include: "multi[- ]agent"
+    instead of include: ["multi[- ]agent"] -- must be named as a shape problem,
+    not iterated character by character into a string of bogus pattern-compile
+    errors."""
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            include: "multi[- ]agent"
+            exclude: []
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("include" in problem.message for problem in problems)
+    assert not any("does not compile" in problem.message for problem in problems)
+
+
+def test_check_reports_a_clear_problem_when_exclude_is_a_bare_string(conn, watchlist, tmp_path):
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            include: ["dark factor(y|ies)"]
+            exclude: "lights-out band"
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("exclude" in problem.message for problem in problems)
+    assert not any("does not compile" in problem.message for problem in problems)
+
+
+def test_check_reports_a_problem_when_name_is_missing(conn, watchlist, tmp_path):
+    """`matcher.load_watchlist` reads `entry["name"]`, not `.get`, so a proposal
+    missing `name` would validate cleanly here but crash the next
+    `observatory.run` the moment it's pasted into watchlist.yaml and loaded --
+    that is not sensible degradation, so `check` must catch it first."""
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            family: physical
+            include: ["dark factor(y|ies)"]
+            exclude: []
+            needs_context: true
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("name" in problem.message for problem in problems)
