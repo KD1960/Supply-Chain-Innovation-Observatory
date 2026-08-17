@@ -151,11 +151,17 @@ Hand-writing regexes for 32 technologies produces thin, brittle coverage. So an 
 as an **authoring tool**, run deliberately by the user, never during a weekly run.
 
 ```bash
-python -m observatory.lexicon propose autonomous_trucking   # expand one technology
-python -m observatory.lexicon propose --all                 # expand the whole watchlist
-python -m observatory.lexicon triage 2026-W33               # draft patterns for rising terms
-python -m observatory.lexicon diff                          # show proposals vs. current
+python -m observatory.lexicon prepare 2026-W33   # package the week's evidence into a request
+python -m observatory.lexicon check 2026-W33     # validate the proposals that came back
 ```
+
+**How it reaches the model (revised 2026-08-16).** The original design had the command
+call an API directly. The owner chose instead to route it through a Claude session:
+`prepare` writes a request file, the human asks Claude to answer it in conversation, and
+Claude writes a proposals file. That needs no API key and no per-call billing, keeps the
+human in the loop where the judgement actually is, and makes the no-LLM-at-runtime rule
+trivially true — the tool only shuffles files, and the reasoning happens in a session where
+the owner can argue with a pattern before it lands.
 
 **What it produces.** For each technology, the model is asked for: synonyms and spelling
 variants, common abbreviations, vendor and product names in the category, adjacent terms
@@ -166,12 +172,15 @@ do not. Output is written to `lexicon/proposals/<tech_id>-<date>.yaml` — never
 **What it does not do.** It does not edit the watchlist, score anything, rank technologies,
 or write dashboard text. Merging a proposal is a human edit, reviewed as a normal diff.
 
-**Triage mode.** After a weekly run, `triage` reads that week's `candidate_terms` rows plus
-three example documents each, and drafts a candidate watchlist entry (id, name, family,
-include/exclude patterns) for the ones that look like real technologies rather than news
-noise. These land in `lexicon/proposals/candidates-<week>.yaml` for the same human review.
-The Rising Terms dashboard block itself is computed by the deterministic pipeline and is
-identical whether or not triage was ever run.
+**Validation.** `check` is where the workflow earns its keep. It refuses a proposal whose
+pattern does not compile, whose id collides with an existing technology, that matches none
+of the evidence that inspired it, or that sets `needs_context` while no matching evidence
+contains a context word — the last being a silent zero rather than an error, which is this
+project's most common failure shape. On success it prints a paste-ready YAML block; the
+human merges it into `watchlist.yaml` by hand, as a reviewed diff.
+
+The Rising Terms dashboard block is computed by the deterministic pipeline and is identical
+whether or not the lexicon workflow was ever run.
 
 **Versioning.** `watchlist.yaml` carries a top-level `lexicon_version` (integer, bumped on
 every merged change) and a changelog at `lexicon/CHANGELOG.md`. Every `weekly_metrics` row
