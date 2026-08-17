@@ -17,9 +17,19 @@ API_URL = "https://api.usaspending.gov/api/v2/search/spending_by_award/"
 PAGE_SIZE = 100
 MAX_PAGES = 5
 
+# The date field has to be the one the filter uses. `time_period` filters on
+# whichever `date_type` is named, and the default (action_date) has no field in
+# the response at all; "Start Date" is the period-of-performance start, which
+# routinely predates the query window by years. Keying an observation to that
+# date files it under a week the query never asked about, so the award lands in
+# `observations` and never reaches a count. last_modified_date is filterable and
+# retrievable under the same name, so the two agree by construction.
+DATE_TYPE = "last_modified_date"
+DATE_FIELD = "Last Modified Date"
+
 FIELDS = [
     "Award ID", "Recipient Name", "Award Amount", "Description",
-    "Place of Performance State Code", "Start Date",
+    "Place of Performance State Code", DATE_FIELD,
 ]
 
 KEYWORDS = (
@@ -43,7 +53,8 @@ class UsaspendingCollector(BaseCollector):
             "filters": {
                 "keywords": [keyword],
                 "time_period": [
-                    {"start_date": start.isoformat(), "end_date": end.isoformat()}
+                    {"start_date": start.isoformat(), "end_date": end.isoformat(),
+                     "date_type": DATE_TYPE}
                 ],
                 "award_type_codes": ["A", "B", "C", "D"],
             },
@@ -77,7 +88,7 @@ class UsaspendingCollector(BaseCollector):
             documents.append(
                 Document(
                     doc_id=f"usaspend:{award_id}",
-                    date=result.get("Start Date"),
+                    date=_date(result.get(DATE_FIELD)),
                     title=result.get("Description") or award_id,
                     text=result.get("Description") or "",
                     url=f"https://www.usaspending.gov/award/{award_id}",
@@ -89,6 +100,13 @@ class UsaspendingCollector(BaseCollector):
                 )
             )
         return documents
+
+
+def _date(value) -> str | None:
+    """Last Modified Date arrives as a timestamp; the week only needs the day."""
+    if not value:
+        return None
+    return str(value)[:10]
 
 
 def _amount(value) -> float | None:
