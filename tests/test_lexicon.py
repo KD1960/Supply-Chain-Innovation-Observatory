@@ -318,3 +318,33 @@ def test_check_reports_a_problem_when_id_is_missing(conn, watchlist, tmp_path):
     """)
     problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
     assert any("id" in problem.message for problem in problems)
+
+
+def test_check_does_not_penalise_an_omitted_exclude(conn, watchlist, tmp_path):
+    """Omitting `exclude` is normal -- most proposals have nothing to exclude,
+    and the request template does not require the key. Shape-checking it
+    against the substituted default (`entry.get("exclude", [])`) would make
+    every such proposal fail with a false positive."""
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            include: ["dark factor(y|ies)"]
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert not any("exclude" in problem.message for problem in problems)
+
+
+def test_check_reports_a_problem_when_include_is_missing(conn, watchlist, tmp_path):
+    """Unlike `exclude`, an absent `include` is a real problem: a technology
+    with no patterns matches nothing."""
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            exclude: []
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("include" in problem.message for problem in problems)

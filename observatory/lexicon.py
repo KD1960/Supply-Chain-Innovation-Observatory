@@ -202,13 +202,21 @@ def check(conn, week: str, watchlist, proposals_path: Path | None = None) -> tup
 
         # A bare string for `include`/`exclude` is a common shape mistake --
         # YAML accepts it, and iterating it character by character would blame
-        # the pattern compiler for something the compiler never saw.
-        include = entry.get("include", ())
-        if not isinstance(include, list):
+        # the pattern compiler for something the compiler never saw. Shape is
+        # only checked when the key is actually present: an absent `exclude`
+        # is normal (most proposals have nothing to exclude) and must not be
+        # penalised for it. An absent `include` is checked separately below --
+        # unlike `exclude`, a technology with zero include patterns matches
+        # nothing, which is a real problem, not a shape problem.
+        include = entry.get("include", [])
+        if "include" not in entry:
+            problems.append(Problem(tech_id, "missing 'include' -- a technology with no patterns matches nothing"))
+        elif not isinstance(include, list):
             problems.append(Problem(tech_id, f"'include' must be a list of patterns, not {include!r}"))
-            include = ()
-        exclude = entry.get("exclude", ())
-        if not isinstance(exclude, list):
+            include = []
+
+        exclude = entry.get("exclude", [])
+        if "exclude" in entry and not isinstance(exclude, list):
             problems.append(Problem(tech_id, f"'exclude' must be a list of patterns, not {exclude!r}"))
 
         compiled = []
