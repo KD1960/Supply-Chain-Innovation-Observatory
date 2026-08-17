@@ -95,6 +95,22 @@ def test_compute_week_momentum_is_scale_independent(conn):
     assert rows["accelerating"]["momentum"] > rows["noisy"]["momentum"]
 
 
+def test_adoption_is_absent_when_edgar_did_not_run(conn):
+    """A week EDGAR failed writes no edgar_filers row. Reading that as 0 would
+    print "0 adopters" for every technology on the week we did not look."""
+    watchlist = Watchlist(version=1, technologies=(tech("a"),))
+    seed(conn, "a", "arxiv_papers", [1] * 14)
+    row = metrics.compute_week(conn, "2026-W33", watchlist)[0]
+    assert row["adoption"] is None
+
+
+def test_adoption_is_zero_when_edgar_ran_and_found_nobody(conn):
+    watchlist = Watchlist(version=1, technologies=(tech("a"),))
+    store.set_signal(conn, "a", "2026-W33", "edgar_filers", 0.0)
+    row = metrics.compute_week(conn, "2026-W33", watchlist)[0]
+    assert row["adoption"] == 0
+
+
 def test_compute_week_stamps_the_lexicon_version(conn):
     watchlist = Watchlist(version=7, technologies=(tech("a"),))
     seed(conn, "a", "arxiv_papers", [1] * 14)

@@ -67,7 +67,7 @@ def build_context(conn, week: str, watchlist) -> dict:
             "momentum": row["momentum"],
             "sai": row["sai"],
             "lfi": row["lfi"],
-            "adoption": row["adoption"] or 0,
+            "adoption": row["adoption"],
         }
         for row in scored[:MOVER_COUNT]
     ]

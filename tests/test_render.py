@@ -67,6 +67,28 @@ def test_context_reports_source_health(conn, watchlist):
     assert statuses == {"arxiv": "ok", "hn": "failed"}
 
 
+def test_an_absent_adoption_count_renders_as_a_dash_not_a_zero(conn, watchlist, tmp_path):
+    """EDGAR failing leaves no edgar_filers row, so adoption is None. Printing
+    0 adopters would be the fabricated decline the hole rule forbids."""
+    store.upsert_metrics(conn, dict(
+        tech_id="warehouse_robotics", week="2026-W33", momentum=-0.5, sai=-1.3,
+        lfi=-0.4, adoption=None, adoption_new=None, stage_idea=1.1,
+        stage_experiment=0.8, stage_investment=0.1, stage_deployment=-0.2,
+        stage_diffusion=0.0, position=2.1, lexicon_version=3))
+
+    context = render.build_context(conn, "2026-W33", watchlist)
+    absent = [row for row in context["movers"] if row["tech_id"] == "warehouse_robotics"]
+    assert absent and absent[0]["adoption"] is None
+
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    movers = html.split("This Week's Movers", 1)[1].split("<h2>", 1)[0]
+    # Both movers have a substance and a lab-to-field score, so the only cell
+    # that can hold a dash is the adopters count.
+    assert "Warehouse robotics" in movers
+    assert '<td class="num">—</td>' in movers
+    assert '<td class="num">0</td>' not in movers
+
+
 def test_render_writes_a_file_containing_every_block(conn, watchlist, tmp_path):
     path = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "dashboard.html")
     html = path.read_text()

@@ -183,7 +183,7 @@ def compute_week(conn, week: str, watchlist) -> list[dict]:
             "week": week,
             "sai": substance_index(z_by_signal),
             "lfi": lab_to_field(stages),
-            "adoption": int(store.get_signal(conn, tech.id, week, "edgar_filers") or 0),
+            "adoption": _adoption(store.get_signal(conn, tech.id, week, "edgar_filers")),
             "adoption_new": 0,
             "stage_idea": stages["idea"],
             "stage_experiment": stages["experiment"],
@@ -198,6 +198,17 @@ def compute_week(conn, week: str, watchlist) -> list[dict]:
     for tech_id, row in partial.items():
         row["momentum"] = momentum_by_tech[tech_id]
     return [partial[tech.id] for tech in watchlist.active]
+
+
+def _adoption(filers: float | None) -> int | None:
+    """An absent edgar_filers signal is not zero adopters.
+
+    weekly_signals leaves the row out on a week EDGAR failed, and folding that
+    into 0 would print a hard "0 adopters" for every technology on the week we
+    happened not to look — the fabricated decline the hole rule exists to
+    prevent, wearing the most authoritative number on the page.
+    """
+    return None if filers is None else int(filers)
 
 
 def _composite_series(series_list: list[list[float | None]]) -> list[float | None]:
