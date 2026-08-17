@@ -31,6 +31,7 @@
 
   {% for group in groups %}
     <h2 id="{{ group.tech_id }}">{{ group.name }} <span class="sub">({{ group.rows|length }})</span></h2>
+    {% if group.rows %}
     <table>
       <thead><tr><th>Date</th><th>Source</th><th>Document</th><th>Matched pattern</th></tr></thead>
       <tbody>
@@ -48,8 +49,11 @@
       {% endfor %}
       </tbody>
     </table>
+    {% else %}
+    <p class="empty">No documents matched this technology this week.</p>
+    {% endif %}
   {% else %}
-    <p class="empty">No observations recorded for this week.</p>
+    <p class="empty">No active technologies on the watchlist.</p>
   {% endfor %}
 </main>
 </body>

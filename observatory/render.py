@@ -159,7 +159,6 @@ def _lfi_history(conn, tech_id: str, week: str, weeks: int = 12) -> list[float |
 
 
 def evidence_context(conn, week: str, watchlist) -> dict:
-    names = {tech.id: tech.name for tech in watchlist.technologies}
     rows = conn.execute(
         "SELECT tech_id, source, doc_id, doc_date, title, url, entity, matched_pattern "
         "FROM observations WHERE week = ? ORDER BY tech_id, doc_date DESC",
@@ -168,12 +167,17 @@ def evidence_context(conn, week: str, watchlist) -> dict:
     grouped: dict[str, list[dict]] = {}
     for row in rows:
         grouped.setdefault(row["tech_id"], []).append(dict(row))
+    # Every active technology gets a section and an anchor, whether or not it
+    # has observations this week -- the dashboard links all of them (Movers
+    # and the warming-up footer), and a link into a missing anchor is a dead
+    # link. A technology with no matches renders with a count of 0, which is
+    # itself the information: the system looked and found nothing.
     return {
         "week": week,
         "lexicon_version": watchlist.version,
         "groups": [
-            {"tech_id": tech_id, "name": names.get(tech_id, tech_id), "rows": group}
-            for tech_id, group in sorted(grouped.items())
+            {"tech_id": tech.id, "name": tech.name, "rows": grouped.get(tech.id, [])}
+            for tech in watchlist.active
         ],
     }
 

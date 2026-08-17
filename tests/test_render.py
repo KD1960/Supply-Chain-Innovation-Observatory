@@ -255,3 +255,31 @@ def test_evidence_page_has_no_external_resources(conn, watchlist, tmp_path):
 def test_dashboard_links_movers_to_their_evidence(conn, watchlist, tmp_path):
     html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
     assert "evidence.html#" in html
+
+
+def test_dashboard_links_all_resolve_to_evidence_anchors(conn, watchlist, tmp_path):
+    """The watchlist fixture has three technologies (autonomous_trucking,
+    warehouse_robotics, quiet_tech); only one gets an observation here, so the
+    dashboard links a mix of technologies with and without evidence. Every
+    evidence.html#<anchor> link the dashboard emits must resolve to a real id=
+    on the evidence page -- a dead link is worse than useless, since it looks
+    like it should work."""
+    from observatory.matcher import Observation
+
+    store.upsert_observations(conn, [
+        Observation(source="arxiv", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="a1", doc_date="2026-08-12", title="T", url="u",
+                    entity=None, entity_id=None, amount=None, lat=None, lon=None,
+                    matched_pattern="x", raw_ref=1),
+    ])
+    dashboard_html = render.render_dashboard(
+        conn, "2026-W33", watchlist, tmp_path / "d.html"
+    ).read_text()
+    evidence_html = (tmp_path / "evidence.html").read_text()
+
+    # tech ids can contain digits (gs1_2d, private_5g_warehouse) -- [\w] not [a-z_]
+    links = set(re.findall(r'evidence\.html#([\w-]+)', dashboard_html))
+    anchors = set(re.findall(r'id="([\w-]+)"', evidence_html))
+
+    assert links, "expected the dashboard to link to evidence at all"
+    assert links <= anchors, f"dead links: {links - anchors}"
