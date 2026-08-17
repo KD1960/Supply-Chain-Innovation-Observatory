@@ -120,7 +120,10 @@ def build_map_points(conn, week: str) -> list[charts.Point]:
     largest = max(amounts) or 1.0
     points = []
     for row, amount in zip(rows, amounts):
-        share = (amount / largest) ** 0.5
+        # USAspending reports negative amounts for deobligations/corrections. A
+        # shrinking award isn't a bigger build, so floor at zero before sizing —
+        # otherwise a negative amount reaches **0.5 as a complex number.
+        share = (max(amount, 0.0) / largest) ** 0.5
         label = " · ".join(
             part for part in (row["entity"], row["title"], _money(amount)) if part
         )

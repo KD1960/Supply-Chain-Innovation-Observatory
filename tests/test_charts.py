@@ -110,6 +110,10 @@ def test_build_map_clamps_points_outside_the_continental_frame():
     svg = charts.build_map([charts.Point(x=-152.28, y=64.07, label="Alaska")])
     assert "<circle" in svg
     assert "nan" not in svg.lower()
+    radii = re.findall(r'<circle[^>]*\br="([^"]+)"', svg)
+    assert radii
+    for value in radii:
+        float(value)  # raises ValueError if r ever renders as a complex number
 
 
 def test_build_map_of_nothing_is_still_valid_svg():

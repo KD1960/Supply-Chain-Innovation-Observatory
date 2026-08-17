@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from observatory import render, store
+from observatory import charts, render, store
 from observatory.matcher import Technology, Watchlist
 
 
@@ -141,8 +141,61 @@ def test_build_map_points_come_from_located_observations(conn, watchlist):
     assert "ACME" in points[0].label
 
 
+def test_build_map_points_clamps_negative_amounts_for_sizing(conn, watchlist):
+    """USAspending reports negative amounts for deobligations/corrections. A
+    negative amount must not reach the square root in the size calculation,
+    where it would produce a complex number and invalid SVG (r="3.0+3.4j")."""
+    from observatory.matcher import Observation
+
+    store.upsert_observations(conn, [
+        Observation(source="usaspending", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="b1", doc_date="2026-08-12", title="Corridor award",
+                    url="u", entity="ACME", entity_id=None, amount=5_000_000.0,
+                    lat=34.27, lon=-111.66, matched_pattern="x", raw_ref=1),
+        Observation(source="usaspending", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="b2", doc_date="2026-08-12", title="Deobligation",
+                    url="u", entity="ACME", entity_id=None, amount=-250_000.0,
+                    lat=42.95, lon=-75.53, matched_pattern="x", raw_ref=1),
+    ])
+    points = render.build_map_points(conn, "2026-W33")
+    assert len(points) == 2
+    for point in points:
+        assert isinstance(point.size, float)
+        assert render.MAP_MIN_RADIUS <= point.size <= render.MAP_MAX_RADIUS
+
+    svg = charts.build_map(points)
+    radii = re.findall(r'<circle[^>]*\br="([^"]+)"', svg)
+    assert len(radii) == 2
+    for value in radii:
+        float(value)  # raises ValueError if r ever renders as a complex number
+
+
+def test_build_map_points_bounds_radius_when_all_amounts_are_negative(conn, watchlist):
+    """A batch with no positive amount must not let 'amount / largest' come out
+    greater than 1 (both negative, ratio > 1), which would blow the radius past
+    MAP_MAX_RADIUS."""
+    from observatory.matcher import Observation
+
+    store.upsert_observations(conn, [
+        Observation(source="usaspending", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="c1", doc_date="2026-08-12", title="Deobligation A",
+                    url="u", entity="ACME", entity_id=None, amount=-100_000.0,
+                    lat=34.27, lon=-111.66, matched_pattern="x", raw_ref=1),
+        Observation(source="usaspending", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="c2", doc_date="2026-08-12", title="Deobligation B",
+                    url="u", entity="ACME", entity_id=None, amount=-900_000.0,
+                    lat=42.95, lon=-75.53, matched_pattern="x", raw_ref=1),
+    ])
+    points = render.build_map_points(conn, "2026-W33")
+    assert points
+    for point in points:
+        assert point.size <= render.MAP_MAX_RADIUS
+
+
 def test_dashboard_renders_the_build_map_block(conn, watchlist, tmp_path):
     path = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html")
     html = path.read_text()
     assert "Build Map" in html
     assert "Arrives with the USAspending collector" not in html
+    build_map_section = html.split("<h2>Build Map</h2>", 1)[1].split("<h2>", 1)[0]
+    assert "<svg" in build_map_section
