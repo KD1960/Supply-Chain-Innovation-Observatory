@@ -338,6 +338,15 @@ def test_rebuild_and_only_are_rejected_together(conn, capsys):
     assert "--rebuild always replays every source" in capsys.readouterr().err
 
 
+def test_backfill_and_only_are_rejected_together(conn, capsys):
+    # --backfill always ends in a full rebuild, which hits the same
+    # clear_derived-then-replay-one-source hole as --rebuild --only.
+    with pytest.raises(SystemExit) as excinfo:
+        run.main(["--backfill", "3", "--only", "arxiv"])
+    assert excinfo.value.code == 2
+    assert "backfill always fetches every source" in capsys.readouterr().err
+
+
 def test_run_week_produces_a_dashboard_file(conn, watchlist, tmp_path):
     output = tmp_path / "dashboard.html"
     result = run.run_week(conn, "2026-W33", watchlist, [stub()],
@@ -426,7 +435,7 @@ def test_weeks_needing_fetch_requires_every_collector(conn):
     assert run.weeks_needing_fetch(conn, ["2026-W30"], two) == ["2026-W30"]
 
 
-def test_backfill_fetches_oldest_first_and_returns_what_it_fetched(conn, watchlist, tmp_path):
+def test_backfill_fetches_oldest_first_and_returns_what_it_fetched(conn, tmp_path):
     calls = []
 
     class RecordingCollector(StubCollector):
@@ -439,19 +448,19 @@ def test_backfill_fetches_oldest_first_and_returns_what_it_fetched(conn, watchli
         [Document(doc_id="d1", date="2026-08-12", title="Autonomous trucking corridor",
                   text="", url="https://x.test/a")],
     )
-    fetched = run.backfill(conn, watchlist, weeks_back=3, collectors=[collector], session=None)
+    fetched = run.backfill(conn, weeks_back=3, collectors=[collector], session=None)
     assert calls == sorted(calls), "backfill must fetch oldest first"
     assert fetched == calls
 
 
-def test_backfill_skips_weeks_it_has_already_fetched(conn, watchlist):
+def test_backfill_skips_weeks_it_has_already_fetched(conn):
     collector = stub()
-    first = run.backfill(conn, watchlist, weeks_back=2, collectors=[collector], session=None)
-    second = run.backfill(conn, watchlist, weeks_back=2, collectors=[collector], session=None)
+    first = run.backfill(conn, weeks_back=2, collectors=[collector], session=None)
+    second = run.backfill(conn, weeks_back=2, collectors=[collector], session=None)
     assert first, "first pass should fetch something"
     assert second == [], "second pass should find everything already fetched"
 
 
-def test_backfill_rejects_a_nonsensical_window(conn, watchlist):
+def test_backfill_rejects_a_nonsensical_window(conn):
     with pytest.raises(ValueError):
-        run.backfill(conn, watchlist, weeks_back=0, collectors=[stub()], session=None)
+        run.backfill(conn, weeks_back=0, collectors=[stub()], session=None)

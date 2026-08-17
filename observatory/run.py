@@ -56,7 +56,7 @@ def weeks_needing_fetch(conn, weeks: list[str], collectors) -> list[str]:
     return [week for week in weeks if not wanted <= store.ok_sources_for_week(conn, week)]
 
 
-def backfill(conn, watchlist, weeks_back: int, collectors=COLLECTORS, session=None) -> list[str]:
+def backfill(conn, weeks_back: int, collectors=COLLECTORS, session=None) -> list[str]:
     if weeks_back < 1:
         raise ValueError(f"weeks_back must be at least 1, got {weeks_back}")
 
@@ -313,6 +313,10 @@ def main(argv=None) -> int:
         # replayed source is worse: the derived tables would then disagree
         # across sources about which lexicon produced them.
         parser.error("--rebuild always replays every source; it cannot be combined with --only")
+    if args.backfill is not None and args.only:
+        # --backfill ends in the same rebuild(), so it hits the same hole.
+        parser.error("backfill always fetches every source because it ends in a full rebuild; "
+                      "it cannot be combined with --only")
 
     config.load_dotenv()
     watchlist = matcher.load_watchlist()
@@ -327,7 +331,7 @@ def main(argv=None) -> int:
     try:
         if args.backfill is not None:
             session = http.make_session()
-            backfill(conn, watchlist, args.backfill, collectors, session)
+            backfill(conn, args.backfill, collectors, session)
             rebuild(conn, watchlist, collectors)
             return 0
         if args.rebuild:
