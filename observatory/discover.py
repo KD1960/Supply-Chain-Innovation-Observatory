@@ -145,8 +145,7 @@ def detect_rising(week: str, collectors, watchlist) -> RisingTerms:
     for past in baseline_weeks:
         history.update(week_phrase_counts(past, collectors))
 
-    documents = _documents_for_week(week, collectors)
-    candidates = []
+    qualifying = []
     for term, count in current.items():
         if count < MIN_COUNT:
             continue
@@ -156,12 +155,20 @@ def detect_rising(week: str, collectors, watchlist) -> RisingTerms:
             continue
         if _already_covered(watchlist, term):
             continue
-        candidates.append(
-            Candidate(term=term, count=count, baseline=round(baseline, 3),
-                      ratio=round(ratio, 2), examples=_examples(documents, term))
-        )
-    candidates.sort(key=lambda candidate: (-candidate.ratio, candidate.term))
-    return RisingTerms(candidates=candidates[:MAX_CANDIDATES], total=len(candidates))
+        qualifying.append((term, count, round(baseline, 3), round(ratio, 2)))
+
+    # Rank and cut first, then look up examples. Finding a term's examples
+    # re-phrases every document in the week, and on live data all but the
+    # twenty-five surviving terms' examples were thrown away -- about ten
+    # times the work for the same answer.
+    qualifying.sort(key=lambda row: (-row[3], row[0]))
+    documents = _documents_for_week(week, collectors)
+    candidates = [
+        Candidate(term=term, count=count, baseline=baseline, ratio=ratio,
+                  examples=_examples(documents, term))
+        for term, count, baseline, ratio in qualifying[:MAX_CANDIDATES]
+    ]
+    return RisingTerms(candidates=candidates, total=len(qualifying))
 
 
 def _examples(documents, term: str) -> list[tuple[str, str]]:

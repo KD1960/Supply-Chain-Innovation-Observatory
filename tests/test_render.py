@@ -430,6 +430,24 @@ def test_rising_term_titles_are_escaped(conn, watchlist, tmp_path):
     assert "&lt;script&gt;" in html
 
 
+def test_rising_term_links_only_render_for_http_urls(conn, watchlist, tmp_path):
+    """The URL arrives in a third-party payload. Every one today is
+    collector-constructed or from a federal API, but a `javascript:` URL would
+    become a link the owner clicks in a file opened locally, so only http(s)
+    is made clickable and anything else shows as plain text."""
+    from observatory.discover import Candidate
+
+    store.upsert_candidates(conn, "2026-W33", [
+        Candidate(term="dark factory", count=7, baseline=1.0, ratio=7.0,
+                  examples=[("Hostile link", "javascript:alert(1)"),
+                            ("Honest link", "https://x.test/1")]),
+    ])
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    assert "javascript:" not in html
+    assert "Hostile link" in html
+    assert '<a href="https://x.test/1">' in html
+
+
 def test_rising_terms_block_discloses_truncation(conn, watchlist, tmp_path):
     """227 real terms qualified against live raw and only 25 are shown; the
     block must say so rather than showing 25 and implying that's all there

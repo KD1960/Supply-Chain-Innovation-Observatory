@@ -19,6 +19,29 @@ Other forms:
     python -m observatory.run --skip-fetch      # recompute from saved raw files
     python -m observatory.run --rebuild         # recompute all weeks from raw
     python -m observatory.run --only arxiv      # a single collector
+    python -m observatory.run --backfill 52     # fetch 52 trailing weeks, then rebuild
+
+## Backfill
+
+Most of the dashboard needs history to say anything: a z-score wants 12 weeks
+and momentum wants 8, so a cold database renders "warming up" and no scores at
+all. `--backfill N` fetches the trailing `N` weeks, oldest first, and then runs
+the same full rebuild as `--rebuild`.
+
+It takes a while, because the collectors are deliberately polite. A week costs
+about a dozen requests at the floor and about forty-five when every source
+runs into its page cap, with arXiv paced at one request every three seconds.
+For 52 weeks that is roughly half an hour at the floor and around three hours
+at the ceiling.
+
+Interrupting it is safe. Every collector's outcome is recorded per week, so a
+restart refetches only the weeks and the individual collectors that have not
+recorded a success — a week where four sources worked and one failed costs one
+source's requests on the next attempt, not five. Run it again until it reports
+that every week is already fetched.
+
+Because it ends in a full rebuild, which replays every source, it cannot be
+combined with `--only`.
 
 Output lands in `output/latest.html` — one self-contained file, no server needed.
 Every count on it links to `output/evidence.html`, which lists each observation
