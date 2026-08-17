@@ -179,6 +179,7 @@ def check(conn, week: str, watchlist, proposals_path: Path | None = None) -> tup
     context_res = watchlist.context_res
 
     problems: list[Problem] = []
+    seen: set[str] = set()
     for entry in entries:
         if not isinstance(entry, dict):
             problems.append(Problem("", f"technology entry is not a mapping: {entry!r}"))
@@ -199,26 +200,39 @@ def check(conn, week: str, watchlist, proposals_path: Path | None = None) -> tup
 
         if tech_id in existing:
             problems.append(Problem(tech_id, f"id {tech_id} already exists in the watchlist"))
+        # Two entries sharing an id are both new to the watchlist, so the check
+        # above sees nothing wrong; after the merge the second simply replaces
+        # the first and its patterns are gone without a word.
+        if tech_id in seen:
+            problems.append(Problem(tech_id, f"id {tech_id} is proposed twice in this file"))
+        seen.add(tech_id)
 
         # A bare string for `include`/`exclude` is a common shape mistake --
         # YAML accepts it, and iterating it character by character would blame
         # the pattern compiler for something the compiler never saw. Shape is
         # only checked when the key is actually present: an absent `exclude`
         # is normal (most proposals have nothing to exclude) and must not be
-        # penalised for it. An absent `include` is checked separately below --
-        # unlike `exclude`, a technology with zero include patterns matches
-        # nothing, which is a real problem, not a shape problem.
+        # penalised for it. Zero include patterns is a different matter --
+        # whether the key is absent or present and empty, the technology
+        # matches nothing, which is a real problem, not a shape problem.
         include = entry.get("include", [])
         if "include" not in entry:
             problems.append(Problem(tech_id, "missing 'include' -- a technology with no patterns matches nothing"))
         elif not isinstance(include, list):
             problems.append(Problem(tech_id, f"'include' must be a list of patterns, not {include!r}"))
             include = []
+        elif not include:
+            problems.append(Problem(tech_id, "'include' is empty -- a technology with no patterns matches nothing"))
 
         exclude = entry.get("exclude", [])
         if "exclude" in entry and not isinstance(exclude, list):
             problems.append(Problem(tech_id, f"'exclude' must be a list of patterns, not {exclude!r}"))
+            exclude = []
 
+        # Both lists are compiled, because `matcher.Technology` compiles both:
+        # an exclude that does not compile raises in `load_watchlist` before
+        # the next run fetches anything, and exclude is where the alternation
+        # and parentheses pile up.
         compiled = []
         for pattern in include:
             try:
@@ -226,8 +240,23 @@ def check(conn, week: str, watchlist, proposals_path: Path | None = None) -> tup
             except re.error as error:
                 problems.append(Problem(tech_id, f"include pattern does not compile: {pattern!r} ({error})"))
 
+        compiled_exclude = []
+        for pattern in exclude:
+            try:
+                compiled_exclude.append(matcher.compile_pattern(pattern))
+            except re.error as error:
+                problems.append(Problem(tech_id, f"exclude pattern does not compile: {pattern!r} ({error})"))
+
+        # Excludes are applied here, as the matcher applies them, so an exclude
+        # that vetoes its own evidence -- include "multi[- ]agent" against
+        # exclude "multi" -- is caught by the evidence test rather than
+        # counting zero forever.
         titles = [title for examples in evidence.values() for title, _ in examples]
-        matched = [title for title in titles if any(p.search(title) for p in compiled)]
+        matched = [
+            title for title in titles
+            if any(p.search(title) for p in compiled)
+            and not any(p.search(title) for p in compiled_exclude)
+        ]
         if compiled and not matched:
             problems.append(Problem(tech_id, "matches none of this week's candidate evidence"))
 

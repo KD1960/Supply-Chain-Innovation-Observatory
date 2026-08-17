@@ -336,6 +336,78 @@ def test_check_does_not_penalise_an_omitted_exclude(conn, watchlist, tmp_path):
     assert not any("exclude" in problem.message for problem in problems)
 
 
+def test_check_rejects_an_exclude_pattern_that_does_not_compile(conn, watchlist, tmp_path):
+    """`matcher.Technology.__post_init__` compiles exclude patterns as well as
+    include ones, so a bad exclude that check waved through would raise in
+    `load_watchlist` on the next run -- before a single fetch -- once merged.
+    Exclude is where alternation and parentheses pile up, so this is the more
+    likely of the two to be malformed."""
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            include: ["dark factor(y|ies)"]
+            exclude: ["dark factory (band|album"]
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("exclude" in problem.message and "compile" in problem.message
+               for problem in problems)
+
+
+def test_check_reports_a_problem_when_include_is_present_but_empty(conn, watchlist, tmp_path):
+    """`include: []` matches nothing, exactly like an absent `include`, and a
+    validator that passes it hands the owner the silent zero it exists to
+    prevent."""
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            include: []
+            exclude: []
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("include" in problem.message for problem in problems)
+
+
+def test_check_rejects_an_exclude_that_vetoes_the_proposals_own_evidence(conn, watchlist, tmp_path):
+    """An exclude broader than its own include counts zero forever. The
+    evidence test already asks whether a proposal matches the documents that
+    inspired it; it must ask that of the matcher's real answer, excludes
+    applied, not of the include patterns alone."""
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            include: ["dark factor(y|ies)"]
+            exclude: ["dark"]
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("evidence" in problem.message for problem in problems)
+
+
+def test_check_reports_two_entries_sharing_an_id(conn, watchlist, tmp_path):
+    """The id check only looked at the existing watchlist, so two proposed
+    entries with the same id both passed and the second was silently swallowed
+    at merge time."""
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            include: ["dark factor(y|ies)"]
+          - id: dark_factory
+            name: Dark factories, again
+            family: physical
+            include: ["lights[- ]out factor(y|ies)"]
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("dark_factory" in problem.message and "twice" in problem.message
+               for problem in problems)
+
+
 def test_check_reports_a_problem_when_include_is_missing(conn, watchlist, tmp_path):
     """Unlike `exclude`, an absent `include` is a real problem: a technology
     with no patterns matches nothing."""
