@@ -173,6 +173,26 @@ def upsert_observations(conn, rows: Iterable[Any]) -> int:
     return inserted
 
 
+def max_observation_id(conn) -> int:
+    """High-water mark, so a run can tell which rows it wrote itself."""
+    row = conn.execute("SELECT COALESCE(MAX(id), 0) AS high FROM observations").fetchone()
+    return int(row["high"])
+
+
+def new_observation_counts(conn, after_id: int) -> dict[str, int]:
+    """Rows written since `after_id`, counted by the week they belong to.
+
+    Not the week they were fetched in: a run's raw routinely holds documents
+    dated in an earlier week, and those weeks are the ones whose counts have
+    just gone stale.
+    """
+    rows = conn.execute(
+        "SELECT week, COUNT(*) AS total FROM observations WHERE id > ? GROUP BY week",
+        (after_id,),
+    ).fetchall()
+    return {row["week"]: int(row["total"]) for row in rows}
+
+
 def set_signal(conn, tech_id: str, week: str, signal: str, value: float) -> None:
     conn.execute(
         "INSERT INTO weekly_signals (tech_id, week, signal, value) VALUES (?, ?, ?, ?) "
@@ -221,12 +241,23 @@ def source_statuses(conn) -> list[dict]:
     return [dict(row) for row in conn.execute("SELECT * FROM sources ORDER BY name")]
 
 
-def ok_sources_for_week(conn, week: str) -> set[str]:
-    """Sources whose recorded run for this week completed."""
+def ok_sources_for_runs(conn, run_weeks: Iterable[str]) -> set[str]:
+    """Sources whose recorded run completed, for any of these run weeks."""
+    weeks = list(run_weeks)
+    if not weeks:
+        return set()
+    placeholders = ",".join("?" * len(weeks))
     rows = conn.execute(
-        "SELECT source FROM source_runs WHERE week = ? AND status = 'ok'", (week,)
+        f"SELECT DISTINCT source FROM source_runs "
+        f"WHERE status = 'ok' AND week IN ({placeholders})",
+        weeks,
     ).fetchall()
     return {row["source"] for row in rows}
+
+
+def ok_sources_for_week(conn, week: str) -> set[str]:
+    """Sources whose recorded run for this week completed."""
+    return ok_sources_for_runs(conn, [week])
 
 
 def upsert_metrics(conn, row: dict) -> None:

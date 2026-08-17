@@ -45,6 +45,38 @@ def fetch_week(conn, week: str, collectors, session) -> set[str]:
     return succeeded
 
 
+def weeks_swept_by(week: str) -> list[str]:
+    """Every ISO week a run for `week` actually looked at.
+
+    Each collector's query window opens LOOKBACK_DAYS before the Monday of the
+    week being processed, so the run sweeps the preceding week in full as well
+    as its own. Those are the weeks whose counts a run may legitimately move.
+    """
+    monday, _ = config.week_bounds(week)
+    earliest = config.iso_week(monday - dt.timedelta(days=config.LOOKBACK_DAYS))
+    return config.week_range(earliest, week)
+
+
+def runs_sweeping(week: str) -> list[str]:
+    """The inverse of `weeks_swept_by`: runs whose window covered this week."""
+    reach = len(weeks_swept_by(week)) - 1
+    return [config.week_offset(week, ahead) for ahead in range(reach + 1)]
+
+
+def scoring_sources(conn, week: str, collectors) -> set[str]:
+    """Which sources may be counted for this week.
+
+    A different question from `sources_ok_for_week`, which asks whether a
+    week's own raw is complete enough to replay. The lookback means the
+    following week's run swept this week in full, so a source that completed
+    there has looked at this week too — that is what lets a late-arriving
+    document reach a count. A source that failed in every run covering this
+    week is still absent here, so the hole rule holds per week.
+    """
+    recorded = store.ok_sources_for_runs(conn, runs_sweeping(week))
+    return {collector.name for collector in collectors if collector.name in recorded}
+
+
 def sources_ok_for_week(conn, week: str, collectors) -> set[str]:
     """Which sources may be replayed for this week.
 
@@ -139,17 +171,37 @@ def run_week(
         print(f"Fetching {week}")
         ok_sources = fetch_week(conn, week, collectors, session)
 
-    observations, ok_sources = ingest_week(conn, week, watchlist, collectors, ok_sources)
-    return _score_and_render(conn, week, watchlist, ok_sources, observations, out_path)
+    mark = store.max_observation_id(conn)
+    _, ok_sources = ingest_week(conn, week, watchlist, collectors, ok_sources)
+    new_by_week = store.new_observation_counts(conn, mark)
+
+    # Documents are keyed to their own week (see `_document_week`), and with a
+    # seven-day lookback that is routinely the week before this one — the
+    # majority case for EDGAR, whose filings trail their index date. Counting
+    # only the run week would leave those rows in `observations` forever
+    # without ever reaching a signal, the evidence list and the number above it
+    # disagreeing permanently. So every other week this run wrote into is
+    # recomputed and re-archived too, each with its own sources, before the run
+    # week is rendered last and takes `latest.html`.
+    swept = set(weeks_swept_by(week))
+    for other in sorted((set(new_by_week) & swept) - {week}):
+        _score_and_render(
+            conn, other, watchlist, scoring_sources(conn, other, collectors),
+            new_by_week[other], latest=False,
+        )
+
+    return _score_and_render(
+        conn, week, watchlist, ok_sources, new_by_week.get(week, 0), out_path
+    )
 
 
 def _score_and_render(
     conn, week: str, watchlist, ok_sources: set[str], observations: int,
-    out_path: Path | None = None,
+    out_path: Path | None = None, latest: bool = True,
 ) -> Path:
     signals = normalize.compute_signals(conn, week, watchlist, ok_sources)
     scored = score_week(conn, week, watchlist)
-    path = render.render_dashboard(conn, week, watchlist, out_path)
+    path = render.render_dashboard(conn, week, watchlist, out_path, latest=latest)
 
     _append_run_log(week, ok_sources, observations, signals, scored, path)
     print(
@@ -174,20 +226,30 @@ def rebuild(conn, watchlist, collectors=COLLECTORS) -> list[Path]:
     `observations` forever without ever reaching a count — the evidence list
     and the number above it disagreeing permanently. So every week's raw is
     ingested first, and only then is anything counted.
+
+    Scoring is not limited to the weeks that have raw either. A week reached
+    only through a neighbour's lookback has no raw directory of its own, and
+    counting directories alone would leave it uncounted for the same reason.
     """
     store.clear_derived(conn)
-    weeks = sorted(path.name for path in config.RAW_DIR.glob("*-W*") if path.is_dir())
+    raw_weeks = sorted(path.name for path in config.RAW_DIR.glob("*-W*") if path.is_dir())
 
-    ingested: dict[str, tuple[int, set[str]]] = {}
-    for week in weeks:
+    for week in raw_weeks:
         print(f"Rebuilding {week}: reading raw")
-        ingested[week] = ingest_week(
+        ingest_week(
             conn, week, watchlist, collectors,
             sources_ok_for_week(conn, week, collectors),
         )
 
+    swept = {week for raw_week in raw_weeks for week in weeks_swept_by(raw_week)}
+    new_by_week = store.new_observation_counts(conn, 0)
+    weeks = sorted(set(raw_weeks) | (set(new_by_week) & swept))
+
+    # Ascending, so the newest week is rendered last and takes `latest.html`.
     return [
-        _score_and_render(conn, week, watchlist, ingested[week][1], ingested[week][0])
+        _score_and_render(conn, week, watchlist,
+                          scoring_sources(conn, week, collectors),
+                          new_by_week.get(week, 0))
         for week in weeks
     ]
 

@@ -37,6 +37,16 @@ def _environment() -> Environment:
     )
 
 
+def evidence_filename(week: str) -> str:
+    """Each dashboard links to its own week's evidence.
+
+    `evidence.html` is overwritten every run, so an archived dashboard that
+    linked to it would send a reader of week W to the latest week's evidence
+    with nothing to say the two disagree.
+    """
+    return f"evidence-{week}.html"
+
+
 def build_context(conn, week: str, watchlist) -> dict:
     names = {tech.id: tech.name for tech in watchlist.technologies}
     families = {tech.id: tech.family for tech in watchlist.technologies}
@@ -94,6 +104,7 @@ def build_context(conn, week: str, watchlist) -> dict:
 
     return {
         "week": week,
+        "evidence_href": evidence_filename(week),
         "generated_for": dt.date.today().isoformat(),
         "lexicon_version": watchlist.version,
         "sources": store.source_statuses(conn),
@@ -182,25 +193,37 @@ def evidence_context(conn, week: str, watchlist) -> dict:
     }
 
 
-def render_evidence(conn, week: str, watchlist, out_path: Path | None = None) -> Path:
+def render_evidence(
+    conn, week: str, watchlist, out_path: Path | None = None, latest: bool = True
+) -> Path:
     context = evidence_context(conn, week, watchlist)
     html = _environment().get_template("evidence.html.j2").render(**context)
     target = Path(out_path) if out_path else config.OUTPUT_DIR / f"evidence-{week}.html"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(html)
-    if out_path is None:
+    if out_path is None and latest:
         (config.OUTPUT_DIR / "evidence.html").write_text(html)
     return target
 
 
-def render_dashboard(conn, week: str, watchlist, out_path: Path | None = None) -> Path:
+def render_dashboard(
+    conn, week: str, watchlist, out_path: Path | None = None, latest: bool = True
+) -> Path:
+    """Write this week's dashboard, and its evidence page beside it.
+
+    `latest` is what keeps the run week in `latest.html` when a run also
+    re-renders an earlier week it wrote into: only the run week refreshes the
+    unversioned copies.
+    """
     context = build_context(conn, week, watchlist)
     html = _environment().get_template("dashboard.html.j2").render(**context)
     target = Path(out_path) if out_path else config.OUTPUT_DIR / f"dashboard-{week}.html"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(html)
-    if out_path is None:
+    if out_path is None and latest:
         (config.OUTPUT_DIR / "latest.html").write_text(html)
-    evidence_target = None if out_path is None else target.parent / "evidence.html"
-    render_evidence(conn, week, watchlist, evidence_target)
+    evidence_target = (
+        None if out_path is None else target.parent / evidence_filename(week)
+    )
+    render_evidence(conn, week, watchlist, evidence_target, latest=latest)
     return target

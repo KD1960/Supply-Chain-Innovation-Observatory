@@ -252,9 +252,12 @@ def test_evidence_page_has_no_external_resources(conn, watchlist, tmp_path):
     assert not re.findall(r'\b(?:src|href)\s*=\s*[\'"](?:https?:)?//[^\'"]*[\'"]', html)
 
 
-def test_dashboard_links_movers_to_their_evidence(conn, watchlist, tmp_path):
+def test_dashboard_links_movers_to_its_own_weeks_evidence(conn, watchlist, tmp_path):
+    """`evidence.html` is overwritten every run, so an archived dashboard that
+    linked to it would send the reader to a different week's evidence."""
     html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
-    assert "evidence.html#" in html
+    assert "evidence-2026-W33.html#" in html
+    assert "evidence.html#" not in html
 
 
 def test_dashboard_links_all_resolve_to_evidence_anchors(conn, watchlist, tmp_path):
@@ -275,10 +278,10 @@ def test_dashboard_links_all_resolve_to_evidence_anchors(conn, watchlist, tmp_pa
     dashboard_html = render.render_dashboard(
         conn, "2026-W33", watchlist, tmp_path / "d.html"
     ).read_text()
-    evidence_html = (tmp_path / "evidence.html").read_text()
+    evidence_html = (tmp_path / "evidence-2026-W33.html").read_text()
 
     # tech ids can contain digits (gs1_2d, private_5g_warehouse) -- [\w] not [a-z_]
-    links = set(re.findall(r'evidence\.html#([\w-]+)', dashboard_html))
+    links = set(re.findall(r'evidence-2026-W33\.html#([\w-]+)', dashboard_html))
     anchors = set(re.findall(r'id="([\w-]+)"', evidence_html))
 
     assert links, "expected the dashboard to link to evidence at all"

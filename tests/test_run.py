@@ -22,7 +22,8 @@ class StubCollector(BaseCollector):
 
 
 class ExplodingCollector(BaseCollector):
-    name = "boom"
+    def __init__(self, name="boom"):
+        self.name = name
 
     def fetch_raw(self, session, week):
         raise http.HttpError("service unavailable")
@@ -231,14 +232,14 @@ def test_rebuild_folds_lookback_documents_into_the_earlier_weeks_signals(conn, w
         run.run_week(conn, week, watchlist, [collector], session=None,
                      out_path=tmp_path / f"{week}.html")
 
-    # The late document is already filed under W32 as evidence, but W32's
-    # count was computed before it arrived.
+    # The W33 run already folded the late document into W32's count (see
+    # test_a_late_document_reaches_the_earlier_weeks_signal_in_the_same_run).
     assert len(store.observations_for(conn, "2026-W32", "autonomous_trucking")) == 2
-    assert store.get_signal(conn, "autonomous_trucking", "2026-W32", "arxiv_papers") == 1.0
+    assert store.get_signal(conn, "autonomous_trucking", "2026-W32", "arxiv_papers") == 2.0
 
     run.rebuild(conn, watchlist, [collector])
 
-    # Ingest every week before counting any, and the number now matches the
+    # Ingest every week before counting any, and the number still matches the
     # evidence list beneath it.
     assert store.get_signal(conn, "autonomous_trucking", "2026-W32", "arxiv_papers") == 2.0
     assert store.get_signal(conn, "autonomous_trucking", "2026-W33", "arxiv_papers") == 1.0
@@ -246,6 +247,69 @@ def test_rebuild_folds_lookback_documents_into_the_earlier_weeks_signals(conn, w
     # Each week still gets its dated archive.
     assert (tmp_path / "output" / "dashboard-2026-W32.html").exists()
     assert (tmp_path / "output" / "dashboard-2026-W33.html").exists()
+
+
+def test_a_late_document_reaches_the_earlier_weeks_signal_in_the_same_run(
+    conn, watchlist, tmp_path
+):
+    """The weekly path, not just --rebuild.
+
+    d2 belongs to W32 and arrives in W33's raw through the lookback. Writing it
+    to `observations` under W32 and then computing signals for the run week
+    alone leaves it uncounted permanently — nobody runs --rebuild every week.
+    """
+    collector = WeeklyPayloadCollector({
+        "2026-W32": [paper("d1", "2026-08-05")],
+        "2026-W33": [paper("d2", "2026-08-06"), paper("d3", "2026-08-12")],
+    })
+    for week in ("2026-W32", "2026-W33"):
+        run.run_week(conn, week, watchlist, [collector], session=None,
+                     out_path=tmp_path / f"{week}.html")
+
+    assert store.get_signal(conn, "autonomous_trucking", "2026-W32", "arxiv_papers") == 2.0
+    assert store.get_signal(conn, "autonomous_trucking", "2026-W33", "arxiv_papers") == 1.0
+
+    # And the archived artifacts were rewritten, so the page a reader opens for
+    # W32 agrees with the number now stored for it.
+    assert (tmp_path / "output" / "dashboard-2026-W32.html").exists()
+    assert (tmp_path / "output" / "evidence-2026-W32.html").exists()
+
+
+def test_a_recomputed_earlier_week_does_not_take_over_latest(conn, watchlist, tmp_path):
+    collector = WeeklyPayloadCollector({"2026-W33": [paper("d2", "2026-08-06")]})
+    run.run_week(conn, "2026-W33", watchlist, [collector], session=None)
+
+    output = tmp_path / "output"
+    assert (output / "dashboard-2026-W32.html").exists()
+    assert (output / "latest.html").read_text() == (output / "dashboard-2026-W33.html").read_text()
+    assert (output / "evidence.html").read_text() == (output / "evidence-2026-W33.html").read_text()
+
+
+def test_a_failed_source_leaves_a_hole_in_the_late_week_too(conn, watchlist, tmp_path):
+    """The per-week ok_sources contract survives the recompute: hn never ran
+    for W32 either, so its signal there stays absent rather than becoming 0."""
+    collectors = [
+        WeeklyPayloadCollector({"2026-W33": [paper("d2", "2026-08-06")]}),
+        ExplodingCollector(name="hn"),
+    ]
+    run.run_week(conn, "2026-W33", watchlist, collectors, session=None,
+                 out_path=tmp_path / "d.html")
+
+    assert store.get_signal(conn, "autonomous_trucking", "2026-W32", "arxiv_papers") == 1.0
+    assert store.get_signal(conn, "autonomous_trucking", "2026-W32", "hn_points") is None
+
+
+def test_rebuild_scores_a_week_that_only_a_neighbours_raw_reached(conn, watchlist, tmp_path):
+    """W32 has no raw directory of its own — every W32 document arrived through
+    W33's lookback — so scoring only the directories would leave it uncounted."""
+    collector = WeeklyPayloadCollector({"2026-W33": [paper("d2", "2026-08-06")]})
+    run.run_week(conn, "2026-W33", watchlist, [collector], session=None,
+                 out_path=tmp_path / "d.html")
+    assert not (tmp_path / "raw" / "2026-W32").exists()
+
+    run.rebuild(conn, watchlist, [collector])
+
+    assert store.get_signal(conn, "autonomous_trucking", "2026-W32", "arxiv_papers") == 1.0
 
 
 def test_rebuild_keeps_ok_sources_per_week(conn, watchlist, tmp_path):
