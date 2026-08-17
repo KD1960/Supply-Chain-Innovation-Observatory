@@ -1847,6 +1847,60 @@ git commit -m "feat: evidence drill-down page linked from the dashboard"
 
 ---
 
+## Outcome
+
+Eight of ten tasks completed; 212 tests pass. Tasks 3 and 4 (GDELT) were deferred — see below.
+
+The final whole-branch review found two Critical defects that eight clean task reviews had
+missed, both visible only from an end-to-end view. Recording them because the *shape* of the
+mistake will recur:
+
+1. **Observations were keyed to the document's own week, but signals were computed only for
+   the run week.** Any document dated outside the run week was stored and never counted. With
+   a 7-day lookback and sources whose document dates trail their index date, that was the
+   majority case: week 2026-W32 held 9 real observations and zero signal rows, while the
+   dashboard reported 1 filing for a week in which 7 were observed. A run now rescores and
+   re-archives every week it wrote into.
+2. **USAspending awards were keyed to `Start Date`** — the period-of-performance start, which
+   routinely predates the query window by years. The captured fixture's awards derived weeks
+   in 2024 from a 2026 query, so `fed_awards` and `fed_obligated` were structurally zero and
+   the Build Map could never plot a single dot from live data. Fixed by filtering and reading
+   the same date (`last_modified_date`).
+
+Both produced a confidently wrong number rather than an error — the failure mode this project
+is least able to notice on its own, and the one worth designing tests around.
+
+## Carried forward
+
+- **GDELT (tasks 3 and 4) is unbuilt.** GDELT rate-limited the project into an IP cooldown
+  during fixture capture and was still refusing forty minutes later. Hand-writing a fixture was
+  refused on principle. The full implementation for both collectors is in this document; redo
+  the tasks as written, starting from a real capture, once GDELT is reachable. Note that its
+  API asks for **one request every five seconds** and enforces it at the IP level — a retry
+  loop is what caused the cooldown. Until then `normalize.AGGREGATIONS` declares two inert
+  aggregations against `gdelt_doc`, guarded by `DEFERRED_SOURCES` in `tests/test_run.py`, and
+  the Substance vs. Attention block's "attention" half is Hacker News alone.
+- **`adoption_new` is hardcoded to `0`** in `metrics.compute_week`. It is written to
+  `weekly_metrics` and read by nothing. Spec §7.4 defines it as CIKs appearing for the first
+  time this week; the honest interim value is `None`.
+- **`fed_obligated` sums `Award Amount`** — total award value, not obligated dollars as spec
+  §7.1 names it. Sharpened by the `last_modified_date` keying: an old award touched
+  administratively this week contributes its full value to this week's Investment stage.
+  Either rename the signal or change what it sums.
+- **Award-to-week attribution is sticky.** Dedup is `UNIQUE (source, doc_id, tech_id)` with no
+  week, so an award is fixed to the first week it was observed. This is what prevents
+  double-counting under the new date field, but it means `fed_awards` is not "awards active
+  this week".
+- **`weeks_swept_by` assumes `LOOKBACK_DAYS` is a multiple of 7.** At 7 it is exact. At any
+  other value it would declare a source complete for a week the run only partly covered —
+  reintroducing a fabricated count. No test pins the invariant.
+- **Hole healing is data-dependent.** A swept week is recomputed only if the run wrote new rows
+  into it, so a source that failed in week W and recovers in W+1 with genuinely zero documents
+  for W leaves W's hole in place. Conservative rather than fabricating, but asymmetric.
+- **`output/evidence.html` is orphaned** now that dashboards link `evidence-<week>.html`.
+- **Swept-week run-log lines** record `scoring_sources` under the key `ok_sources`, so the field
+  now means "sources counted" rather than "sources that ran".
+
 ## What this plan does not cover
 
 - **Plan 2B** — GitHub and PatentsView collectors, feeding `patents`, `gh_repos_new`, `gh_commits`, and `gh_stars_delta`. Both need free API keys. Note for that plan: `http.fetch` treats only HTTP 200 as success, and GitHub's `/repos/{r}/stats` endpoints return **202** while computing statistics — widen the accepted range or handle 202 explicitly there.
