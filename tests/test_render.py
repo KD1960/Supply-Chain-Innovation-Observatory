@@ -223,6 +223,60 @@ def test_dashboard_renders_the_build_map_block(conn, watchlist, tmp_path):
     assert "<svg" in build_map_section
 
 
+def test_unplaceable_awards_are_counted_rather_than_dropped(conn, watchlist, tmp_path):
+    """Spec §8 block 6. A week whose places would not resolve must not render
+    as a near-empty map indistinguishable from a quiet week."""
+    from observatory.matcher import Observation
+
+    store.upsert_observations(conn, [
+        Observation(source="usaspending", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="p1", doc_date="2026-08-12", title="Placed award",
+                    url="u", entity="ACME", entity_id=None, amount=1_000_000.0,
+                    lat=34.27, lon=-111.66, matched_pattern="x", raw_ref=1),
+        Observation(source="usaspending", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="p2", doc_date="2026-08-12", title="Foreign award",
+                    url="u", entity="ACME", entity_id=None, amount=2_000_000.0,
+                    lat=None, lon=None, matched_pattern="x", raw_ref=1),
+        # No amount at all: an arXiv paper is not a missing dot on the map.
+        Observation(source="arxiv", week="2026-W33", tech_id="autonomous_trucking",
+                    doc_id="p3", doc_date="2026-08-12", title="A paper", url="u",
+                    entity=None, entity_id=None, amount=None, lat=None, lon=None,
+                    matched_pattern="x", raw_ref=1),
+    ])
+
+    assert render.unplaced_award_count(conn, "2026-W33") == 1
+    assert len(render.build_map_points(conn, "2026-W33")) == 1
+
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    build_map = html.split("<h2>Build Map</h2>", 1)[1].split("<h2>", 1)[0]
+    assert "Location unknown: 1 award" in build_map
+
+
+def test_the_build_map_caption_does_not_promise_a_news_layer(conn, watchlist, tmp_path):
+    """GDELT is deferred, so there is no news layer to describe."""
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    build_map = html.split("<h2>Build Map</h2>", 1)[1].split("<h2>", 1)[0]
+    assert "news-reported" not in build_map
+
+
+def test_substance_and_attention_name_the_signals_actually_in_play(conn, watchlist, tmp_path):
+    """With GDELT deferred, media_articles is always absent and "attention"
+    means Hacker News alone. The block has to say so."""
+    store.set_signal(conn, "autonomous_trucking", "2026-W33", "hn_points", 40.0)
+    store.set_signal(conn, "autonomous_trucking", "2026-W33", "edgar_filers", 3.0)
+
+    context = render.build_context(conn, "2026-W33", watchlist)
+    assert context["attention_signals"] == ["hn_points"]
+    assert context["substance_signals"] == ["edgar_filers"]
+
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    block = html.split("<h2>Substance vs. Attention</h2>", 1)[1].split("<h2>", 1)[0]
+    prose = " ".join(block.split())
+    assert "Substance this week is edgar_filers" in prose
+    assert "attention is hn_points" in prose
+    assert "media_articles" not in prose
+
+
 def test_evidence_page_lists_every_observation_with_its_pattern(conn, watchlist, tmp_path):
     from observatory.matcher import Observation
 

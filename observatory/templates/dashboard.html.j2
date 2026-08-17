@@ -72,7 +72,12 @@
   {{ stage_board_svg }}
 
   <h2>Substance vs. Attention</h2>
-  <p class="sub">Above the line, more building than talking.</p>
+  <p class="sub">Above the line, more building than talking.
+     Substance this week is
+     {% if substance_signals %}{{ substance_signals|join(', ') }}{% else %}no signal at all{% endif %};
+     attention is
+     {% if attention_signals %}{{ attention_signals|join(', ') }}{% else %}no signal at all{% endif %}.
+     Signals whose collectors are not running yet are simply absent from both.</p>
   {{ substance_svg }}
 
   <h2>Lab &rarr; Field Watch</h2>
@@ -90,9 +95,12 @@
   {% endif %}
 
   <h2>Build Map</h2>
-  <p class="sub">Federal award dollars and news-reported activity, by location.
-     Dot size follows the award amount.</p>
+  <p class="sub">Federal award dollars by location. Dot size follows the award amount.</p>
   {{ build_map_svg }}
+  {% if map_unplaced %}
+  <p class="sub">Location unknown: {{ map_unplaced }} award{{ 's' if map_unplaced != 1 }}
+     with dollars this week could not be resolved to a place and are not drawn above.</p>
+  {% endif %}
 
   <h2>Rising Terms</h2>
   <p class="empty">Arrives with the discovery step in the next phase.</p>

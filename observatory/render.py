@@ -12,7 +12,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markupsafe import Markup
 
-from . import charts, config, store
+from . import charts, config, metrics, store
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 FAMILY_COLOURS = {
@@ -119,7 +119,41 @@ def build_context(conn, week: str, watchlist) -> dict:
         "crossovers": crossovers,
         "warming_up": sorted(warming, key=lambda tech: tech["name"]),
         "build_map_svg": Markup(charts.build_map(build_map_points(conn, week))),
+        "map_unplaced": unplaced_award_count(conn, week),
+        "substance_signals": signals_in_play(conn, week, metrics.HARD_SIGNALS),
+        "attention_signals": signals_in_play(conn, week, metrics.SOFT_SIGNALS),
     }
+
+
+def unplaced_award_count(conn, week: str) -> int:
+    """Awards with dollars but no coordinates.
+
+    The map draws only what it can place, so a week whose places would not
+    resolve looks exactly like a quiet week. Spec §8 block 6: unresolvable
+    locations are counted in a footnote rather than dropped silently.
+    """
+    row = conn.execute(
+        "SELECT COUNT(*) AS total FROM observations "
+        "WHERE week = ? AND amount IS NOT NULL AND (lat IS NULL OR lon IS NULL)",
+        (week,),
+    ).fetchone()
+    return int(row["total"])
+
+
+def signals_in_play(conn, week: str, signals: tuple[str, ...]) -> list[str]:
+    """Which of these signals this week actually has values for.
+
+    The Substance vs. Attention axes are means over whatever is present, and
+    with GDELT deferred "attention" is Hacker News alone. A reader cannot see
+    that from the chart, so the block says which signals it is made of.
+    """
+    present = {
+        row["signal"]
+        for row in conn.execute(
+            "SELECT DISTINCT signal FROM weekly_signals WHERE week = ?", (week,)
+        )
+    }
+    return [signal for signal in signals if signal in present]
 
 
 def build_map_points(conn, week: str) -> list[charts.Point]:
