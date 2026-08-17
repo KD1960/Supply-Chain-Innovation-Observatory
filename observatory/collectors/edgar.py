@@ -25,12 +25,12 @@ FORMS = ("10-K", "10-Q", "8-K", "S-1")
 QUERY_TERMS = (
     "autonomous trucking",
     "warehouse robotics",
-    "supply chain visibility",
-    "digital freight",
-    "cold chain",
-    "nearshoring",
+    "supply chain risk intelligence",
+    "digital freight matching",
+    "cold chain monitoring",
+    "nearshoring supply chain",
     "warehouse management system",
-    "enterprise resource planning",
+    "enterprise resource planning supply chain",
 )
 
 

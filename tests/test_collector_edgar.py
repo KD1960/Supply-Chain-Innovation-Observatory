@@ -1,7 +1,8 @@
 import json
 from pathlib import Path
 
-from observatory.collectors.edgar import EdgarCollector
+from observatory import matcher
+from observatory.collectors.edgar import QUERY_TERMS, EdgarCollector
 
 FIXTURE = Path(__file__).parent / "fixtures" / "edgar_page.json"
 
@@ -47,3 +48,9 @@ def test_hits_without_a_cik_are_skipped():
 
 def test_parse_handles_an_empty_result_set():
     assert EdgarCollector().parse(json.dumps({"hits": {"hits": []}})) == []
+
+
+def test_every_query_term_matches_an_active_technology():
+    watchlist = matcher.load_watchlist()
+    for term in QUERY_TERMS:
+        assert watchlist.match(term), f"QUERY_TERMS entry {term!r} matches no active technology"
