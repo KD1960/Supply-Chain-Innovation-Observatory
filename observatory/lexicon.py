@@ -13,7 +13,11 @@ that, and it is why this module writes proposals rather than patterns.
 from __future__ import annotations
 
 import argparse
+import re
+from dataclasses import dataclass
 from pathlib import Path
+
+import yaml
 
 from . import config, matcher, store
 
@@ -139,11 +143,82 @@ def prepare(conn, week: str, watchlist, out_path: Path | None = None) -> Path:
     return target
 
 
+@dataclass(frozen=True)
+class Problem:
+    term: str
+    message: str
+
+
+def check(conn, week: str, watchlist, proposals_path: Path | None = None) -> tuple[list[Problem], str]:
+    path = Path(proposals_path) if proposals_path else PROPOSAL_DIR / f"{week}.yaml"
+    if not path.exists():
+        return [Problem("", f"proposal file not found: {path}")], ""
+
+    # The proposals file is written by a Claude session working from untrusted
+    # public-API text, so it is treated as hostile input: anything short of a
+    # well-formed list of mappings is a Problem, never a traceback.
+    try:
+        proposed = yaml.safe_load(path.read_text())
+    except yaml.YAMLError as error:
+        return [Problem("", f"proposal file is not valid YAML: {error}")], ""
+
+    if proposed is None:
+        proposed = {}
+    if not isinstance(proposed, dict):
+        return [Problem("", "proposal file must be a YAML mapping with a 'technologies' key")], ""
+
+    if "technologies" not in proposed:
+        return [Problem("", "proposal file is missing the 'technologies' key")], ""
+
+    entries = proposed["technologies"]
+    if not isinstance(entries, list):
+        return [Problem("", "'technologies' must be a list")], ""
+
+    existing = {tech.id for tech in watchlist.technologies}
+    evidence = {row["term"]: row["examples"] for row in store.candidates_for_week(conn, week)}
+    context_res = watchlist.context_res
+
+    problems: list[Problem] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            problems.append(Problem("", f"technology entry is not a mapping: {entry!r}"))
+            continue
+
+        tech_id = entry.get("id", "(missing id)")
+        if tech_id in existing:
+            problems.append(Problem(tech_id, f"id {tech_id} already exists in the watchlist"))
+
+        compiled = []
+        for pattern in entry.get("include", ()):
+            try:
+                compiled.append(matcher.compile_pattern(pattern))
+            except re.error as error:
+                problems.append(Problem(tech_id, f"include pattern does not compile: {pattern!r} ({error})"))
+
+        titles = [title for examples in evidence.values() for title, _ in examples]
+        matched = [title for title in titles if any(p.search(title) for p in compiled)]
+        if compiled and not matched:
+            problems.append(Problem(tech_id, "matches none of this week's candidate evidence"))
+
+        if entry.get("needs_context") and matched:
+            gated = [t for t in matched if any(p.search(t) for p in context_res)]
+            if not gated:
+                problems.append(Problem(
+                    tech_id,
+                    "needs_context is set but no matching evidence contains a context word, "
+                    "so this would silently count zero",
+                ))
+
+    return problems, yaml.safe_dump({"technologies": entries}, sort_keys=False)
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="observatory.lexicon")
     subparsers = parser.add_subparsers(dest="command", required=True)
     prepare_parser = subparsers.add_parser("prepare", help="write a lexicon request for a week")
     prepare_parser.add_argument("week")
+    check_parser = subparsers.add_parser("check", help="validate a week's proposals file")
+    check_parser.add_argument("week")
     args = parser.parse_args(argv)
 
     config.load_dotenv()
@@ -155,6 +230,22 @@ def main(argv=None) -> int:
             path = prepare(conn, args.week, watchlist)
             print(f"Wrote {path}")
             print("Open a Claude session and ask it to answer this request.")
+            return 0
+        if args.command == "check":
+            problems, block = check(conn, args.week, watchlist)
+            if problems:
+                print(f"{len(problems)} problem(s) found:")
+                for problem in problems:
+                    label = f"[{problem.term}] " if problem.term else ""
+                    print(f"  {label}{problem.message}")
+                return 1
+            print(block)
+            print(
+                "No problems found. Paste the block above into watchlist.yaml, then bump "
+                "lexicon_version and set patterns_changed_week on each changed entry -- "
+                "momentum is suppressed for 8 weeks after a pattern change, and that "
+                "suppression keys off patterns_changed_week."
+            )
             return 0
     finally:
         conn.close()

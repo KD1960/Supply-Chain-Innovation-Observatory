@@ -1,3 +1,5 @@
+import textwrap
+
 import pytest
 
 from observatory import lexicon, store
@@ -24,7 +26,7 @@ def conn():
     store.init_schema(connection)
     store.upsert_candidates(connection, "2026-W33", [
         Candidate(term="dark factory", count=7, baseline=1.0, ratio=7.0,
-                  examples=[("Dark factory retrofit in Ohio", "https://x.test/1")]),
+                  examples=[("Dark factory retrofit in Ohio warehouse", "https://x.test/1")]),
     ])
     yield connection
     connection.close()
@@ -106,3 +108,131 @@ def test_request_warns_candidate_text_is_untrusted_and_not_instructions(conn, wa
     # It must appear before any actual candidate, not just anywhere in the file.
     assert text.index("untrusted") > text.index("## Candidate terms")
     assert text.index("untrusted") < text.index("### `dark factory`")
+
+
+def write_proposal(tmp_path, body):
+    path = tmp_path / "proposal.yaml"
+    path.write_text(textwrap.dedent(body))
+    return path
+
+
+def test_check_accepts_a_sound_proposal(conn, watchlist, tmp_path):
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            include: ["dark factor(y|ies)"]
+            exclude: []
+            needs_context: true
+    """)
+    problems, block = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert problems == []
+    assert "dark_factory" in block
+
+
+def test_check_rejects_a_pattern_that_does_not_compile(conn, watchlist, tmp_path):
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            include: ["dark factor(y|ies"]
+            exclude: []
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("compile" in problem.message for problem in problems)
+
+
+def test_check_rejects_an_id_that_already_exists(conn, watchlist, tmp_path):
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: cold_chain_iot
+            name: Duplicate
+            family: physical
+            include: ["something else"]
+            exclude: []
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("already" in problem.message for problem in problems)
+
+
+def test_check_rejects_a_proposal_that_matches_none_of_its_own_evidence(conn, watchlist, tmp_path):
+    """A pattern that cannot match the documents that inspired it is useless."""
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            include: ["completely unrelated phrase"]
+            exclude: []
+    """)
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert any("evidence" in problem.message for problem in problems)
+
+
+def test_check_warns_when_a_gated_pattern_can_never_pass_its_gate(watchlist, tmp_path):
+    """needs_context plus evidence that contains no context word is a silent zero.
+
+    This uses its own connection rather than the shared `conn` fixture: that
+    fixture's example title now contains "warehouse" (a context word), which
+    is what lets test_check_accepts_a_sound_proposal see a clean proposal for
+    the same pattern. This test needs the opposite -- evidence with no context
+    word at all -- so it supplies its own context-free candidate.
+    """
+    connection = store.connect(":memory:")
+    store.init_schema(connection)
+    store.upsert_candidates(connection, "2026-W33", [
+        Candidate(term="dark factory", count=7, baseline=1.0, ratio=7.0,
+                  examples=[("Dark factory retrofit in Ohio", "https://x.test/1")]),
+    ])
+    path = write_proposal(tmp_path, """
+        technologies:
+          - id: dark_factory
+            name: Dark factories
+            family: physical
+            include: ["dark factor(y|ies)"]
+            exclude: []
+            needs_context: true
+    """)
+    problems, _ = lexicon.check(connection, "2026-W33", watchlist, path)
+    connection.close()
+    # The example title "Dark factory retrofit in Ohio" has no context word.
+    assert any("context" in problem.message for problem in problems)
+
+
+def test_check_reports_a_missing_proposal_file(conn, watchlist, tmp_path):
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, tmp_path / "absent.yaml")
+    assert any("not found" in problem.message for problem in problems)
+
+
+def test_check_rejects_a_proposal_file_that_is_not_a_mapping(conn, watchlist, tmp_path):
+    """The proposals file is written by a Claude session from untrusted public-API
+    text. A bare YAML list or scalar must be a Problem, never a traceback."""
+    path = write_proposal(tmp_path, "- just a list\n- not a mapping\n")
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert problems and all(isinstance(p, lexicon.Problem) for p in problems)
+
+
+def test_check_rejects_a_proposal_missing_the_technologies_key(conn, watchlist, tmp_path):
+    path = write_proposal(tmp_path, "note: forgot the technologies key\n")
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert problems and all(isinstance(p, lexicon.Problem) for p in problems)
+
+
+def test_check_rejects_a_technologies_value_that_is_not_a_list(conn, watchlist, tmp_path):
+    path = write_proposal(tmp_path, "technologies: not-a-list\n")
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert problems and all(isinstance(p, lexicon.Problem) for p in problems)
+
+
+def test_check_rejects_a_technology_entry_that_is_not_a_mapping(conn, watchlist, tmp_path):
+    path = write_proposal(tmp_path, "technologies:\n  - just a string\n")
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert problems and all(isinstance(p, lexicon.Problem) for p in problems)
+
+
+def test_check_rejects_invalid_yaml_syntax(conn, watchlist, tmp_path):
+    path = write_proposal(tmp_path, "technologies: [unclosed\n")
+    problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
+    assert problems and all(isinstance(p, lexicon.Problem) for p in problems)
