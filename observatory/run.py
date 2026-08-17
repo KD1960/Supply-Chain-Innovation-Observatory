@@ -16,10 +16,18 @@ from pathlib import Path
 from . import config, http, matcher, metrics, normalize, render, store
 from .collectors import base
 from .collectors.arxiv import ArxivCollector
+from .collectors.edgar import EdgarCollector
 from .collectors.federalregister import FederalRegisterCollector
 from .collectors.hn import HackerNewsCollector
+from .collectors.usaspending import UsaspendingCollector
 
-COLLECTORS = (ArxivCollector(), HackerNewsCollector(), FederalRegisterCollector())
+COLLECTORS = (
+    ArxivCollector(),
+    HackerNewsCollector(),
+    FederalRegisterCollector(),
+    UsaspendingCollector(),
+    EdgarCollector(),
+)
 
 
 def fetch_week(conn, week: str, collectors, session) -> set[str]:

@@ -293,3 +293,50 @@ def test_running_the_same_week_twice_gives_identical_metrics(conn, watchlist, tm
     run.run_week(conn, "2026-W33", watchlist, [stub()], session=None,
                  skip_fetch=True, out_path=tmp_path / "b.html")
     assert store.metrics_for_week(conn, "2026-W33") == first
+
+
+# Sources whose collectors are not built yet. GDELT is deferred from this plan
+# run (rate-limit cooldown during fixture capture); the rest arrive in plan 2B.
+DEFERRED_SOURCES = {"gdelt_doc", "gdelt_geo"}
+# Signals with no aggregation at all yet. The GDELT signals are NOT listed here:
+# task 1 already declared their aggregations, so they are produced — they simply
+# stay empty until their collector is registered.
+DEFERRED_SIGNALS = {"patents", "gh_repos_new", "gh_commits", "gh_stars_delta"}
+
+
+def test_every_collector_has_a_unique_name_and_a_rate_limit():
+    names = [collector.name for collector in run.COLLECTORS]
+    assert len(names) == len(set(names))
+    assert set(names) == {
+        "arxiv", "hn", "federalregister", "usaspending", "edgar",
+    }
+    for collector in run.COLLECTORS:
+        assert collector.rate_limit_seconds > 0
+
+
+def test_every_aggregation_names_a_registered_or_knowingly_deferred_collector():
+    """A signal whose source does not exist would silently never be written."""
+    from observatory import normalize
+
+    names = {collector.name for collector in run.COLLECTORS} | DEFERRED_SOURCES
+    for aggregation in normalize.AGGREGATIONS:
+        assert aggregation.source in names, aggregation.signal
+
+
+def test_deferred_sources_are_really_absent():
+    """Keeps the allowance above honest — it must shrink when GDELT lands."""
+    names = {collector.name for collector in run.COLLECTORS}
+    assert not (names & DEFERRED_SOURCES), (
+        "a deferred source is now registered; remove it from DEFERRED_SOURCES"
+    )
+
+
+def test_every_stage_signal_is_produced_by_some_aggregation():
+    """Catches a typo between metrics.SIGNALS_BY_STAGE and normalize.AGGREGATIONS."""
+    from observatory import metrics, normalize
+
+    produced = {aggregation.signal for aggregation in normalize.AGGREGATIONS}
+    for signal in metrics.ALL_SIGNALS:
+        if signal in DEFERRED_SIGNALS:
+            continue
+        assert signal in produced, f"{signal} has no aggregation"
