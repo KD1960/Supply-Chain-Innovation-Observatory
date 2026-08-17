@@ -112,15 +112,32 @@ def test_render_dashboard_without_out_path_writes_archive_and_latest(
 
 
 def test_rendered_page_has_no_external_resources(conn, watchlist, tmp_path):
+    """No external *resource* -- a stylesheet, script, font, or image fetched
+    to render the page -- is allowed. An outbound `<a href>` a reader clicks,
+    such as the Rising Terms block's links to source documents, is not that:
+    nothing is fetched until the reader chooses to follow it. So the check is
+    scoped to `src` attributes and `<link>` hrefs (stylesheets, favicons,
+    preloads -- the href-bearing elements that fetch on load) rather than
+    every href, and a genuine Rising Terms candidate with an external example
+    link is included here to prove that link doesn't trip it."""
+    from observatory.discover import Candidate
+
+    store.upsert_candidates(conn, "2026-W33", [
+        Candidate(term="dark factory", count=7, baseline=1.0, ratio=7.0,
+                  examples=[("Dark factory retrofit in Ohio", "https://x.test/1")]),
+    ])
     path = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "dashboard.html")
     html = path.read_text()
-    attr_refs = re.findall(
-        r'\b(?:src|href)\s*=\s*[\'"](?:https?:)?//[^\'"]*[\'"]', html
-    )
+    assert "https://x.test/1" in html  # the outbound link is really there
+
+    src_refs = re.findall(r'\bsrc\s*=\s*[\'"](?:https?:)?//[^\'"]*[\'"]', html)
+    link_tags = re.findall(r'<link\b[^>]*>', html)
+    link_refs = [tag for tag in link_tags if re.search(r'\bhref\s*=\s*[\'"](?:https?:)?//', tag)]
     url_refs = re.findall(
         r'url\(\s*[\'"]?(?:https?:)?//[^)\'"]*[\'"]?\)', html
     )
-    assert attr_refs == []
+    assert src_refs == []
+    assert link_refs == []
     assert url_refs == []
 
 
@@ -370,3 +387,73 @@ def test_dashboard_links_all_resolve_to_evidence_anchors(conn, watchlist, tmp_pa
 
     assert links, "expected the dashboard to link to evidence at all"
     assert links <= anchors, f"dead links: {links - anchors}"
+
+
+def test_rising_terms_appear_in_the_context(conn, watchlist):
+    from observatory.discover import Candidate
+
+    store.upsert_candidates(conn, "2026-W33", [
+        Candidate(term="dark factory", count=7, baseline=1.0, ratio=7.0,
+                  examples=[("Dark factory retrofit in Ohio", "https://x.test/1")]),
+    ])
+    context = render.build_context(conn, "2026-W33", watchlist)
+    assert context["rising_terms"][0]["term"] == "dark factory"
+
+
+def test_rising_terms_render_with_their_evidence(conn, watchlist, tmp_path):
+    from observatory.discover import Candidate
+
+    store.upsert_candidates(conn, "2026-W33", [
+        Candidate(term="dark factory", count=7, baseline=1.0, ratio=7.0,
+                  examples=[("Dark factory retrofit in Ohio", "https://x.test/1")]),
+    ])
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    assert "dark factory" in html
+    assert "Dark factory retrofit in Ohio" in html
+    assert "Arrives with the discovery step" not in html
+
+
+def test_rising_terms_block_says_so_when_there_are_none(conn, watchlist, tmp_path):
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    assert "No new terms rose above the threshold this week." in html
+
+
+def test_rising_term_titles_are_escaped(conn, watchlist, tmp_path):
+    from observatory.discover import Candidate
+
+    store.upsert_candidates(conn, "2026-W33", [
+        Candidate(term="dark factory", count=7, baseline=1.0, ratio=7.0,
+                  examples=[("<script>alert(1)</script>", "https://x.test/1")]),
+    ])
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_rising_terms_block_discloses_truncation(conn, watchlist, tmp_path):
+    """227 real terms qualified against live raw and only 25 are shown; the
+    block must say so rather than showing 25 and implying that's all there
+    was."""
+    from observatory.discover import Candidate
+
+    candidates = [
+        Candidate(term=f"term {i}", count=7, baseline=1.0, ratio=7.0, examples=[])
+        for i in range(5)
+    ]
+    store.upsert_candidates(conn, "2026-W33", candidates, total=227)
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    assert "the 5 strongest of 227" in html
+
+
+def test_rising_terms_block_says_nothing_of_truncation_when_the_list_is_whole(
+    conn, watchlist, tmp_path
+):
+    from observatory.discover import Candidate
+
+    candidates = [
+        Candidate(term=f"term {i}", count=7, baseline=1.0, ratio=7.0, examples=[])
+        for i in range(5)
+    ]
+    store.upsert_candidates(conn, "2026-W33", candidates, total=5)
+    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
+    assert "strongest of" not in html

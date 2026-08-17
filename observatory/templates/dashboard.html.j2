@@ -103,7 +103,34 @@
   {% endif %}
 
   <h2>Rising Terms</h2>
-  <p class="empty">Arrives with the discovery step in the next phase.</p>
+  <p class="sub">Phrases spiking against their own 12-week baseline that no active
+     technology matches yet. Promote one by adding it to <code>watchlist.yaml</code>.
+     {% if rising_total > rising_terms|length %}
+       Showing the {{ rising_terms|length }} strongest of {{ rising_total }}.
+     {% endif %}</p>
+  {% if rising_terms %}
+  <table>
+    <thead><tr><th>Term</th><th class="num">This week</th><th class="num">Baseline</th>
+      <th class="num">Ratio</th><th>Examples</th></tr></thead>
+    <tbody>
+    {% for candidate in rising_terms %}
+      <tr>
+        <td><code>{{ candidate.term }}</code></td>
+        <td class="num">{{ candidate.count }}</td>
+        <td class="num">{{ '%.1f'|format(candidate.baseline) }}</td>
+        <td class="num">{{ '%.1f'|format(candidate.ratio) }}&times;</td>
+        <td>
+          {% for title, url in candidate.examples %}
+            <a href="{{ url }}">{{ title }}</a>{% if not loop.last %}<br>{% endif %}
+          {% endfor %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No new terms rose above the threshold this week.</p>
+  {% endif %}
 
   {% if warming_up %}
   <footer>

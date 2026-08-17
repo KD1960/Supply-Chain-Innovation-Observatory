@@ -230,7 +230,7 @@ def _score_and_render(
     signals = normalize.compute_signals(conn, week, watchlist, ok_sources)
     scored = score_week(conn, week, watchlist)
     rising = discover.detect_rising(week, collectors, watchlist)
-    store.upsert_candidates(conn, week, rising.candidates)
+    store.upsert_candidates(conn, week, rising.candidates, rising.total)
     path = render.render_dashboard(conn, week, watchlist, out_path, latest=latest)
 
     _append_run_log(week, ok_sources, observations, signals, scored, rising, path)

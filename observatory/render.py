@@ -102,6 +102,9 @@ def build_context(conn, week: str, watchlist) -> dict:
     ]
     crossovers.sort(key=lambda row: row["lfi"], reverse=True)
 
+    rising_terms = store.candidates_for_week(conn, week)
+    rising_total = rising_terms[0]["total"] if rising_terms else len(rising_terms)
+
     return {
         "week": week,
         "evidence_href": evidence_filename(week),
@@ -122,6 +125,8 @@ def build_context(conn, week: str, watchlist) -> dict:
         "map_unplaced": unplaced_award_count(conn, week),
         "substance_signals": signals_in_play(conn, week, metrics.HARD_SIGNALS),
         "attention_signals": signals_in_play(conn, week, metrics.SOFT_SIGNALS),
+        "rising_terms": rising_terms,
+        "rising_total": rising_total,
     }
 
 

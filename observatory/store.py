@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS candidate_terms (
     ratio REAL,
     status TEXT,
     examples TEXT,
+    total INTEGER,
     PRIMARY KEY (term, week)
 );
 """
@@ -295,16 +296,22 @@ def observations_for(conn, week: str, tech_id: str, source: str | None = None) -
     return [dict(row) for row in conn.execute(query + " ORDER BY doc_date DESC", params)]
 
 
-def upsert_candidates(conn, week: str, candidates) -> int:
+def upsert_candidates(conn, week: str, candidates, total: int | None = None) -> int:
+    """`total` is how many candidates qualified before `detect_rising` capped
+    the list at `MAX_CANDIDATES`; it defaults to the row count so a caller
+    that doesn't yet know about truncation still gets a consistent value."""
     candidates = list(candidates)
+    total = len(candidates) if total is None else total
     for candidate in candidates:
         conn.execute(
-            "INSERT INTO candidate_terms (term, week, count, baseline, ratio, status, examples) "
-            "VALUES (?, ?, ?, ?, ?, 'new', ?) "
+            "INSERT INTO candidate_terms "
+            "(term, week, count, baseline, ratio, status, examples, total) "
+            "VALUES (?, ?, ?, ?, ?, 'new', ?, ?) "
             "ON CONFLICT (term, week) DO UPDATE SET count = excluded.count, "
-            "baseline = excluded.baseline, ratio = excluded.ratio, examples = excluded.examples",
+            "baseline = excluded.baseline, ratio = excluded.ratio, "
+            "examples = excluded.examples, total = excluded.total",
             (candidate.term, week, candidate.count, candidate.baseline, candidate.ratio,
-             json.dumps(candidate.examples)),
+             json.dumps(candidate.examples), total),
         )
     conn.commit()
     return len(candidates)
