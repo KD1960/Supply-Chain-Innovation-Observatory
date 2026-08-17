@@ -44,6 +44,64 @@ def test_init_schema_is_idempotent(conn):
             "weekly_metrics", "candidate_terms"} <= tables
 
 
+def test_init_schema_migrates_a_pre_existing_candidate_terms_table():
+    """A database written before `examples` (task 3) or `total` (task 4) were
+    added to `candidate_terms` has neither column on disk -- `CREATE TABLE IF
+    NOT EXISTS` is a no-op against a table that already exists, no matter how
+    the definition in code has changed since. `init_schema` must add the
+    missing columns to that table in place, without touching its data."""
+    import sqlite3
+
+    from observatory.discover import Candidate
+
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    connection.execute(
+        "CREATE TABLE candidate_terms (term TEXT NOT NULL, week TEXT NOT NULL, "
+        "count INTEGER, baseline REAL, ratio REAL, status TEXT, "
+        "PRIMARY KEY (term, week))"
+    )
+    connection.execute(
+        "INSERT INTO candidate_terms (term, week, count, baseline, ratio, status) "
+        "VALUES ('dark factory', '2026-W20', 6, 1.0, 6.0, 'new')"
+    )
+    connection.commit()
+
+    store.init_schema(connection)
+
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(candidate_terms)")}
+    assert {"examples", "total"} <= columns
+
+    row = connection.execute(
+        "SELECT * FROM candidate_terms WHERE term = 'dark factory' AND week = '2026-W20'"
+    ).fetchone()
+    assert row is not None
+    assert row["count"] == 6
+    assert row["ratio"] == 6.0
+
+    store.upsert_candidates(connection, "2026-W21", [
+        Candidate(term="vision language", count=8, baseline=1.0, ratio=8.0, examples=[]),
+    ])
+    assert len(store.candidates_for_week(connection, "2026-W21")) == 1
+    connection.close()
+
+
+def test_init_schema_migration_is_idempotent():
+    import sqlite3
+
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    store.init_schema(connection)
+    store.init_schema(connection)
+    columns = [row["name"] for row in connection.execute("PRAGMA table_info(candidate_terms)")]
+    assert columns.count("examples") == 1
+    assert columns.count("total") == 1
+    assert set(columns) == {
+        "term", "week", "count", "baseline", "ratio", "status", "examples", "total",
+    }
+    connection.close()
+
+
 def test_upsert_observations_ignores_duplicates(conn):
     assert store.upsert_observations(conn, [observation()]) == 1
     assert store.upsert_observations(conn, [observation()]) == 0

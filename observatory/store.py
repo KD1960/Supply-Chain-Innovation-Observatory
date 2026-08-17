@@ -109,6 +109,16 @@ METRIC_COLUMNS = [
     "stage_diffusion", "position", "lexicon_version",
 ]
 
+# Columns added to a table after a database may already exist on disk.
+# `CREATE TABLE IF NOT EXISTS` is a no-op against a table that already
+# exists, no matter how its definition in `SCHEMA` has since changed, so
+# every column added after the table's first release needs an explicit,
+# additive entry here -- append to this list, in the order added.
+MIGRATIONS: list[tuple[str, str, str]] = [
+    ("candidate_terms", "examples", "TEXT"),
+    ("candidate_terms", "total", "INTEGER"),
+]
+
 
 def connect(path: str | Path | None = None) -> sqlite3.Connection:
     target = str(path or config.DB_PATH)
@@ -120,8 +130,19 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     return conn
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add any column in `MIGRATIONS` that this database's table doesn't have
+    yet. Additive only -- never drops or rewrites a column, never touches
+    existing rows -- and a no-op on a database that already has it."""
+    for table, column, definition in MIGRATIONS:
+        existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
 def init_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    _migrate(conn)
     # Databases written before source_runs existed know only each source's last
     # week. Seed that, so replaying it does not find the source silently absent.
     conn.execute(
