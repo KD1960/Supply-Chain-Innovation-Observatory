@@ -96,9 +96,25 @@ acceleration otherwise. Finally, recompute history under the new patterns:
 
 Full design: `docs/superpowers/specs/2026-08-16-supply-chain-innovation-observatory-design.md`
 
-## Weekly cron (optional, not installed)
+## Weekly cron
 
-    0 7 * * MON cd /path/to/repo && /usr/bin/python3 -m observatory.run >> data/cron.log 2>&1
+Installed 2026-08-17, Monday 07:00 local:
+
+    0 7 * * MON cd '/Users/kevindooley/Claude/Projects/Supply chain innovation' && /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m observatory.run >> data/cron.log 2>&1
+
+The interpreter path matters. `/usr/bin/python3` is macOS's system Python 3.9 and
+has none of this project's dependencies, so the obvious-looking entry fails every
+week and only shows up in the log. Use the absolute path to the Python that has
+them; `which python3` names it.
+
+Monday is deliberate. Each collector's window reaches seven days back, so the
+Monday run also sweeps the week that just ended, and the pipeline rescores every
+week it writes observations into.
+
+Check it worked with `tail data/cron.log`. If the log is empty on a Monday
+afternoon, cron did not run: on macOS `/usr/sbin/cron` may need Full Disk Access
+under System Settings → Privacy & Security to reach files under your home
+directory.
 
 ## Tests
 
