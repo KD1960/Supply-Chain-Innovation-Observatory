@@ -6,3 +6,4 @@ __pycache__/
 .venv/
 .superpowers/
 supply_chain_observatory.egg-info/
+.DS_Store
