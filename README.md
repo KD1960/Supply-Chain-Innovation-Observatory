@@ -130,3 +130,25 @@ stage in over time rather than push a backfill into an IP-level cooldown.
 Weeks that failed keep a `failed` status in `source_runs`, so any later run
 fetches exactly the ones still missing — no bookkeeping required. The other four
 collectors have the full 52 weeks.
+
+## GitHub coverage
+
+The GitHub collector needs a token in `.env` as `GITHUB_TOKEN`. A fine-grained
+token with **no repository grants** is sufficient — we only read public data —
+and it lifts the rate limit from 60 requests an hour to 5,000.
+
+GitHub is the only source here whose search accepts an explicit `created:` date
+range, so unlike the others it backfills historically. A 52-week backfill of 51
+pending weeks completed with **zero failures**, which no other source has managed:
+GDELT and arXiv both throttled under the same treatment.
+
+**The match rate is low and that is a property of the source, not a bug.** A
+repository's entire searchable text is its description plus its language — a
+sentence, against an arXiv abstract's paragraph. The first live run matched 57 of
+2,337 distinct repositories, about 2.4%. Matches cluster on terms that appear
+verbatim in short descriptions (`ERP`, `control tower`, `demand forecasting`)
+while generic descriptions like "logistics API" match nothing.
+
+That is a lexicon question rather than a collector one. The Rising Terms block now
+has 52 weeks of GitHub vocabulary in it, which is the right place to see how
+developers actually name things before deciding what to add to `watchlist.yaml`.
