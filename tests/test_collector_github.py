@@ -91,7 +91,38 @@ def test_a_null_stargazers_count_is_treated_as_zero_and_dropped():
     assert GithubCollector().parse(payload) == []
 
 
+def test_a_string_stargazers_count_does_not_crash_the_whole_page():
+    """A non-numeric value must not raise -- it should drop just that item,
+    the same way a missing full_name or a null description does, not fail
+    every other item on the page (and the whole (collector, week) ingestion
+    with it, since parse has no per-item exception handling above it)."""
+    payload = json.dumps({"items": [
+        _repo(full_name="acme/bad-stars", stargazers_count="not-a-number"),
+        _repo(full_name="acme/good-stars", stargazers_count=5),
+    ]})
+    documents = GithubCollector().parse(payload)
+    assert [doc.title for doc in documents] == ["acme/good-stars"]
 
+
+def test_a_negative_stargazers_count_is_dropped():
+    payload = json.dumps({"items": [
+        _repo(full_name="acme/bad-stars", stargazers_count=-3),
+        _repo(full_name="acme/good-stars", stargazers_count=5),
+    ]})
+    documents = GithubCollector().parse(payload)
+    assert [doc.title for doc in documents] == ["acme/good-stars"]
+
+
+def test_a_stargazers_count_that_cannot_be_coerced_at_all_is_dropped():
+    """A shape `float()` itself rejects with a TypeError (not just a
+    ValueError), e.g. a list, must still be treated as unstarred rather than
+    propagating the exception."""
+    payload = json.dumps({"items": [
+        _repo(full_name="acme/bad-stars", stargazers_count=[]),
+        _repo(full_name="acme/good-stars", stargazers_count=5),
+    ]})
+    documents = GithubCollector().parse(payload)
+    assert [doc.title for doc in documents] == ["acme/good-stars"]
 
 def test_parse_handles_an_empty_result_set():
     assert GithubCollector().parse(json.dumps({"items": []})) == []

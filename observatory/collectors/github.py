@@ -106,9 +106,11 @@ class GithubCollector(BaseCollector):
             full_name = item.get("full_name")
             if not full_name:
                 continue
-            # Missing/null stargazers_count is treated as zero, not skipped --
-            # an absent field must not slip through as if it were starred.
-            if (item.get("stargazers_count") or 0) < MIN_STARS:
+            # Missing, null, or unparseable stargazers_count is treated as
+            # zero, not skipped -- an unreadable field must not slip through
+            # as if it were starred.
+            stars = _star_count(item)
+            if stars < MIN_STARS:
                 continue
             body = " ".join(
                 part for part in (item.get("description"), item.get("language")) if part
@@ -120,10 +122,25 @@ class GithubCollector(BaseCollector):
                     title=full_name,
                     text=body,
                     url=item.get("html_url"),
-                    amount=float(item.get("stargazers_count") or 0),
+                    amount=stars,
                 )
             )
         return documents
+
+
+def _star_count(item: dict) -> float:
+    """Coerce `stargazers_count` the same way it lands in `Document.amount`.
+
+    GitHub always sends an int here, but raw JSON sits on disk for a year and
+    is replayed by every `--rebuild`, so a corrupted or hand-edited value is a
+    real path, not just a theoretical one. A value that cannot be read as a
+    number is treated as unstarred rather than raising -- an unreadable star
+    count is a reason to drop one item, not the whole week.
+    """
+    try:
+        return float(item.get("stargazers_count") or 0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _payload(text: str) -> dict:

@@ -161,8 +161,8 @@ re-derives the new numbers under an offline `--rebuild` with no new fetching.
 The search query also carries a `stars:>=1` qualifier, but that is only an
 optimization that shrinks what a *future* fetch pulls down against the page
 cap (see below); it is not what decides whether an item counts. Across the 52-week
-backfill this drops matched GitHub observations from 1,606 to 669 (41%) and
-fetched repo-instances from 108,652 to 25,862 (23%). The owner's rationale: a
+backfill this drops matched GitHub observations from 1,606 to 669 (42%) and
+fetched repo-instances from 108,652 to 25,862 (24%). The owner's rationale: a
 copied class project rarely gets starred, a real one usually does.
 
 That is a lexicon question rather than a collector one. The Rising Terms block now
