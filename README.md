@@ -135,7 +135,9 @@ collectors have the full 52 weeks.
 
 The GitHub collector needs a token in `.env` as `GITHUB_TOKEN`. A fine-grained
 token with **no repository grants** is sufficient — we only read public data —
-and it lifts the rate limit from 60 requests an hour to 5,000.
+and it lifts the *search* rate limit from 10 requests a minute to 30. The
+familiar 60-an-hour-to-5,000 figure is the core API's; the search endpoint this
+collector uses is the tighter one, which is why `rate_limit_seconds` is 2.5.
 
 GitHub is the only source here whose search accepts an explicit `created:` date
 range, so unlike the others it backfills historically. A 52-week backfill of 51
@@ -150,5 +152,36 @@ verbatim in short descriptions (`ERP`, `control tower`, `demand forecasting`)
 while generic descriptions like "logistics API" match nothing.
 
 That is a lexicon question rather than a collector one. The Rising Terms block now
-has 52 weeks of GitHub vocabulary in it, which is the right place to see how
-developers actually name things before deciding what to add to `watchlist.yaml`.
+has 52 weeks of GitHub vocabulary in it. Discovery reads a repository's
+description rather than its `owner/repo` slug, so what surfaces is language a
+developer wrote — but read it knowing that a phrase repeated across a clone
+cohort counts once per repository, so the loudest GitHub entries in a week are
+often one boilerplate description duplicated forty times rather than forty
+people converging on a word.
+
+**The page cap truncates most anchor queries, every week.** `MAX_PAGES = 5`
+fetches at most 500 results per anchor, and across the 52-week backfill 895 of
+1,166 pages belong to a query whose `total_count` exceeded that, in 52 of 52
+weeks. For 2026-W33 the six anchors reported 2,183 / 2,140 / 39 / 658 / 3,107 /
+838 results and only one of them completed. So `gh_repos_new` is really
+"matching repositories among the top 500 per anchor by stars", not "matching
+repositories created in the week". Worse, coverage is falling as the repository
+population grows — 54.6% in 2025-W35 against 28.3% in 2026-W33 — which puts a
+trend inside the bias, across exactly the series z-scores and acceleration are
+computed over. A truncated anchor now prints a `! github truncated …` line on
+stderr during a fetch; raising the cap or narrowing the anchors would change
+what the signal counts and is an open decision.
+
+**About a fifth of matched repositories are clone cohorts.** 294 of the 1,566
+distinct matched repositories share an exact name with at least one other, and
+the families are larger than that once suffixed variants are counted. The
+largest week in the series, 2026-W23 with 82 matched repositories, is 42
+VendorBridge variants — one team project from the Odoo x KSV Hackathon 2026,
+forked across an entire cohort of entrants. Whether `gh_repos_new` should
+collapse those is an open signal-definition question; today it counts every
+one.
+
+**GitHub raw is about 12 MB a week — 621 MB of the 799 MB `data/raw` tree.**
+Design rule 3 (raw before parse) is what makes `--rebuild` possible, so the
+tree cannot be pruned without giving up the ability to replay history under a
+changed parser or lexicon.
