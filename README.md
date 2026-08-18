@@ -151,6 +151,20 @@ sentence, against an arXiv abstract's paragraph. The first live run matched 57 o
 verbatim in short descriptions (`ERP`, `control tower`, `demand forecasting`)
 while generic descriptions like "logistics API" match nothing.
 
+**A repository needs at least one star to be counted.** `MIN_STARS = 1` in
+`observatory/collectors/github.py` and `GithubCollector.parse` drops any item
+whose `stargazers_count` falls below it (a missing or null count is treated as
+zero, not skipped). This is a parse-time rule, applied to whatever raw JSON is
+already on disk, so it is deterministic regardless of how a page happened to be
+fetched — the existing year of raw, pulled down with no star filter at all,
+re-derives the new numbers under an offline `--rebuild` with no new fetching.
+The search query also carries a `stars:>=1` qualifier, but that is only an
+optimization that shrinks what a *future* fetch pulls down against the page
+cap (see below); it is not what decides whether an item counts. Across the 52-week
+backfill this drops matched GitHub observations from 1,606 to 669 (41%) and
+fetched repo-instances from 108,652 to 25,862 (23%). The owner's rationale: a
+copied class project rarely gets starred, a real one usually does.
+
 That is a lexicon question rather than a collector one. The Rising Terms block now
 has 52 weeks of GitHub vocabulary in it. Discovery reads a repository's
 description rather than its `owner/repo` slug, so what surfaces is language a
@@ -172,14 +186,20 @@ computed over. A truncated anchor now prints a `! github truncated …` line on
 stderr during a fetch; raising the cap or narrowing the anchors would change
 what the signal counts and is an open decision.
 
-**About a fifth of matched repositories are clone cohorts.** 294 of the 1,566
-distinct matched repositories share an exact name with at least one other, and
-the families are larger than that once suffixed variants are counted. The
-largest week in the series, 2026-W23 with 82 matched repositories, is 42
+**About a fifth of matched repositories were clone cohorts, before the star
+filter.** 294 of the 1,566 distinct matched repositories shared an exact name
+with at least one other, and the families were larger than that once suffixed
+variants were counted. The largest week in the series, 2026-W23, was 42
 VendorBridge variants — one team project from the Odoo x KSV Hackathon 2026,
-forked across an entire cohort of entrants. Whether `gh_repos_new` should
-collapse those is an open signal-definition question; today it counts every
-one.
+forked across an entire cohort of entrants, that alone suppressed `erp`'s
+current z-score by 44%. **The star filter reduces this substantially but
+does not eliminate it** — a copied class project can still pick up a stray
+star, and forks within a large-enough cohort will too. After the filter, 43 of
+651 distinct matched repositories still share an exact name with another
+(down from 294 of 1,566), and 13 of the 46 VendorBridge copies survive.
+Whether `gh_repos_new` should collapse exact-name families is still an open
+signal-definition question; today it counts every one that clears the star
+threshold.
 
 **GitHub raw is about 12 MB a week — 621 MB of the 799 MB `data/raw` tree.**
 Design rule 3 (raw before parse) is what makes `--rebuild` possible, so the

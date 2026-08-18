@@ -49,6 +49,50 @@ def test_items_without_a_full_name_are_skipped():
     assert GithubCollector().parse(payload) == []
 
 
+# --- the star-count threshold, and why it appears twice --------------------
+
+
+def _repo(full_name="acme/thing", stargazers_count=None):
+    item = {
+        "full_name": full_name,
+        "html_url": f"https://github.com/{full_name}",
+        "description": "a thing", "language": "Python",
+        "created_at": "2026-08-12T10:00:00Z",
+    }
+    if stargazers_count is not None:
+        item["stargazers_count"] = stargazers_count
+    return item
+
+
+def test_an_item_with_zero_stars_is_dropped():
+    payload = json.dumps({"items": [_repo(stargazers_count=0)]})
+    assert GithubCollector().parse(payload) == []
+
+
+def test_an_item_with_one_star_is_kept():
+    payload = json.dumps({"items": [_repo(stargazers_count=1)]})
+    assert len(GithubCollector().parse(payload)) == 1
+
+
+def test_an_item_exactly_at_the_threshold_is_kept():
+    payload = json.dumps({"items": [_repo(stargazers_count=github_module.MIN_STARS)]})
+    assert len(GithubCollector().parse(payload)) == 1
+
+
+def test_a_missing_stargazers_count_is_treated_as_zero_and_dropped():
+    payload = json.dumps({"items": [_repo(stargazers_count=None)]})
+    assert GithubCollector().parse(payload) == []
+
+
+def test_a_null_stargazers_count_is_treated_as_zero_and_dropped():
+    item = _repo()
+    item["stargazers_count"] = None
+    payload = json.dumps({"items": [item]})
+    assert GithubCollector().parse(payload) == []
+
+
+
+
 def test_parse_handles_an_empty_result_set():
     assert GithubCollector().parse(json.dumps({"items": []})) == []
 
@@ -125,9 +169,11 @@ class _FakeSession:
     def __init__(self, pages):
         self._pages = list(pages)
         self.calls = 0
+        self.last_params = None
 
     def get(self, url, params=None, headers=None, timeout=None):
         self.calls += 1
+        self.last_params = params
         return _FakeResponse(self._pages[min(self.calls - 1, len(self._pages) - 1)])
 
 
@@ -174,3 +220,10 @@ def test_a_dropped_item_does_not_end_a_full_page_early(one_anchor):
     session = _FakeSession([json.dumps(full_page)])
 
     assert len(list(GithubCollector().fetch_raw(session, "2026-W33"))) == github_module.MAX_PAGES
+
+
+def test_fetch_raw_query_carries_the_star_qualifier(one_anchor):
+    session = _FakeSession([_page(39, 39)])
+    list(GithubCollector().fetch_raw(session, "2026-W33"))
+
+    assert f"stars:>={github_module.MIN_STARS}" in session.last_params["q"]

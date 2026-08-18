@@ -24,6 +24,19 @@ PAGE_SIZE = 100
 MAX_PAGES = 5
 MAX_RESULTS = PAGE_SIZE * MAX_PAGES
 
+# A copied class project rarely gets starred; a real one usually does. This is
+# the owner's threshold for excluding clone cohorts (e.g. the 46-copy
+# VendorBridge hackathon project) from the matched signal.
+#
+# `parse` is the authoritative filter: it applies to whatever raw JSON is on
+# disk, so the rule is deterministic regardless of how that page was fetched,
+# and a year of raw fetched before this threshold existed still re-derives the
+# new answer under an offline `--rebuild`. The `stars:>=MIN_STARS` query
+# qualifier below is only an optimization on top of that -- it shrinks what a
+# future fetch pulls down (helping with the page cap), but fetching against an
+# older or different query is not what makes an item pass or fail.
+MIN_STARS = 1
+
 # Broad sweeps rather than one query per technology: the request count stays
 # flat as the watchlist grows, and the matcher does the narrowing — the same
 # shape as the arXiv and Hacker News collectors.
@@ -64,7 +77,7 @@ class GithubCollector(BaseCollector):
         for query in ANCHOR_QUERIES:
             for page in range(1, MAX_PAGES + 1):
                 params = {
-                    "q": f"{query} {window}",
+                    "q": f"{query} {window} stars:>={MIN_STARS}",
                     "per_page": PAGE_SIZE,
                     "page": page,
                     "sort": "stars",
@@ -92,6 +105,10 @@ class GithubCollector(BaseCollector):
         for item in payload.get("items", []) or []:
             full_name = item.get("full_name")
             if not full_name:
+                continue
+            # Missing/null stargazers_count is treated as zero, not skipped --
+            # an absent field must not slip through as if it were starred.
+            if (item.get("stargazers_count") or 0) < MIN_STARS:
                 continue
             body = " ".join(
                 part for part in (item.get("description"), item.get("language")) if part
