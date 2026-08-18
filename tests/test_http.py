@@ -87,6 +87,44 @@ def test_fetch_fails_fast_on_client_error():
     assert len(session.calls) == 1
 
 
+def test_fetch_retries_on_429_with_limiter_never_sleeps_shorter_than_rate_limit():
+    # arXiv declares a 3-second interval; a 429 backoff must never be shorter
+    # than that, or we retry inside the window the server just rejected.
+    slept = []
+    limiter = http.RateLimiter(3.0, sleep_fn=lambda _: None, clock_fn=lambda: 0.0)
+    session = FakeSession([FakeResponse(429), FakeResponse(200, "fine")])
+    result = http.fetch(session, "https://example.test/x", limiter=limiter, sleep_fn=slept.append)
+    assert result.text == "fine"
+    assert slept == [3.0]
+
+
+def test_fetch_backoff_without_limiter_is_unchanged():
+    # No limiter means no floor: the first 429 retry still lands at 1 second,
+    # exactly like before this change.
+    slept = []
+    session = FakeSession([FakeResponse(429), FakeResponse(200, "ok")])
+    http.fetch(session, "https://example.test/x", sleep_fn=slept.append)
+    assert slept == [1.0]
+
+
+def test_fetch_honours_retry_after_over_floor_and_429_escalation():
+    slept = []
+    limiter = http.RateLimiter(10.0, sleep_fn=lambda _: None, clock_fn=lambda: 0.0)
+    session = FakeSession(
+        [FakeResponse(429, headers={"Retry-After": "2"}), FakeResponse(200, "ok")]
+    )
+    http.fetch(session, "https://example.test/x", limiter=limiter, sleep_fn=slept.append)
+    assert slept == [2.0]
+
+
+def test_fetch_500_with_limiter_respects_floor():
+    slept = []
+    limiter = http.RateLimiter(5.0, sleep_fn=lambda _: None, clock_fn=lambda: 0.0)
+    session = FakeSession([FakeResponse(500), FakeResponse(200, "ok")])
+    http.fetch(session, "https://example.test/x", limiter=limiter, sleep_fn=slept.append)
+    assert slept == [5.0]
+
+
 def test_rate_limiter_sleeps_the_remaining_interval():
     now = [100.0]
     slept = []

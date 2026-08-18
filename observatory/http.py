@@ -108,7 +108,7 @@ def _with_retries(
             last_status = None
             if attempt == retries:
                 break
-            sleep_fn(_backoff_seconds(None, attempt))
+            sleep_fn(_backoff_seconds(None, attempt, limiter))
             continue
         last_exception = None
         last_status = raw.status_code
@@ -126,17 +126,29 @@ def _with_retries(
             raise HttpError(f"{url} failed with status {raw.status_code}")
         if attempt == retries:
             break
-        sleep_fn(_backoff_seconds(raw, attempt))
+        sleep_fn(_backoff_seconds(raw, attempt, limiter))
     if last_exception is not None:
         raise HttpError(f"{url} failed with network error: {last_exception}") from last_exception
     raise HttpError(f"{url} still failing with status {last_status} after {retries} retries")
 
 
-def _backoff_seconds(raw: Any, attempt: int) -> float:
+def _backoff_seconds(raw: Any, attempt: int, limiter: RateLimiter | None = None) -> float:
     retry_after = raw.headers.get("Retry-After") if raw is not None and hasattr(raw, "headers") else None
     if retry_after:
         try:
             return float(retry_after)
         except ValueError:
             pass
-    return float(2**attempt)
+    status = getattr(raw, "status_code", None) if raw is not None else None
+    # A 429 is the server explicitly saying our pacing is wrong, not just a
+    # bad moment like a 5xx. Repeating the same cadence that got us
+    # rate-limited is guaranteed not to help, so escalate faster than the
+    # baseline exponential backoff used for retryable server errors.
+    base = 4.0 if status == 429 else 2.0
+    backoff = float(base**attempt)
+    if limiter is not None:
+        # A backoff shorter than the caller's own declared rate limit
+        # guarantees hitting the server again before the interval it (or we)
+        # already committed to has elapsed. Never retry sooner than that.
+        backoff = max(backoff, limiter.min_interval)
+    return backoff
