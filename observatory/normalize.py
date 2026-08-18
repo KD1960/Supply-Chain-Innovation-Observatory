@@ -33,6 +33,7 @@ AGGREGATIONS: tuple[Aggregation, ...] = (
     Aggregation("edgar_filings", "edgar", "count"),
     Aggregation("edgar_filers", "edgar", "distinct_entities",
                 trailing_weeks=config.TRAILING_WEEKS),
+    Aggregation("gh_repos_new", "github", "count"),
 )
 
 

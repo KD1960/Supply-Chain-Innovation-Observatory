@@ -384,14 +384,14 @@ DEFERRED_SOURCES = {"gdelt_doc", "gdelt_geo"}
 # Signals with no aggregation at all yet. The GDELT signals are NOT listed here:
 # task 1 already declared their aggregations, so they are produced — they simply
 # stay empty until their collector is registered.
-DEFERRED_SIGNALS = {"patents", "gh_repos_new", "gh_commits", "gh_stars_delta"}
+DEFERRED_SIGNALS = {"patents", "gh_commits", "gh_stars_delta"}
 
 
 def test_every_collector_has_a_unique_name_and_a_rate_limit():
     names = [collector.name for collector in run.COLLECTORS]
     assert len(names) == len(set(names))
     assert set(names) == {
-        "arxiv", "hn", "federalregister", "usaspending", "edgar",
+        "arxiv", "hn", "federalregister", "usaspending", "edgar", "github",
     }
     for collector in run.COLLECTORS:
         assert collector.rate_limit_seconds > 0
@@ -498,3 +498,18 @@ def test_backfill_refetches_only_the_collectors_a_week_is_missing(conn):
 def test_backfill_rejects_a_nonsensical_window(conn):
     with pytest.raises(ValueError):
         run.backfill(conn, weeks_back=0, collectors=[stub()], session=None)
+
+
+def test_github_is_registered_and_produces_its_signal():
+    from observatory import normalize
+
+    assert "github" in {collector.name for collector in run.COLLECTORS}
+    sources = {aggregation.source for aggregation in normalize.AGGREGATIONS}
+    assert "github" in sources
+    signals = {a.signal for a in normalize.AGGREGATIONS if a.source == "github"}
+    assert signals == {"gh_repos_new"}
+
+
+def test_the_remaining_deferred_signals_are_only_the_unbuilt_ones():
+    """Keeps the allowance honest — it must shrink as collectors land."""
+    assert DEFERRED_SIGNALS == {"patents", "gh_commits", "gh_stars_delta"}

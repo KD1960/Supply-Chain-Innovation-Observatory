@@ -18,6 +18,7 @@ from .collectors import base
 from .collectors.arxiv import ArxivCollector
 from .collectors.edgar import EdgarCollector
 from .collectors.federalregister import FederalRegisterCollector
+from .collectors.github import GithubCollector
 from .collectors.hn import HackerNewsCollector
 from .collectors.usaspending import UsaspendingCollector
 
@@ -27,6 +28,7 @@ COLLECTORS = (
     FederalRegisterCollector(),
     UsaspendingCollector(),
     EdgarCollector(),
+    GithubCollector(),
 )
 
 
