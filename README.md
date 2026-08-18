@@ -103,3 +103,14 @@ Full design: `docs/superpowers/specs/2026-08-16-supply-chain-innovation-observat
 ## Tests
 
     python -m pytest
+
+## arXiv coverage
+
+arXiv tolerates the weekly cadence but throttles a bulk backfill: a 52-week run
+succeeded for three weeks, then returned `429` for four consecutive weeks. The
+owner's decision (2026-08-17) is to let the ordinary weekly runs fill the Idea
+stage in over time rather than push a backfill into an IP-level cooldown.
+
+Weeks that failed keep a `failed` status in `source_runs`, so any later run
+fetches exactly the ones still missing — no bookkeeping required. The other four
+collectors have the full 52 weeks.
