@@ -41,6 +41,40 @@ def test_extract_phrases_handles_empty_and_none():
     assert discover.extract_phrases(None) == []
 
 
+def test_a_slug_title_never_yields_a_phrase_spanning_the_slash():
+    """GitHub's title is `owner/repo`. Bridging the slash welds an account name
+    onto a project name -- a phrase no human ever wrote."""
+    document = Document(doc_id="github:aparajita-de/freight", date="2026-08-12",
+                        title="aparajita-de/freight", text="", url="https://x.test/1")
+    phrases = discover.document_phrases(document)
+    assert "aparajita de freight" not in phrases
+    assert not any("aparajita" in phrase for phrase in phrases)
+
+
+def test_strip_slug_prefix_leaves_a_prose_title_alone():
+    assert discover.strip_slug_prefix("Hazardous Materials: air/ground shipping") == (
+        "Hazardous Materials: air/ground shipping"
+    )
+    assert discover.strip_slug_prefix("cold chain monitoring") == "cold chain monitoring"
+    assert discover.strip_slug_prefix(None) is None
+
+
+def test_a_description_supplies_phrases_the_title_cannot():
+    """A repository's vocabulary is in its description, not in its slug."""
+    document = Document(doc_id="github:acme/wms", date="2026-08-12", title="acme/wms",
+                        text="autonomous yard truck scheduling", url="https://x.test/2")
+    assert "yard truck" in discover.document_phrases(document)
+    assert "autonomous yard truck" in discover.document_phrases(document)
+
+
+def test_a_phrase_repeated_within_one_document_counts_once():
+    document = Document(doc_id="d", date="2026-08-12", title="dark factory",
+                        text="dark factory dark factory", url="https://x.test/3")
+    counts = Counter()
+    counts.update(discover.document_phrases(document))
+    assert counts["dark factory"] == 1
+
+
 def test_stopwords_cover_the_obvious_connectives():
     for word in ("the", "a", "of", "for", "and", "in", "on", "with", "to"):
         assert word in discover.STOPWORDS

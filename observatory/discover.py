@@ -47,6 +47,42 @@ def extract_phrases(text: str | None) -> list[str]:
     return phrases
 
 
+def strip_slug_prefix(title: str | None) -> str | None:
+    """Everything after the last `/` of a path-like title, which is the only
+    part of it a human wrote as words.
+
+    A title carrying no spaces and a `/` is a slug rather than a sentence:
+    GitHub's `document.title` is `aparajita-de/freight`, whose first segment is
+    an account name. A phrase window running across that slash welds an account
+    name onto a project name and yields "aparajita de freight" -- precisely the
+    phrase-no-human-wrote that `_runs` exists to prevent, and on live data the
+    single largest source of junk in the candidate list.
+
+    This is not a GitHub rule: a slug segment before a `/` is prose for no
+    source. Titles with whitespace are sentences and are returned untouched, so
+    every other collector here is unaffected.
+    """
+    if not title or "/" not in title or any(char.isspace() for char in title):
+        return title
+    return title.rsplit("/", 1)[1]
+
+
+def document_phrases(document) -> set[str]:
+    """Every phrase from the parts of a document a person actually wrote.
+
+    Both fields, because a title is not always prose. GitHub's title is an
+    `owner/repo` slug and the sentence the developer wrote is the repository
+    description, which lands in `document.text`; mining titles alone read the
+    account names and skipped the vocabulary.
+
+    Deliberately a set: a phrase repeated inside one document is one document's
+    worth of evidence, exactly as it was when only titles were mined.
+    """
+    return set(extract_phrases(strip_slug_prefix(document.title))) | set(
+        extract_phrases(document.text)
+    )
+
+
 def _runs(tokens: list[str]) -> list[list[str]]:
     """Split a token list into stretches uninterrupted by stopwords or numbers."""
     runs: list[list[str]] = []
@@ -106,7 +142,7 @@ def _documents_for_week(week: str, collectors) -> list:
 def week_phrase_counts(week: str, collectors) -> Counter:
     counts: Counter = Counter()
     for document in _documents_for_week(week, collectors):
-        counts.update(set(extract_phrases(document.title)))
+        counts.update(document_phrases(document))
     return counts
 
 
@@ -174,7 +210,7 @@ def detect_rising(week: str, collectors, watchlist) -> RisingTerms:
 def _examples(documents, term: str) -> list[tuple[str, str]]:
     found = []
     for document in documents:
-        if term in extract_phrases(document.title):
+        if term in document_phrases(document):
             found.append((document.title, document.url))
             if len(found) == MAX_EXAMPLES:
                 break
