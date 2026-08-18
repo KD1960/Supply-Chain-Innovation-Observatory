@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import sys
 from typing import Iterator
 
 from .. import config, http
@@ -21,6 +22,7 @@ from .base import BaseCollector, Document, RawPage
 API_URL = "https://api.github.com/search/repositories"
 PAGE_SIZE = 100
 MAX_PAGES = 5
+MAX_RESULTS = PAGE_SIZE * MAX_PAGES
 
 # Broad sweeps rather than one query per technology: the request count stays
 # flat as the watchlist grows, and the matcher does the narrowing — the same
@@ -71,7 +73,17 @@ class GithubCollector(BaseCollector):
                 response = http.fetch(session, API_URL, params=params,
                                       headers=headers, limiter=limiter)
                 yield RawPage(response.url, response.status, response.text, "json")
-                if len(self.parse(response.text)) < PAGE_SIZE:
+                payload = _payload(response.text)
+                if page == 1:
+                    notice = truncation_warning(query, week, payload)
+                    if notice:
+                        print(notice, file=sys.stderr)
+                # Against the raw item count, not the parsed documents: an item
+                # dropped for a missing `full_name` would otherwise look like a
+                # short page and stop the anchor early, discarding results the
+                # cap would still have allowed -- and parsing here would parse
+                # every page a second time for an answer the payload already has.
+                if len(payload.get("items") or []) < PAGE_SIZE:
                     break
 
     def parse(self, text: str) -> list[Document]:
@@ -95,3 +107,36 @@ class GithubCollector(BaseCollector):
                 )
             )
         return documents
+
+
+def _payload(text: str) -> dict:
+    try:
+        payload = json.loads(text or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def truncation_warning(query: str, week: str, payload: dict) -> str | None:
+    """The line to print when an anchor query has more results than the cap fetches.
+
+    `MAX_PAGES` harvests at most `MAX_RESULTS` repositories per anchor, sorted
+    by stars, and on live data most anchors exceed that every week. So
+    `gh_repos_new` is not "matching repos created in week" but "matching repos
+    among the top MAX_RESULTS per anchor by stars" -- and the shortfall grows
+    as the repository population does, which puts a trend in the bias itself,
+    across exactly the series z-scores and acceleration are computed over.
+
+    Changing the cap changes what the signal means, and that is the owner's
+    call. Saying out loud that the cap bit is not, so every truncated anchor
+    reports itself once, on the page where GitHub states the total.
+    """
+    total = payload.get("total_count")
+    try:
+        total = int(total)
+    except (TypeError, ValueError):
+        return None
+    if total <= MAX_RESULTS:
+        return None
+    return (f"  ! github truncated {week} {query!r}: "
+            f"total_count {total}, fetched at most {MAX_RESULTS}")
