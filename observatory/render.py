@@ -52,19 +52,21 @@ def build_context(conn, week: str, watchlist) -> dict:
     families = {tech.id: tech.family for tech in watchlist.technologies}
     rows = store.metrics_for_week(conn, week)
 
-    scored = [row for row in rows if row.get("momentum") is not None]
+    # Ranked by substance rather than by momentum, which was dropped: with the
+    # annual report the deliverable, nothing needs a weekly slope, and the
+    # slope was the metric that kept reporting noise as trend.
+    scored = [row for row in rows if row.get("sai") is not None]
     warming = [
         {"tech_id": row["tech_id"], "name": names.get(row["tech_id"], row["tech_id"])}
-        for row in rows if row.get("momentum") is None
+        for row in rows if row.get("sai") is None
     ]
-    scored.sort(key=lambda row: row["momentum"], reverse=True)
+    scored.sort(key=lambda row: row["sai"], reverse=True)
 
     movers = [
         {
             "tech_id": row["tech_id"],
             "name": names.get(row["tech_id"], row["tech_id"]),
             "family": families.get(row["tech_id"], ""),
-            "momentum": row["momentum"],
             "sai": row["sai"],
             "lfi": row["lfi"],
             "adoption": row["adoption"],
@@ -74,9 +76,9 @@ def build_context(conn, week: str, watchlist) -> dict:
 
     stage_points = [
         charts.Point(
-            x=row["position"], y=row["momentum"],
+            x=row["position"], y=row["sai"],
             label=f"{names.get(row['tech_id'], row['tech_id'])} "
-                  f"(position {row['position']:.1f}, momentum {row['momentum']:+.2f})",
+                  f"(position {row['position']:.1f}, substance {row['sai']:+.2f})",
             colour=FAMILY_COLOURS.get(families.get(row["tech_id"], ""), "#5b7fa6"),
         )
         for row in scored if row.get("position") is not None
@@ -121,7 +123,7 @@ def build_context(conn, week: str, watchlist) -> dict:
         "sources": store.source_statuses(conn),
         "movers": movers,
         "stage_board_svg": Markup(
-            charts.scatter(stage_points, x_label="Pipeline position", y_label="Momentum")
+            charts.scatter(stage_points, x_label="Pipeline position", y_label="Substance vs attention")
         ),
         "substance_svg": Markup(
             charts.scatter(substance_points, x_label="Substance minus attention",

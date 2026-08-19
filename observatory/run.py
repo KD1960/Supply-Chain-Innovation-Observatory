@@ -327,6 +327,8 @@ def main(argv=None) -> int:
     parser.add_argument("--only", default=None, help="run a single collector by name")
     parser.add_argument("--quarter", default=None, metavar="YYYY-Qn",
                         help="write the quarterly report for a quarter, e.g. 2026-Q2")
+    parser.add_argument("--annual", default=None, metavar="YYYY",
+                        help="write the annual report for a calendar year, e.g. 2026")
     args = parser.parse_args(argv)
     if args.rebuild and args.only:
         # Clearing the derived tables and then replaying one collector would
@@ -353,9 +355,10 @@ def main(argv=None) -> int:
     try:
         # Before anything that could open a session: the quarterly report is a
         # lens on stored rows, so it must never fetch.
-        if args.quarter:
-            path = quarter.render_quarter(conn, args.quarter, watchlist)
-            print(f"{args.quarter}: {path}")
+        period = args.annual or args.quarter
+        if period:
+            path = quarter.render_quarter(conn, period, watchlist)
+            print(f"{period}: {path}")
             return 0
         if args.backfill is not None:
             session = http.make_session()

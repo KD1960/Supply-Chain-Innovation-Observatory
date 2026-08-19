@@ -304,8 +304,8 @@ def main(argv=None) -> int:
                 "No problems found. Paste the block above into watchlist.yaml, then bump "
                 "lexicon_version; set added_week on each new entry (watchlist.yaml requires "
                 "it and the proposal never carries it); and set patterns_changed_week on "
-                "each entry whose patterns changed -- momentum is suppressed for 8 weeks "
-                "after a pattern change, and that suppression keys off patterns_changed_week."
+                "each entry whose patterns changed -- it records when a technology stopped "
+                "meaning the same thing, which any comparison across that date must respect."
             )
             return 0
     finally:

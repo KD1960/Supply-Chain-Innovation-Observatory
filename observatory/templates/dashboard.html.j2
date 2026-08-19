@@ -47,7 +47,7 @@
   <h2>This Week's Movers</h2>
   {% if movers %}
   <table>
-    <thead><tr><th>Technology</th><th>Family</th><th class="num">Momentum</th>
+    <thead><tr><th>Technology</th><th>Family</th>
       <th class="num">Substance</th><th class="num">Lab&nbsp;&rarr;&nbsp;Field</th>
       <th class="num">Adopters</th></tr></thead>
     <tbody>
@@ -55,7 +55,6 @@
       <tr>
         <td><a href="{{ evidence_href }}#{{ mover.tech_id }}">{{ mover.name }}</a></td>
         <td>{{ mover.family }}</td>
-        <td class="num {{ 'up' if mover.momentum > 0 else 'down' }}">{{ '%+.2f'|format(mover.momentum) }}</td>
         <td class="num">{{ '%+.2f'|format(mover.sai) if mover.sai is not none else '—' }}</td>
         <td class="num">{{ '%+.2f'|format(mover.lfi) if mover.lfi is not none else '—' }}</td>
         <td class="num">{{ mover.adoption if mover.adoption is not none else '—' }}</td>
@@ -68,7 +67,7 @@
   {% endif %}
 
   <h2>Stage Board</h2>
-  <p class="sub">Horizontal: position in the pipeline, 1 = idea to 5 = diffusion. Vertical: momentum.</p>
+  <p class="sub">Horizontal: position in the pipeline, 1 = idea to 5 = diffusion. Vertical: substance against attention.</p>
   {{ stage_board_svg }}
 
   <h2>Substance vs. Attention</h2>

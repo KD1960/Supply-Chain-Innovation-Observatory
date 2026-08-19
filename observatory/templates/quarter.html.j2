@@ -76,7 +76,7 @@
 <body>
 <div class="wrap">
 <header>
-  <div class="eyebrow">Supply Chain Innovation Observatory &middot; quarterly report</div>
+  <div class="eyebrow">Supply Chain Innovation Observatory &middot; {{ period_label }}</div>
   <h1>{{ quarter }}</h1>
   <div class="facts">
     <div class="fact"><b>{{ documents }}</b><span>documents matched</span></div>
@@ -88,16 +88,16 @@
 
 {% if partial %}
 <section>
-  <h2>This quarter is still filling up</h2>
+  <h2>This {{ period_noun }} is still filling up</h2>
   <p class="source">{{ weeks_run }} of {{ weeks_total }} weeks run</p>
   <p>The counts below cover {{ weeks_run }} of {{ weeks_total }} weeks, so they are
-  not comparable with a full quarter and no share movement is reported. A shortfall
+  not comparable with a full {{ period_noun }} and no share movement is reported. A shortfall
   of weeks looks exactly like a decline, which is why it is named here instead.</p>
 </section>
 {% endif %}
 
 <section>
-  <h2>What the quarter held</h2>
+  <h2>What the {{ period_noun }} held</h2>
   <p class="source">{{ weeks[0] }} to {{ weeks[-1] }} &middot; lexicon version {{ lexicon_version }}</p>
   <p>Counts are documents matched, not mentions: a technology named twice in one
   filing counts once. The concentration column names the source that supplied most
@@ -130,9 +130,9 @@
 {% if risers %}
 <section>
   <h2>What moved against {{ previous }}</h2>
-  <p class="source">Share of the quarter's documents, in percentage points</p>
-  <p>Share rather than count, because the corpus itself is not stable from quarter
-  to quarter. A technology can gain documents and still lose ground.</p>
+  <p class="source">Share of the {{ period_noun }}'s documents, in percentage points</p>
+  <p>Share rather than count, because the corpus itself is not stable from one
+  {{ period_noun }} to the next. A technology can gain documents and still lose ground.</p>
 </section>
 
 <div class="panel">
@@ -156,13 +156,13 @@
 <section>
   <h2>Nothing to compare against</h2>
   <p>{{ previous }} holds no observations, so no share can have moved. A technology
-  cannot have risen against a quarter that was never observed.</p>
+  cannot have risen against a {{ period_noun }} that was never observed.</p>
 </section>
 {% endif %}
 
 {% if silent %}
 <section>
-  <h2>Silent this quarter</h2>
+  <h2>Silent this {{ period_noun }}</h2>
   <p class="source">Zero documents across all six sources</p>
   <p>A silent entry means either an absent technology or a pattern that cannot see
   it. The distinction is settled by probing the corpus directly, not by waiting.</p>
@@ -174,13 +174,13 @@
 
 <footer>
   <ul>
-    <li>Thirteen weeks per quarter. Across this corpus two thirds of technology-weeks
-    hold zero observations, so a weekly ranking mostly reports which week a collector
-    caught something. Collection stays weekly — it is the only window in which every
-    query stays under its API's result cap — and only the reporting is aggregated.</li>
-    <li>Momentum is computed on the quarterly series, as the second difference of the
-    last three quarters. All three must be present; bridging a missing quarter would
-    invent a trend across the gap.</li>
+    <li>Across this corpus two thirds of technology-weeks hold zero observations, so a
+    weekly ranking mostly reports which week a collector caught something. Collection
+    stays weekly — it is the only window in which every query stays under its API's
+    result cap — and only the reporting is aggregated.</li>
+    <li>No momentum. It was the only metric needing a time series, and the one that
+    reported noise as trend: 95% of the signals table is observed zeros, so a
+    technology seen once still scored. What remains is cross-sectional.</li>
     <li>Matching is deterministic. The pattern that fired is stored on every
     observation, so any number here can be traced to its evidence.</li>
   </ul>

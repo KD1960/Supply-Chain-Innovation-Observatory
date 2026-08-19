@@ -162,3 +162,66 @@ def test_the_partial_page_says_how_many_weeks_are_missing(conn, tmp_path):
     observe(conn, "a", "2026-W27", "arxiv", "d1")
     path = quarter.render_quarter(conn, "2026-Q3", Watchlist(1, (tech("a"),)), out_dir=tmp_path)
     assert "8 of 13" in path.read_text()
+
+
+def test_weeks_in_period_accepts_a_bare_year():
+    weeks = quarter.weeks_in_period("2025")
+    assert weeks[0] == "2025-W01"
+    assert weeks[-1] == "2025-W52"
+    assert len(weeks) == 52
+
+
+def test_a_long_iso_year_has_fifty_three_weeks():
+    """2026 is a 53-week ISO year. Assuming 52 would silently drop its last
+    week from the annual report -- the deliverable's own final week."""
+    weeks = quarter.weeks_in_period("2026")
+    assert weeks[-1] == "2026-W53"
+    assert len(weeks) == 53
+
+
+def test_weeks_in_period_still_accepts_a_quarter():
+    assert quarter.weeks_in_period("2026-Q2") == quarter.weeks_in_quarter("2026-Q2")
+
+
+def test_previous_period_of_a_year_is_the_year_before():
+    assert quarter.previous_period("2026") == "2025"
+    assert quarter.previous_period("2026-Q1") == "2025-Q4"
+
+
+def test_totals_cover_the_whole_year(conn):
+    observe(conn, "a", "2026-W02", "arxiv", "q1")
+    observe(conn, "a", "2026-W20", "arxiv", "q2")
+    observe(conn, "a", "2026-W40", "arxiv", "q4")
+    observe(conn, "a", "2025-W40", "arxiv", "lastyear")
+    assert quarter.totals(conn, "2026")["a"]["total"] == 3
+
+
+def test_an_annual_report_is_partial_until_every_week_has_run(conn):
+    for week in quarter.weeks_in_period("2026")[:40]:
+        store.set_source_status(conn, "arxiv", week, "ok")
+    observe(conn, "a", "2026-W02", "arxiv", "d1")
+    context = quarter.build_context(conn, "2026", Watchlist(1, (tech("a"),)))
+    assert context["weeks_total"] == 53
+    assert context["weeks_run"] == 40
+    assert context["partial"] is True
+
+
+def test_render_writes_an_annual_report(conn, tmp_path):
+    watchlist = Watchlist(version=1, technologies=(tech("a", name="Alpha tech"),))
+    observe(conn, "a", "2026-W02", "arxiv", "d1")
+    path = quarter.render_quarter(conn, "2026", watchlist, out_dir=tmp_path)
+    assert path.name == "report-2026.html"
+    assert "Alpha tech" in path.read_text()
+
+
+def test_an_annual_page_calls_itself_annual(conn, tmp_path):
+    observe(conn, "a", "2026-W02", "arxiv", "d1")
+    html = quarter.render_quarter(conn, "2026", Watchlist(1, (tech("a"),)), out_dir=tmp_path).read_text()
+    assert "annual report" in html.lower()
+    assert "quarterly report" not in html.lower()
+
+
+def test_a_quarterly_page_still_calls_itself_quarterly(conn, tmp_path):
+    observe(conn, "a", "2026-W14", "arxiv", "d1")
+    html = quarter.render_quarter(conn, "2026-Q2", Watchlist(1, (tech("a"),)), out_dir=tmp_path).read_text()
+    assert "quarterly report" in html.lower()

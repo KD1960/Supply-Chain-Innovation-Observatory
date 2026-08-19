@@ -75,7 +75,6 @@ CREATE TABLE IF NOT EXISTS weekly_signals (
 CREATE TABLE IF NOT EXISTS weekly_metrics (
     tech_id TEXT NOT NULL,
     week TEXT NOT NULL,
-    momentum REAL,
     sai REAL,
     lfi REAL,
     adoption INTEGER,
@@ -104,7 +103,7 @@ CREATE TABLE IF NOT EXISTS candidate_terms (
 """
 
 METRIC_COLUMNS = [
-    "tech_id", "week", "momentum", "sai", "lfi", "adoption", "adoption_new",
+    "tech_id", "week", "sai", "lfi", "adoption", "adoption_new",
     "stage_idea", "stage_experiment", "stage_investment", "stage_deployment",
     "stage_diffusion", "position", "lexicon_version",
 ]

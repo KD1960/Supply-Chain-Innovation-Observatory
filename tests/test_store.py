@@ -185,7 +185,7 @@ def test_source_status_round_trips(conn):
 def test_metrics_round_trip(conn):
     store.upsert_metrics(conn, {
         "tech_id": "autonomous_trucking", "week": "2026-W33",
-        "momentum": 1.5, "sai": -0.2, "lfi": 0.3,
+        "sai": -0.2, "lfi": 0.3,
         "adoption": 12, "adoption_new": 2,
         "stage_idea": 0.1, "stage_experiment": 0.2, "stage_investment": 0.3,
         "stage_deployment": 0.4, "stage_diffusion": 0.5, "position": 3.2,
@@ -193,7 +193,7 @@ def test_metrics_round_trip(conn):
     })
     rows = store.metrics_for_week(conn, "2026-W33")
     assert len(rows) == 1
-    assert rows[0]["momentum"] == 1.5
+    assert rows[0]["sai"] == -0.2
     assert rows[0]["lexicon_version"] == 1
 
 

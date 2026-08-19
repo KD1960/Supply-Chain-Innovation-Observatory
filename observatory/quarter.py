@@ -14,6 +14,7 @@ weekly run already wrote.
 from __future__ import annotations
 
 import collections
+import datetime as dt
 from pathlib import Path
 
 from . import config, render
@@ -36,6 +37,23 @@ def weeks_in_quarter(name: str) -> list[str]:
     return [f"{year}-W{week:02d}" for week in range(first, first + QUARTER_WEEKS)]
 
 
+def weeks_in_year(year: str) -> list[str]:
+    # December 28th always falls in the last ISO week of its year, which is 53
+    # in a long year. Hard-coding 52 would drop the annual report's own final
+    # week in 2020, 2026 and every other long year.
+    last = dt.date(int(year), 12, 28).isocalendar().week
+    return [f"{year}-W{week:02d}" for week in range(1, last + 1)]
+
+
+def weeks_in_period(name: str) -> list[str]:
+    """A period is a quarter (`2026-Q2`) or a whole year (`2026`)."""
+    return weeks_in_quarter(name) if "-Q" in name else weeks_in_year(name)
+
+
+def previous_period(name: str) -> str:
+    return previous_quarter(name) if "-Q" in name else str(int(name) - 1)
+
+
 def previous_quarter(name: str) -> str:
     year, number = name.split("-Q")
     if int(number) == 1:
@@ -44,7 +62,7 @@ def previous_quarter(name: str) -> str:
 
 
 def totals(conn, name: str) -> dict[str, dict]:
-    weeks = weeks_in_quarter(name)
+    weeks = weeks_in_period(name)
     placeholders = ",".join("?" for _ in weeks)
     rows = conn.execute(
         f"SELECT tech_id, source, COUNT(*) AS n FROM observations "
@@ -76,7 +94,7 @@ def share_shift(conn, name: str) -> dict[str, float | None]:
     material than before, arXiv by 35% and GitHub by 79%. Against that
     background almost everything "rose", and the rise meant nothing.
     """
-    now, before = totals(conn, name), totals(conn, previous_quarter(name))
+    now, before = totals(conn, name), totals(conn, previous_period(name))
     now_total = sum(row["total"] for row in now.values())
     before_total = sum(row["total"] for row in before.values())
     if not before_total:
@@ -97,7 +115,7 @@ def weeks_run(conn, name: str) -> int:
     Taken from source_runs rather than from the observations, because a week
     that ran and found nothing is observed; a week that never ran is not.
     """
-    weeks = weeks_in_quarter(name)
+    weeks = weeks_in_period(name)
     placeholders = ",".join("?" for _ in weeks)
     row = conn.execute(
         f"SELECT COUNT(DISTINCT week) AS n FROM source_runs WHERE week IN ({placeholders})",
@@ -108,8 +126,9 @@ def weeks_run(conn, name: str) -> int:
 
 def build_context(conn, name: str, watchlist) -> dict:
     counts = totals(conn, name)
+    weeks = weeks_in_period(name)
     ran = weeks_run(conn, name)
-    partial = ran < QUARTER_WEEKS
+    partial = ran < len(weeks)
     # Eight weeks of share against a full thirteen is not a comparison, it is a
     # shortfall wearing a percentage sign. A quarter still filling up reports
     # its counts and withholds its movement.
@@ -136,10 +155,12 @@ def build_context(conn, name: str, watchlist) -> dict:
     movers.sort(key=lambda item: -item["shift"])
     return {
         "quarter": name,
-        "previous": previous_quarter(name),
-        "weeks": weeks_in_quarter(name),
+        "previous": previous_period(name),
+        "weeks": weeks,
         "weeks_run": ran,
-        "weeks_total": QUARTER_WEEKS,
+        "weeks_total": len(weeks),
+        "period_label": "quarterly report" if "-Q" in name else "annual report",
+        "period_noun": "quarter" if "-Q" in name else "year",
         "partial": partial,
         "documents": sum(row["total"] for row in counts.values()),
         "rows": rows,

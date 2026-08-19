@@ -535,3 +535,17 @@ def test_quarter_writes_a_report_without_fetching(conn, monkeypatch, tmp_path):
 
 def _no_session(*args, **kwargs):
     raise AssertionError("--quarter must not open a network session")
+
+
+def test_annual_writes_the_year_report_without_fetching(conn, monkeypatch, tmp_path):
+    store.upsert_observations(conn, [Observation(
+        source="arxiv", week="2026-W02", tech_id="autonomous_trucking", doc_id="d1",
+        doc_date="2026-01-08", title="Driverless truck corridor",
+        url="https://x.test/d1", entity=None, entity_id=None, amount=None,
+        lat=None, lon=None, matched_pattern="x", raw_ref=None,
+    )])
+    monkeypatch.setattr(run.store, "connect", lambda *a, **k: conn)
+    monkeypatch.setattr(run.store, "init_schema", lambda *a, **k: None)
+    monkeypatch.setattr(run.http, "make_session", _no_session)
+    assert run.main(["--annual", "2026"]) == 0
+    assert (tmp_path / "output" / "report-2026.html").exists()

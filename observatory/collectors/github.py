@@ -159,7 +159,7 @@ def truncation_warning(query: str, week: str, payload: dict) -> str | None:
     `gh_repos_new` is not "matching repos created in week" but "matching repos
     among the top MAX_RESULTS per anchor by stars" -- and the shortfall grows
     as the repository population does, which puts a trend in the bias itself,
-    across exactly the series z-scores and acceleration are computed over.
+    across exactly the series the z-scores are computed over.
 
     Changing the cap changes what the signal means, and that is the owner's
     call. Saying out loud that the cap bit is not, so every truncated anchor
