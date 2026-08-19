@@ -1,4 +1,4 @@
-lexicon_version: 5
+lexicon_version: 6
 
 # Supply chain and operations vocabulary. A technology marked `needs_context`
 # only counts when the document also uses one of these words somewhere — that is
@@ -39,9 +39,13 @@ technologies:
   - {id: piece_picking, name: Piece-picking robotics, family: automation,
      include: ["piece[- ]picking", "robotic (item |piece )?picking", "bin picking"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
-  - {id: humanoid_logistics, name: Humanoid robots in logistics, family: automation,
-     include: ["humanoid robot(s)?", "general[- ]purpose humanoid"],
-     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  # Broadened past the humanoid form factor, but only as far as the evidence
+  # allows. "mobile manipulation" was measured and rejected: 14 gated hits, of
+  # which one was about this domain -- the rest were generic embodied-AI papers
+  # and an operating-room robot that passed the gate on the word "logistics".
+  - {id: humanoid_logistics, name: General-purpose and humanoid robots in logistics, family: automation,
+     include: ["humanoid robot(s)?", "general[- ]purpose humanoid", "general[- ]purpose robot(s)?"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W34}
   - {id: autonomous_yard, name: Autonomous yard trucks, family: automation,
      include: ["autonomous yard (truck|tractor|spotter)(s)?", "yard automation"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
@@ -209,10 +213,17 @@ technologies:
   - {id: microfulfillment, name: Microfulfillment automation, family: physical,
      include: ["micro[- ]fulfil(l)?ment", "dark store(s)?", "automated fulfil(l)?ment cent(er|re)"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
-  - {id: cv_inspection, name: Computer vision for damage inspection, family: physical,
+  # Matched nothing in a year: the old patterns demanded damage/cargo wording
+  # that real papers do not use. Broadened by proximity rather than by gating
+  # alone -- a bare "computer vision" is 38 gated hits at under half precision,
+  # because the gate admits smart fridges and biomedical imaging.
+  - {id: cv_inspection, name: Computer vision for logistics and inspection, family: physical,
      include: ["(damage|cargo|container) (detection|inspection)[^.]{0,20}(vision|ai)",
-               "automated (damage|defect) inspection"],
-     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+               "automated (damage|defect) inspection",
+               "(computer|machine) vision[^.]{0,80}(warehouse|logistics|pallet(s)?|container(s)?|cargo|freight|inventory|shipment(s)?|supply chain|parcel(s)?|order picking|production line)",
+               "(warehouse|logistics|pallet(s)?|container(s)?|cargo|freight|inventory|shipment(s)?|supply chain|parcel(s)?|order picking|production line)[^.]{0,80}(computer|machine) vision",
+               "(defect|damage) detection[^.]{0,70}(warehouse|logistics|pallet(s)?|container(s)?|cargo|freight|inventory|shipment(s)?|supply chain|parcel(s)?|order picking|production line|manufacturing)"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W34}
 
   # --- Networks & resilience -------------------------------------------------
   - {id: risk_intelligence, name: Supply chain risk intelligence, family: networks,
@@ -230,9 +241,11 @@ technologies:
   - {id: inland_ports, name: Inland ports, family: networks,
      include: ["inland port(s)?", "dry port(s)?", "inland (container )?terminal(s)?"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
-  - {id: private_5g_warehouse, name: Private 5G in warehouses, family: networks,
-     include: ["private (5g|lte) network(s)?", "private cellular[^.]{0,20}(warehouse|factory)"],
-     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  - {id: private_5g_warehouse, name: Private wireless and indoor positioning, family: networks,
+     include: ["private (5g|6g|lte) network(s)?", "private cellular[^.]{0,20}(warehouse|factory)",
+               "\\b6G\\b[^.]{0,70}(warehouse|logistics|pallet(s)?|container(s)?|cargo|freight|inventory|shipment(s)?|supply chain|parcel(s)?|order picking|production line|factor(y|ies)|industrial)",
+               "\\bUWB\\b", "ultra[- ]wideband", "LoRaWAN"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W34}
   - {id: quantum_logistics, name: Quantum optimization for logistics, family: networks,
      include: ["quantum (annealing|optimi[sz]ation)[^.]{0,30}(logistics|routing|supply chain)",
                "quantum[- ]inspired optimi[sz]ation"],
