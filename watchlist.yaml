@@ -1,4 +1,4 @@
-lexicon_version: 2
+lexicon_version: 3
 
 # Supply chain and operations vocabulary. A technology marked `needs_context`
 # only counts when the document also uses one of these words somewhere — that is
@@ -86,9 +86,14 @@ technologies:
   - {id: erp, name: ERP platforms, family: enterprise,
      include: ["enterprise resource planning", "\\bERP\\b", "S/4HANA", "SAP S/4"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  # `\\bWMS\\b` is case-insensitive, so it also matches "WMs" -- the plural of
+  # "World Model". That produced ten false arXiv matches, every one an embodied-AI
+  # robotics paper. The gate fixes it at no cost: the full phrase contains
+  # "warehouse", a context word, so it satisfies the gate on its own.
   - {id: wms, name: Warehouse management systems, family: enterprise,
      include: ["warehouse management system(s)?", "\\bWMS\\b"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true,
+     status: active, added_week: 2026-W33, patterns_changed_week: 2026-W34}
   - {id: mes, name: Manufacturing execution systems, family: enterprise,
      include: ["manufacturing execution system(s)?", "\\bMES\\b"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
