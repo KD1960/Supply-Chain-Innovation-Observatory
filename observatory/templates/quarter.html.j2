@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supply Chain Innovation Observatory &middot; {{ quarter }}</title>
+<style>
+  :root{
+    --ground:#F6F7F9; --surface:#FFFFFF; --sunk:#EDEFF3;
+    --ink:#12171C; --body:#2B333B; --muted:#5C6874; --rule:#DCE1E6;
+    --accent:#A85B12; --rise:#1E6E5E; --fall:#94402C;
+    --display:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+    --serif:Charter,"Iowan Old Style",Georgia,serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0E1317; --surface:#161C22; --sunk:#121820;
+      --ink:#E4E9ED; --body:#C3CCD5; --muted:#8A97A3; --rule:#262E36;
+      --accent:#D08A3C; --rise:#4FA890; --fall:#C97155;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0E1317; --surface:#161C22; --sunk:#121820;
+    --ink:#E4E9ED; --body:#C3CCD5; --muted:#8A97A3; --rule:#262E36;
+    --accent:#D08A3C; --rise:#4FA890; --fall:#C97155;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--body);font-family:var(--serif);
+       font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 80px}
+  header{border-bottom:2px solid var(--ink);padding:48px 0 20px;margin-bottom:36px}
+  .eyebrow{font-family:var(--display);font-size:11px;font-weight:650;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--accent)}
+  h1{font-family:var(--display);font-weight:800;letter-spacing:-.03em;line-height:1.05;
+     font-size:clamp(32px,6vw,52px);color:var(--ink);margin:12px 0 0}
+  .facts{display:flex;flex-wrap:wrap;margin:28px 0 0;border-top:1px solid var(--rule);
+         border-bottom:1px solid var(--rule)}
+  .fact{flex:1 1 130px;padding:14px 18px 14px 0;border-right:1px solid var(--rule)}
+  .fact:last-child{border-right:0}
+  .fact b{display:block;font-family:var(--mono);font-size:24px;font-weight:600;color:var(--ink);
+          font-variant-numeric:tabular-nums}
+  .fact span{font-family:var(--display);font-size:11px;letter-spacing:.08em;
+             text-transform:uppercase;color:var(--muted)}
+  section{margin:48px 0 0;max-width:64ch}
+  h2{font-family:var(--display);font-weight:750;letter-spacing:-.02em;color:var(--ink);
+     font-size:24px;margin:0 0 6px}
+  .source{font-family:var(--display);font-size:11px;font-weight:650;letter-spacing:.12em;
+          text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+  p{margin:0 0 14px}
+  .panel{background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+         padding:20px 22px;margin:20px 0 0;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px;
+        font-variant-numeric:tabular-nums}
+  th{font-family:var(--display);font-size:10.5px;font-weight:650;letter-spacing:.09em;
+     text-transform:uppercase;color:var(--muted);text-align:left;padding:0 12px 8px 0;
+     border-bottom:1px solid var(--rule);white-space:nowrap}
+  td{padding:8px 12px 8px 0;border-bottom:1px solid var(--rule)}
+  tr:last-child td{border-bottom:0}
+  .name{font-family:var(--serif);font-size:15px;color:var(--ink);width:32%;min-width:200px}
+  .num{text-align:right;width:1%;white-space:nowrap;color:var(--ink)}
+  .dim{color:var(--muted)}
+  .up{color:var(--rise);font-weight:600} .down{color:var(--fall);font-weight:600}
+  .tag{font-family:var(--display);font-size:10.5px;letter-spacing:.06em;
+       text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  .names{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0;list-style:none}
+  .names li{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--rule);
+            background:var(--surface);padding:4px 8px;border-radius:2px}
+  footer{margin:60px 0 0;padding:20px 0 0;border-top:1px solid var(--rule);
+         font-size:13.5px;color:var(--muted)}
+  footer ul{margin:0;padding-left:18px} footer li{margin:0 0 6px}
+  code{font-family:var(--mono);font-size:.88em;background:var(--sunk);padding:1px 4px;
+       border-radius:2px;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">Supply Chain Innovation Observatory &middot; quarterly report</div>
+  <h1>{{ quarter }}</h1>
+  <div class="facts">
+    <div class="fact"><b>{{ documents }}</b><span>documents matched</span></div>
+    <div class="fact"><b>{{ rows|length }}</b><span>technologies seen</span></div>
+    <div class="fact"><b>{{ silent|length }}</b><span>silent</span></div>
+    <div class="fact"><b>{{ filers_total }}</b><span>filing companies</span></div>
+  </div>
+</header>
+
+{% if partial %}
+<section>
+  <h2>This quarter is still filling up</h2>
+  <p class="source">{{ weeks_run }} of {{ weeks_total }} weeks run</p>
+  <p>The counts below cover {{ weeks_run }} of {{ weeks_total }} weeks, so they are
+  not comparable with a full quarter and no share movement is reported. A shortfall
+  of weeks looks exactly like a decline, which is why it is named here instead.</p>
+</section>
+{% endif %}
+
+<section>
+  <h2>What the quarter held</h2>
+  <p class="source">{{ weeks[0] }} to {{ weeks[-1] }} &middot; lexicon version {{ lexicon_version }}</p>
+  <p>Counts are documents matched, not mentions: a technology named twice in one
+  filing counts once. The concentration column names the source that supplied most
+  of the evidence, which is usually most of it.</p>
+</section>
+
+<div class="panel">
+  <table>
+    <thead><tr>
+      <th class="name">Technology</th><th class="num">Docs</th>
+      <th class="num">Papers</th><th class="num">Repos</th><th class="num">HN</th>
+      <th class="num">Filers</th><th class="tag">Concentration</th>
+    </tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="name">{{ row.name }}</td>
+        <td class="num">{{ row.total }}</td>
+        <td class="num{% if not row.by_source.arxiv %} dim{% endif %}">{{ row.by_source.arxiv }}</td>
+        <td class="num{% if not row.by_source.github %} dim{% endif %}">{{ row.by_source.github }}</td>
+        <td class="num{% if not row.by_source.hn %} dim{% endif %}">{{ row.by_source.hn }}</td>
+        <td class="num{% if not row.filers %} dim{% endif %}">{{ row.filers }}</td>
+        <td class="tag">{{ row.concentration }}% {{ row.top_source }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if risers %}
+<section>
+  <h2>What moved against {{ previous }}</h2>
+  <p class="source">Share of the quarter's documents, in percentage points</p>
+  <p>Share rather than count, because the corpus itself is not stable from quarter
+  to quarter. A technology can gain documents and still lose ground.</p>
+</section>
+
+<div class="panel">
+  <table>
+    <thead><tr><th class="name">Technology</th><th class="num">Docs</th><th class="num">Shift</th></tr></thead>
+    <tbody>
+      {% for row in risers %}
+      <tr><td class="name">{{ row.name }}</td><td class="num">{{ row.total }}</td>
+          <td class="num up">+{{ '%.1f'|format(row.shift) }}</td></tr>
+      {% endfor %}
+      {% for row in fallers %}
+      {% if row.shift < 0 %}
+      <tr><td class="name">{{ row.name }}</td><td class="num">{{ row.total }}</td>
+          <td class="num down">{{ '%.1f'|format(row.shift) }}</td></tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% elif not partial %}
+<section>
+  <h2>Nothing to compare against</h2>
+  <p>{{ previous }} holds no observations, so no share can have moved. A technology
+  cannot have risen against a quarter that was never observed.</p>
+</section>
+{% endif %}
+
+{% if silent %}
+<section>
+  <h2>Silent this quarter</h2>
+  <p class="source">Zero documents across all six sources</p>
+  <p>A silent entry means either an absent technology or a pattern that cannot see
+  it. The distinction is settled by probing the corpus directly, not by waiting.</p>
+</section>
+<ul class="names">
+  {% for tech in silent %}<li>{{ tech.name }}</li>{% endfor %}
+</ul>
+{% endif %}
+
+<footer>
+  <ul>
+    <li>Thirteen weeks per quarter. Across this corpus two thirds of technology-weeks
+    hold zero observations, so a weekly ranking mostly reports which week a collector
+    caught something. Collection stays weekly — it is the only window in which every
+    query stays under its API's result cap — and only the reporting is aggregated.</li>
+    <li>Momentum is computed on the quarterly series, as the second difference of the
+    last three quarters. All three must be present; bridging a missing quarter would
+    invent a trend across the gap.</li>
+    <li>Matching is deterministic. The pattern that fired is stored on every
+    observation, so any number here can be traced to its evidence.</li>
+  </ul>
+</footer>
+</div>
+</body>
+</html>

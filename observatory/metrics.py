@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 import statistics
 
-from . import config, store
+from . import config, normalize, store
 
 STAGES = ("idea", "experiment", "investment", "deployment", "diffusion")
 
@@ -54,15 +54,20 @@ def zscore(series: list[float | None], min_periods: int = config.MIN_HISTORY_WEE
     return (filled[-1] - statistics.fmean(filled)) / spread
 
 
-def normalize_series(series: list[float | None]) -> list[float | None]:
-    """Put one signal's weekly values on a unit scale.
+def normalize_series(
+    series: list[float | None], min_periods: int = config.MIN_HISTORY_WEEKS
+) -> list[float | None]:
+    """Put one signal's values on a unit scale.
 
     Signals differ wildly in magnitude — HN points run to the hundreds,
     arXiv papers to the dozens. Averaging them raw would let the loudest
     unit decide the ranking, so each series is centred and scaled against
     its own trailing window before it joins the composite.
+
+    `min_periods` is a parameter because the momentum composite is now
+    quarterly: four points, not fifty-two, so the weekly floor would blank it.
     """
-    if observed(series) < config.MIN_HISTORY_WEEKS:
+    if observed(series) < min_periods:
         return [None] * len(series)
     filled = carry_forward(series)
     present = [value for value in filled if value is not None]
@@ -86,6 +91,86 @@ def acceleration(series: list[float | None]) -> float | None:
     four_back = trailing_mean(filled[:-4], 4)
     eight_back = trailing_mean(filled[:-8], 4)
     return (now - four_back) - (four_back - eight_back)
+
+
+QUARTER_WEEKS = 13
+MIN_HISTORY_QUARTERS = 3
+MIN_NONZERO_QUARTERS = 2
+MIN_QUARTER_VOLUME = 12
+
+
+def to_quarters(
+    series: list[float | None], size: int = QUARTER_WEEKS, how: str = "sum"
+) -> list[float | None]:
+    """Fold a weekly series into quarters, oldest first.
+
+    Cut from the most recent week backwards, so a short leading remainder
+    cannot shift every later boundary by a week. A quarter in which no week was
+    observed stays None -- the hole rule one level up: a quarter we never saw
+    is not a quarter in which nothing happened.
+
+    `how` distinguishes a flow from a stock. Papers and repositories are flows:
+    thirteen weeks of them add up. `edgar_filers` is a stock -- distinct
+    companies over a trailing window -- so the same companies reappear in it
+    every week, and adding thirteen weeks of it multiplies them.
+    """
+    quarters: list[float | None] = []
+    end = len(series)
+    while end > 0:
+        start = max(0, end - size)
+        present = [value for value in series[start:end] if value is not None]
+        if not present:
+            quarters.append(None)
+        elif how == "last":
+            quarters.append(float(present[-1]))
+        else:
+            quarters.append(float(sum(present)))
+        end = start
+    quarters.reverse()
+    return quarters
+
+
+def has_trend_support(quarters: list[float | None]) -> bool:
+    """Whether a signal has enough presence for its shape to mean anything.
+
+    Most of `weekly_signals` is observed zeros, so a technology seen once in a
+    year still has a full, mostly-flat series. Normalising that divides by a
+    near-zero spread and hands the single document a large z-score: three
+    documents in a year is how manufacturing execution systems came to rank
+    first. Two present quarters are the fewest from which a trend can be read.
+
+    A fall to zero still qualifies, on two non-zero quarters out of three. The
+    guard is against absence, not against bad news.
+
+    The volume floor is the same argument by magnitude. Below twelve across
+    three quarters at least one quarter averages under four a week, and the
+    second difference is then decided by which quarter a single document landed
+    in rather than by any trend.
+    """
+    recent = quarters[-MIN_HISTORY_QUARTERS:]
+    present = [value for value in recent if value]
+    if len(present) < MIN_NONZERO_QUARTERS:
+        return False
+    return sum(present) >= MIN_QUARTER_VOLUME
+
+
+def quarterly_acceleration(quarters: list[float | None]) -> float | None:
+    """Second difference of the last three quarters: is growth speeding up?
+
+    The weekly version averages 4-week windows because a single week is mostly
+    noise. At quarterly resolution each point is already an aggregate of
+    thirteen weeks, so the plain second difference is the whole measurement.
+
+    All three must be present. Bridging a missing quarter with the one before
+    it would invent a trend across the gap.
+    """
+    if len(quarters) < MIN_HISTORY_QUARTERS:
+        return None
+    recent = quarters[-MIN_HISTORY_QUARTERS:]
+    if any(value is None for value in recent):
+        return None
+    older, middle, newest = recent
+    return (newest - middle) - (middle - older)
 
 
 def cross_sectional_z(values: dict[str, float | None]) -> dict[str, float | None]:
@@ -115,6 +200,12 @@ ALL_SIGNALS = tuple(
 )
 
 HARD_SIGNALS = ("patents", "gh_repos_new", "gh_commits", "fed_awards", "edgar_filers")
+# A signal aggregated over its own trailing window is a stock, not a flow.
+STOCK_SIGNALS = frozenset(
+    aggregation.signal
+    for aggregation in normalize.AGGREGATIONS
+    if aggregation.trailing_weeks is not None
+)
 SOFT_SIGNALS = ("media_articles", "hn_points")
 
 STAGE_INDEX = {stage: position for position, stage in enumerate(STAGES, start=1)}
@@ -169,13 +260,24 @@ def compute_week(conn, week: str, watchlist) -> list[dict]:
         composite_inputs: list[list[float | None]] = []
         for signal in ALL_SIGNALS:
             series = store.signal_series(conn, tech.id, signal, weeks)
+            # Stages, SAI and LFI stay weekly: they describe where a technology
+            # sits, and the latest week is the honest answer to that.
             z_by_signal[signal] = zscore(series)
-            if any(value is not None for value in series):
-                composite_inputs.append(normalize_series(series))
+            # Momentum does not. Two thirds of technology-weeks in this corpus
+            # hold zero observations, so a weekly slope is mostly measuring
+            # which week a collector happened to catch something. Raw counts
+            # are summed into quarters first, then normalised.
+            quarters = to_quarters(
+                series, how="last" if signal in STOCK_SIGNALS else "sum"
+            )
+            if has_trend_support(quarters):
+                composite_inputs.append(
+                    normalize_series(quarters, min_periods=MIN_HISTORY_QUARTERS)
+                )
 
         stages = stage_scores(z_by_signal)
         composite = _composite_series(composite_inputs)
-        raw = acceleration(composite)
+        raw = quarterly_acceleration(composite)
         raw_accelerations[tech.id] = None if momentum_suppressed(tech, week) else raw
 
         partial[tech.id] = {

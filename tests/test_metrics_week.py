@@ -59,7 +59,7 @@ def test_lab_to_field_turns_positive_when_deployment_leads():
     assert metrics.lab_to_field(stages) == pytest.approx(2.5)
 
 
-def test_compute_week_is_warming_up_below_twelve_weeks(conn):
+def test_compute_week_is_warming_up_below_the_minimum_history(conn):
     watchlist = Watchlist(version=1, technologies=(tech("a"), tech("b")))
     seed(conn, "a", "arxiv_papers", [1] * 8)
     seed(conn, "b", "arxiv_papers", [1] * 8)
@@ -70,12 +70,12 @@ def test_compute_week_is_warming_up_below_twelve_weeks(conn):
 
 def test_compute_week_ranks_the_accelerating_technology_higher(conn):
     watchlist = Watchlist(version=1, technologies=(tech("fast"), tech("flat")))
-    seed(conn, "fast", "arxiv_papers", [1, 1, 1, 1, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55])
-    seed(conn, "flat", "arxiv_papers", [5] * 14)
-    seed(conn, "fast", "hn_points", [1] * 14)
-    seed(conn, "flat", "hn_points", [1] * 14)
-    seed(conn, "fast", "fedreg_docs", [0] * 14)
-    seed(conn, "flat", "fedreg_docs", [0] * 14)
+    seed(conn, "fast", "arxiv_papers", [1] * 13 + [2] * 13 + [4] * 13)
+    seed(conn, "flat", "arxiv_papers", [5] * 39)
+    seed(conn, "fast", "hn_points", [1] * 39)
+    seed(conn, "flat", "hn_points", [1] * 39)
+    seed(conn, "fast", "fedreg_docs", [0] * 39)
+    seed(conn, "flat", "fedreg_docs", [0] * 39)
     rows = {row["tech_id"]: row for row in metrics.compute_week(conn, "2026-W33", watchlist)}
     assert rows["fast"]["momentum"] > rows["flat"]["momentum"]
 
@@ -87,10 +87,13 @@ def test_compute_week_momentum_is_scale_independent(conn):
     # this "noisy" series has no real trend, only jitter around 380, but its
     # jitter alone produces a bigger raw delta than the accelerating series.
     watchlist = Watchlist(version=1, technologies=(tech("noisy"), tech("accelerating")))
+    # Each quarter of the noisy series jitters hard week to week but sums to a
+    # straight line (4940, 5070, 5200), so it has no quarterly acceleration.
     seed(conn, "noisy", "hn_points",
-         [379, 358, 418, 349, 404, 384, 347, 401, 344, 392, 348, 351, 391, 439])
-    seed(conn, "accelerating", "arxiv_papers",
-         [1, 1, 1, 1, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55])
+         [340, 420, 380, 379, 358, 418, 349, 404, 384, 347, 401, 344, 316]
+         + [350, 430, 390, 389, 368, 428, 359, 414, 394, 357, 411, 354, 426]
+         + [360, 440, 400, 399, 378, 438, 369, 424, 404, 367, 421, 364, 436])
+    seed(conn, "accelerating", "arxiv_papers", [1] * 13 + [2] * 13 + [4] * 13)
     rows = {row["tech_id"]: row for row in metrics.compute_week(conn, "2026-W33", watchlist)}
     assert rows["accelerating"]["momentum"] > rows["noisy"]["momentum"]
 
@@ -125,9 +128,9 @@ def test_momentum_is_suppressed_after_a_recent_pattern_change(conn):
     watchlist = Watchlist(
         version=1, technologies=(recent, tech("stable"), tech("rising"))
     )
-    seed(conn, "changed", "arxiv_papers", [1, 1, 1, 1, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55])
-    seed(conn, "stable", "arxiv_papers", [5] * 14)
-    seed(conn, "rising", "arxiv_papers", [1, 1, 2, 2, 3, 3, 4, 6, 9, 13, 18, 24, 31, 39])
+    seed(conn, "changed", "arxiv_papers", [1] * 13 + [2] * 13 + [4] * 13)
+    seed(conn, "stable", "arxiv_papers", [5] * 39)
+    seed(conn, "rising", "arxiv_papers", [1] * 13 + [3] * 13 + [9] * 13)
     rows = {row["tech_id"]: row for row in metrics.compute_week(conn, "2026-W33", watchlist)}
     assert rows["changed"]["momentum"] is None
     assert rows["stable"]["momentum"] is not None
@@ -142,10 +145,8 @@ def test_momentum_is_not_suppressed_exactly_at_the_cutoff(conn):
     watchlist = Watchlist(
         version=1, technologies=(at_cutoff, tech("stable"), tech("rising"))
     )
-    seed(conn, "at_cutoff", "arxiv_papers", [1, 1, 1, 1, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55],
-         end_week=week)
-    seed(conn, "stable", "arxiv_papers", [5] * 14, end_week=week)
-    seed(conn, "rising", "arxiv_papers", [1, 1, 2, 2, 3, 3, 4, 6, 9, 13, 18, 24, 31, 39],
-         end_week=week)
+    seed(conn, "at_cutoff", "arxiv_papers", [1] * 13 + [2] * 13 + [4] * 13, end_week=week)
+    seed(conn, "stable", "arxiv_papers", [5] * 39, end_week=week)
+    seed(conn, "rising", "arxiv_papers", [1] * 13 + [3] * 13 + [9] * 13, end_week=week)
     rows = {row["tech_id"]: row for row in metrics.compute_week(conn, week, watchlist)}
     assert rows["at_cutoff"]["momentum"] is not None

@@ -13,7 +13,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import config, discover, http, matcher, metrics, normalize, render, store
+from . import config, discover, http, matcher, metrics, normalize, quarter, render, store
 from .collectors import base
 from .collectors.arxiv import ArxivCollector
 from .collectors.edgar import EdgarCollector
@@ -325,6 +325,8 @@ def main(argv=None) -> int:
     parser.add_argument("--backfill", type=int, default=None, metavar="WEEKS",
                         help="fetch this many trailing weeks of history, then rebuild")
     parser.add_argument("--only", default=None, help="run a single collector by name")
+    parser.add_argument("--quarter", default=None, metavar="YYYY-Qn",
+                        help="write the quarterly report for a quarter, e.g. 2026-Q2")
     args = parser.parse_args(argv)
     if args.rebuild and args.only:
         # Clearing the derived tables and then replaying one collector would
@@ -349,6 +351,12 @@ def main(argv=None) -> int:
     conn = store.connect()
     store.init_schema(conn)
     try:
+        # Before anything that could open a session: the quarterly report is a
+        # lens on stored rows, so it must never fetch.
+        if args.quarter:
+            path = quarter.render_quarter(conn, args.quarter, watchlist)
+            print(f"{args.quarter}: {path}")
+            return 0
         if args.backfill is not None:
             session = http.make_session()
             backfill(conn, args.backfill, collectors, session)

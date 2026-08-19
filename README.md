@@ -116,6 +116,55 @@ afternoon, cron did not run: on macOS `/usr/sbin/cron` may need Full Disk Access
 under System Settings → Privacy & Security to reach files under your home
 directory.
 
+## Quarterly report
+
+Collection stays weekly; reporting does not.
+
+    python3 -m observatory.run --quarter 2026-Q2
+
+Across this corpus two thirds of technology-weeks hold zero observations and the
+median is zero, so a weekly ranking mostly reports which week a collector caught
+something. Thirteen weeks is the first interval at which a typical technology has
+anything in it: zero cells fall from 68% to 34%, and the median from 0 to 2.
+
+The report reads stored observations only and never fetches. It writes
+`output/report-<quarter>.html`.
+
+A quarter still filling up says so on its own face and withholds its share
+movement — eight weeks of share against a full thirteen looks exactly like a
+decline. The count of weeks actually run comes from `source_runs`, because a week
+that ran and found nothing is observed while a week that never ran is not.
+
+### Why collection stays weekly
+
+A wider fetch window would silently truncate four of the six sources. Per 13-week
+quarter the volumes run past their caps: arXiv ~15,800 against 2,000 per sweep,
+GitHub ~6,460 against a hard 1,000-result API limit, the Federal Register ~3,400
+against 2,000, Hacker News ~2,200 against 1,000. Three of those caps could be
+raised; GitHub's cannot — the Search API refuses to page past 1,000 results for
+any single query. The weekly window is what keeps every query under its cap.
+
+## Momentum
+
+Momentum is the second difference of the last three quarters, not of weekly
+slopes. Three guards keep it from reporting noise as a trend:
+
+- **All three quarters present.** Bridging a missing quarter invents a trend
+  across the gap.
+- **Two of the three non-zero, summing to at least 12.** 95% of `weekly_signals`
+  is observed zeros, so a technology seen once still has a full, mostly-flat
+  series; normalising that divides by a near-zero spread and hands the single
+  document a large z-score. Three documents in a year is how manufacturing
+  execution systems came to rank first. A fall *to* zero still qualifies — the
+  guard is against absence, not against bad news.
+- **Stocks are not summed.** `edgar_filers` counts distinct companies over a
+  trailing window, so the same companies reappear every week. Adding thirteen
+  weeks of it turned two filers into twenty-six. Signals with a `trailing_weeks`
+  aggregation fold to their latest value instead.
+
+On the first year of data 17 of 50 technologies clear all three; the smallest
+corpus among them holds 16 documents.
+
 ## Tests
 
     python -m pytest

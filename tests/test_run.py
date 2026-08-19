@@ -5,7 +5,7 @@ import pytest
 
 from observatory import config, http, run, store
 from observatory.collectors.base import BaseCollector, Document, RawPage
-from observatory.matcher import Technology, Watchlist
+from observatory.matcher import Observation, Technology, Watchlist
 
 
 class StubCollector(BaseCollector):
@@ -513,3 +513,25 @@ def test_github_is_registered_and_produces_its_signal():
 def test_the_remaining_deferred_signals_are_only_the_unbuilt_ones():
     """Keeps the allowance honest — it must shrink as collectors land."""
     assert DEFERRED_SIGNALS == {"patents", "gh_commits", "gh_stars_delta"}
+
+
+def test_quarter_writes_a_report_without_fetching(conn, monkeypatch, tmp_path):
+    """--quarter reads stored observations only. It must never open a session:
+    the quarterly report is a lens on rows the weekly run already wrote."""
+    store.upsert_observations(conn, [Observation(
+        source="arxiv", week="2026-W14", tech_id="autonomous_trucking", doc_id="d1",
+        doc_date="2026-04-01", title="Driverless truck corridor",
+        url="https://x.test/d1", entity=None, entity_id=None, amount=None,
+        lat=None, lon=None, matched_pattern="x", raw_ref=None,
+    )])
+    monkeypatch.setattr(run.store, "connect", lambda *a, **k: conn)
+    monkeypatch.setattr(run.store, "init_schema", lambda *a, **k: None)
+    monkeypatch.setattr(run.http, "make_session", _no_session)
+    assert run.main(["--quarter", "2026-Q2"]) == 0
+    report = (tmp_path / "output" / "report-2026-Q2.html")
+    assert report.exists()
+    assert "2026-Q2" in report.read_text()
+
+
+def _no_session(*args, **kwargs):
+    raise AssertionError("--quarter must not open a network session")
