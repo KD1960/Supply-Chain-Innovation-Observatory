@@ -1,4 +1,4 @@
-lexicon_version: 3
+lexicon_version: 5
 
 # Supply chain and operations vocabulary. A technology marked `needs_context`
 # only counts when the document also uses one of these words somewhere — that is
@@ -11,7 +11,7 @@ context:
   - "supply chain(s)?"
   - "logistics"
   - "freight"
-  - "warehouse(s|ing)?"
+  - "(?<!data )warehouse(s|ing)?"
   - "distribution cent(er|re)(s)?"
   - "fulfil(l)?ment"
   - "procurement"
@@ -101,10 +101,15 @@ technologies:
      include: ["sales and operations planning", "\\bS&OP\\b",
                "integrated business planning"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  # `\\bAPS\\b` is case-insensitive, so it also matches "APs" -- the plural of
+  # "access point". The Wi-Fi paper it caught passed the context gate on the word
+  # "last-mile", which in that paper means the last radio hop. The gate cannot see
+  # sense, so the exclusion has to name the other meaning.
   - {id: advanced_planning, name: Advanced planning and scheduling, family: enterprise,
      include: ["advanced planning (and scheduling|system(s)?)", "\\bAPS\\b",
                "production scheduling software"],
-     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: ["access point(s)?"], needs_context: true,
+     status: active, added_week: 2026-W33, patterns_changed_week: 2026-W34}
 
   # --- Digital planning & AI -------------------------------------------------
   - {id: agentic_procurement, name: Agentic AI for procurement, family: digital,
@@ -128,12 +133,32 @@ technologies:
   - {id: tms_ai, name: AI transportation management, family: digital,
      include: ["transportation management system(s)?", "\\bTMS\\b",
                "\\bai\\b[^.]{0,30}route optimi[sz]ation"],
-     exclude: ["transcranial magnetic stimulation"],
-     needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: ["transcranial magnetic stimulation", "ROS2-TMS"],
+     needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W34}
   - {id: digital_freight, name: Digital freight matching, family: digital,
      include: ["digital freight (matching|brokerage|network)", "freight marketplace(s)?",
                "digital broker(age)?"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  # Ungated: "vehicle routing problem" and "multi-agent path finding" are
+  # self-scoping, and gating them drops the papers that say "depot" and
+  # "customer" but never "logistics".
+  - {id: vehicle_routing, name: Vehicle routing and path optimization, family: digital,
+     include: ["vehicle routing", "travel(l)?ing salesman", "pickup and delivery problem",
+               "multi[- ]agent path finding", "\\bMAPF\\b", "capacitated (vehicle )?routing"],
+     exclude: [], status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
+  - {id: operations_research, name: Operations research methods, family: digital,
+     include: ["operations research", "combinatorial optimi[sz]ation",
+               "(mixed[- ])?integer (linear )?programming", "stochastic programming",
+               "computational experiments", "decision support system(s)?"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
+  - {id: last_mile_delivery, name: Last-mile delivery optimization, family: digital,
+     include: ["last[- ]mile delivery", "last[- ]mile logistics", "quick commerce"],
+     exclude: [], status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
+  - {id: supply_chain_llm, name: Domain-specific LLMs for supply chain, family: digital,
+     include: ["(supply chain|logistics|warehouse|procurement)[^.]{0,40}(fine[- ]tun|domain[- ]specific)[^.]{0,20}(llm|language model)",
+               "llm[^.]{0,30}(warehouse|logistics|supply chain|procurement)",
+               "supply chain (foundation|language) model(s)?"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
 
   # --- Data, identity & traceability ----------------------------------------
   - {id: item_level_rfid, name: Item-level RFID, family: traceability,
@@ -154,6 +179,17 @@ technologies:
      include: ["critical mineral(s)? (traceability|supply chain)",
                "battery passport", "conflict mineral(s)? tracing"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  # Three documents in the last year. Tracked because the owner asked for it,
+  # and because a zero here is itself an answer -- not because it has a signal.
+  - {id: battery_free_iot, name: Battery-free and energy-harvesting IoT, family: traceability,
+     include: ["battery[- ]free", "batteryless", "energy harvesting", "backscatter"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
+  # Zero documents in the last year across all six sources. Absent from these
+  # sources, not from the world: it would need trade press or patents to appear.
+  - {id: smart_labels, name: Smart labels beyond RFID, family: traceability,
+     include: ["smart label(s)?", "electronic shelf label(s)?", "printed electronics",
+               "time[- ]temperature indicator(s)?"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
 
   # --- Physical & cold chain -------------------------------------------------
   - {id: cold_chain_iot, name: Cold chain IoT monitoring, family: physical,
@@ -201,3 +237,11 @@ technologies:
      include: ["quantum (annealing|optimi[sz]ation)[^.]{0,30}(logistics|routing|supply chain)",
                "quantum[- ]inspired optimi[sz]ation"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  - {id: green_logistics, name: Freight decarbonization, family: networks,
+     include: ["greenhouse gas emission(s)?", "decarboni[sz](e|ed|ing|ation)",
+               "carbon footprint", "green logistics"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
+  - {id: infrastructure_security, name: Critical infrastructure and OT security, family: networks,
+     include: ["critical infrastructure", "operational technology security",
+               "\\bICS\\b security", "\\bSCADA\\b"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}

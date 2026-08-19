@@ -1,0 +1,157 @@
+# Proposals from the year's unmatched arXiv backlog, plus the owner's seven
+# questions. Every entry is measured against the corpus; counts are untracked
+# documents per year, in the comment above each entry.
+#
+# NOT proposed, deliberately -- flagged in the summary instead:
+#   "supply chain management" and "software development" are the field and the
+#   activity, not technologies. As patterns they would match most of the corpus
+#   and measure nothing.
+technologies:
+
+  # --- the owner's grouping: VRP absorbs TSP, MAPF and path finding ---------
+  # ~100 untracked papers/yr. The largest genuine hole in the lexicon.
+  # Ungated on purpose: "vehicle routing problem" and "multi-agent path
+  # finding" are self-scoping, and gating them would drop the papers that say
+  # "depot" and "customer" but never "logistics".
+  - id: vehicle_routing
+    name: Vehicle routing and path optimization
+    family: digital
+    include:
+      - "vehicle routing"
+      - "travel(l)?ing salesman"
+      - "pickup and delivery problem"
+      - "multi[- ]agent path finding"
+      - "\\bMAPF\\b"
+      - "capacitated (vehicle )?routing"
+    exclude: []
+    needs_context: false
+
+  # ~90 untracked papers/yr. Gated: every one of these terms belongs to every
+  # quantitative field, so without a supply chain word they mean nothing here.
+  - id: operations_research
+    name: Operations research methods
+    family: digital
+    include:
+      - "operations research"
+      - "combinatorial optimi[sz]ation"
+      - "(mixed[- ])?integer (linear )?programming"
+      - "stochastic programming"
+      - "computational experiments"
+      - "decision support system(s)?"
+    exclude: []
+    needs_context: true
+
+  # ~130 untracked papers/yr, the single biggest cluster in the backlog. This
+  # is npm and SBOMs, not pallets -- it is proposed because the owner asked for
+  # it, and because naming it stops it polluting discovery as it does today.
+  - id: software_supply_chain_security
+    name: Software supply chain security
+    family: digital
+    include:
+      - "software supply chain(s)?"
+      - "supply chain (attack|compromise)(s)?"
+      - "\\bSBOM(s)?\\b"
+      - "software bill of materials"
+      - "dependency confusion"
+      - "typosquatting"
+    exclude: []
+    needs_context: false
+
+  # ~16 untracked papers/yr. Operational technology and infrastructure
+  # security, kept separate from the software one so the two can be told apart.
+  - id: infrastructure_security
+    name: Critical infrastructure and OT security
+    family: networks
+    include:
+      - "critical infrastructure"
+      - "operational technology security"
+      - "\\bICS\\b security"
+      - "\\bSCADA\\b"
+    exclude: []
+    needs_context: true
+
+  # 22 untracked papers/yr. Distinct from the delivery-robot and drone entries:
+  # this is the delivery problem itself, whatever vehicle solves it.
+  - id: last_mile_delivery
+    name: Last-mile delivery optimization
+    family: digital
+    include:
+      - "last[- ]mile delivery"
+      - "last[- ]mile logistics"
+      - "quick commerce"
+    exclude: []
+    needs_context: false
+
+  # ~15 untracked papers/yr once gated. Ungated it is 113 papers, almost all
+  # power-grid research -- the gate is doing real work here.
+  - id: green_logistics
+    name: Freight decarbonization
+    family: networks
+    include:
+      - "greenhouse gas emission(s)?"
+      - "decarboni[sz](e|ed|ing|ation)"
+      - "carbon footprint"
+      - "green logistics"
+    exclude: []
+    needs_context: true
+
+  # 31 untracked papers/yr.
+  - id: ecommerce_fulfillment
+    name: E-commerce fulfillment
+    family: physical
+    include:
+      - "e[- ]?commerce"
+      - "omnichannel"
+      - "online retail"
+    exclude: []
+    needs_context: true
+
+  # 62 untracked docs/yr. The owner's question 3. Deliberately narrow: it must
+  # be an LLM applied to this domain, not an LLM paper that says "warehouse".
+  - id: supply_chain_llm
+    name: Domain-specific LLMs for supply chain
+    family: digital
+    include:
+      - "(supply chain|logistics|warehouse|procurement)[^.]{0,40}(fine[- ]tun|domain[- ]specific)[^.]{0,20}(llm|language model)"
+      - "llm[^.]{0,30}(warehouse|logistics|supply chain|procurement)"
+      - "supply chain (foundation|language) model(s)?"
+    exclude: []
+    needs_context: true
+
+  # ~90 untracked docs/yr. Gated, and broad on purpose -- the existing
+  # cv_inspection entry is so narrow it has matched nothing in a year.
+  - id: machine_learning_ops
+    name: Machine learning for operations
+    family: digital
+    include:
+      - "machine learning"
+      - "deep learning"
+      - "reinforcement learning"
+    exclude: []
+    needs_context: true
+
+  # 3 untracked docs/yr. The owner's question 5. Proposed as asked, but this
+  # will read zero most weeks -- see the summary.
+  - id: battery_free_iot
+    name: Battery-free and energy-harvesting IoT
+    family: traceability
+    include:
+      - "battery[- ]free"
+      - "batteryless"
+      - "energy harvesting"
+      - "backscatter"
+    exclude: []
+    needs_context: true
+
+  # 0 untracked docs/yr. The owner's question 6. Proposed as asked; it has no
+  # evidence in this corpus at all, and `check` will say so.
+  - id: smart_labels
+    name: Smart labels beyond RFID
+    family: traceability
+    include:
+      - "smart label(s)?"
+      - "electronic shelf label(s)?"
+      - "printed electronics"
+      - "time[- ]temperature indicator(s)?"
+    exclude: []
+    needs_context: true
