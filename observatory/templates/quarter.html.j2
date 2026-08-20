@@ -181,6 +181,12 @@
     <li>No momentum. It was the only metric needing a time series, and the one that
     reported noise as trend: 95% of the signals table is observed zeros, so a
     technology seen once still scored. What remains is cross-sectional.</li>
+{% if licensed %}
+    <li><strong>Licensed sources.</strong> {{ licensed|join(', ') }} reached this report
+    through a hand-made export from a database this institution subscribes to. Counts and
+    citations are published; the licensed text is not, and is never stored. Following a
+    citation from those sources needs a subscription of your own.</li>
+{% endif %}
     <li>Matching is deterministic. The pattern that fired is stored on every
     observation, so any number here can be traced to its evidence.</li>
   </ul>

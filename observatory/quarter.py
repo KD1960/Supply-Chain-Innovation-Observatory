@@ -20,6 +20,9 @@ from pathlib import Path
 from . import config, render
 
 QUARTER_WEEKS = 13
+# The six public collectors. Anything else in `observations` arrived through a
+# hand-made export from a licensed database (see manual.py), which a reader
+# without a subscription cannot follow -- so the report says so.
 SOURCES = ("arxiv", "github", "hn", "edgar", "federalregister", "usaspending")
 
 
@@ -151,6 +154,12 @@ def build_context(conn, name: str, watchlist) -> dict:
             "shift": shifts.get(tech.id),
         })
     rows.sort(key=lambda item: -item["total"])
+    licensed = sorted({
+        source
+        for row in counts.values()
+        for source in row["by_source"]
+        if source not in SOURCES
+    })
     movers = [row for row in rows if row["shift"] is not None]
     movers.sort(key=lambda item: -item["shift"])
     return {
@@ -170,6 +179,7 @@ def build_context(conn, name: str, watchlist) -> dict:
             {"id": tech.id, "name": tech.name}
             for tech in watchlist.active if tech.id not in counts
         ],
+        "licensed": licensed,
         "filers_total": sum(row["filers"] for row in counts.values()),
         "lexicon_version": watchlist.version,
     }

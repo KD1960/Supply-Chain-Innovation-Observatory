@@ -13,7 +13,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import config, discover, http, matcher, metrics, normalize, quarter, render, store
+from . import config, discover, http, manual, matcher, metrics, normalize, quarter, render, store
 from .collectors import base
 from .collectors.arxiv import ArxivCollector
 from .collectors.edgar import EdgarCollector
@@ -280,6 +280,14 @@ def rebuild(conn, watchlist, collectors=COLLECTORS) -> list[Path]:
     store.clear_derived(conn)
     raw_weeks = sorted(path.name for path in config.RAW_DIR.glob("*-W*") if path.is_dir())
 
+    # Licensed exports live outside data/raw and clear_derived has just wiped
+    # their observations. Replaying them here is what keeps a rebuild from
+    # quietly deleting a source, and it happens before any scoring so their
+    # backdated documents reach the counts of the weeks they belong to.
+    restored = manual.import_exports(conn, watchlist)
+    if restored:
+        print(f"Rebuilding: restored {restored} observations from manual exports")
+
     for week in raw_weeks:
         print(f"Rebuilding {week}: reading raw")
         ingest_week(
@@ -329,6 +337,8 @@ def main(argv=None) -> int:
                         help="write the quarterly report for a quarter, e.g. 2026-Q2")
     parser.add_argument("--annual", default=None, metavar="YYYY",
                         help="write the annual report for a calendar year, e.g. 2026")
+    parser.add_argument("--import-manual", action="store_true",
+                        help="ingest licensed exports from data/manual, then rescore")
     args = parser.parse_args(argv)
     if args.rebuild and args.only:
         # Clearing the derived tables and then replaying one collector would
@@ -355,6 +365,13 @@ def main(argv=None) -> int:
     try:
         # Before anything that could open a session: the quarterly report is a
         # lens on stored rows, so it must never fetch.
+        if args.import_manual:
+            written = manual.import_exports(conn, watchlist)
+            print(f"manual: {written} observations")
+            for week in sorted(store.new_observation_counts(conn, 0)):
+                _score_and_render(conn, week, watchlist,
+                                  scoring_sources(conn, week, collectors), 0, collectors)
+            return 0
         period = args.annual or args.quarter
         if period:
             path = quarter.render_quarter(conn, period, watchlist)

@@ -144,6 +144,51 @@ against 2,000, Hacker News ~2,200 against 1,000. Three of those caps could be
 raised; GitHub's cannot — the Search API refuses to page past 1,000 results for
 any single query. The weekly window is what keeps every query under its cap.
 
+## Licensed exports
+
+Six free sources cannot see journal articles or trade press, which between them
+account for most of what this project misses: nine technologies silent all year,
+a deployment stage that barely registers, and an investment stage with no data
+at all. Those live in Web of Science, Scopus, ABI/INFORM and their neighbours,
+behind institutional authentication and licences that forbid automated download.
+
+With the report annual rather than weekly, a human can run those searches once a
+year and export the result. `observatory/manual.py` takes it from there:
+
+    python -m observatory.run --import-manual
+
+Drop RIS or CSV exports under `data/manual/<source>/`, each with a
+`<file>.meta.yaml` sidecar beside it:
+
+    data/manual/scopus/2026-warehouse-robotics.ris
+    data/manual/scopus/2026-warehouse-robotics.ris.meta.yaml
+
+    source: scopus              # becomes the `source` column on every observation
+    exported: 2026-08-20        # the day you ran the search
+    query: TITLE-ABS-KEY("warehouse robot") AND PUBYEAR = 2026
+    records: 1843               # what the database said it found
+    redistributable: false
+
+RIS covers Web of Science, Scopus, ABI/INFORM and EndNote; CSV covers Scopus and
+most others. Factiva exports RTF or HTML and is not handled yet.
+
+Three rules make a hand-made export as accountable as an API call:
+
+- **The query is recorded.** An export nobody can reproduce is not evidence.
+- **The count is checked.** Scopus caps an export at 2,000 records and mentions
+  it only in the interface. Declared and parsed counts must agree or the import
+  refuses, because a truncated file is this project's oldest failure mode.
+- **Abstracts are matched and then dropped.** The abstract is the licensed
+  asset. It decides the match and is discarded; what persists is the title, the
+  venue and a DOI, which any reader with access can follow.
+
+Observations land in the document's own week, so a bulk export backdates itself
+across the year correctly. `--rebuild` replays manual exports before scoring —
+without that, clearing the derived tables would delete a whole source and say
+nothing. A report that used a licensed source names it in the footer, so a
+reader without a subscription learns it from the page rather than from a dead
+link.
+
 ## Momentum was dropped
 
 Momentum is gone, along with `acceleration`, `cross_sectional_z`,

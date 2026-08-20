@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from observatory import config, http, run, store
+from observatory import config, http, matcher, run, store
 from observatory.collectors.base import BaseCollector, Document, RawPage
 from observatory.matcher import Observation, Technology, Watchlist
 
@@ -549,3 +549,56 @@ def test_annual_writes_the_year_report_without_fetching(conn, monkeypatch, tmp_p
     monkeypatch.setattr(run.http, "make_session", _no_session)
     assert run.main(["--annual", "2026"]) == 0
     assert (tmp_path / "output" / "report-2026.html").exists()
+
+
+def test_rebuild_replays_manual_exports_too(conn, monkeypatch, tmp_path):
+    """rebuild() clears the derived tables and replays data/raw. A manual
+    export lives outside data/raw, so without this it would be wiped by the
+    next rebuild and nobody would be told."""
+    manual_root = tmp_path / "manual" / "scopus"
+    manual_root.mkdir(parents=True)
+    (manual_root / "x.ris").write_text(
+        "TY  - JOUR\nTI  - Driverless truck corridor study\nPY  - 2026\n"
+        "DA  - 2026/04/15\nDO  - 10.1/a\nER  -\n"
+    )
+    (manual_root / "x.ris.meta.yaml").write_text(
+        'source: scopus\nexported: 2026-08-20\nquery: "driverless truck"\nrecords: 1\n'
+    )
+    monkeypatch.setattr(run.config, "MANUAL_DIR", tmp_path / "manual")
+    monkeypatch.setattr(run.manual.config, "MANUAL_DIR", tmp_path / "manual")
+    watchlist = matcher.load_watchlist()
+
+    run.manual.import_exports(conn, watchlist)
+    assert conn.execute(
+        "SELECT COUNT(*) AS n FROM observations WHERE source='scopus'"
+    ).fetchone()["n"] == 1
+
+    run.rebuild(conn, watchlist, collectors=())
+    assert conn.execute(
+        "SELECT COUNT(*) AS n FROM observations WHERE source='scopus'"
+    ).fetchone()["n"] == 1
+
+
+def test_import_manual_writes_observations_without_fetching(conn, monkeypatch, tmp_path):
+    manual_root = tmp_path / "manual" / "wos"
+    manual_root.mkdir(parents=True)
+    (manual_root / "y.ris").write_text(
+        "TY  - JOUR\nTI  - Warehouse robotics in distribution\nPY  - 2026\n"
+        "DA  - 2026/05/02\nDO  - 10.1/b\nER  -\n"
+    )
+    (manual_root / "y.ris.meta.yaml").write_text(
+        'source: wos\nexported: 2026-08-20\nquery: "warehouse robotics"\nrecords: 1\n'
+    )
+    monkeypatch.setattr(run.config, "MANUAL_DIR", tmp_path / "manual")
+    monkeypatch.setattr(run.manual.config, "MANUAL_DIR", tmp_path / "manual")
+    monkeypatch.setattr(run.http, "make_session", _no_session)
+    # main() opens and closes its own connection from DB_PATH, which the conn
+    # fixture has already redirected into tmp_path.
+    assert run.main(["--import-manual"]) == 0
+    written = store.connect(config.DB_PATH)
+    try:
+        assert written.execute(
+            "SELECT COUNT(*) AS n FROM observations WHERE source='wos'"
+        ).fetchone()["n"] >= 1
+    finally:
+        written.close()

@@ -225,3 +225,23 @@ def test_a_quarterly_page_still_calls_itself_quarterly(conn, tmp_path):
     observe(conn, "a", "2026-W14", "arxiv", "d1")
     html = quarter.render_quarter(conn, "2026-Q2", Watchlist(1, (tech("a"),)), out_dir=tmp_path).read_text()
     assert "quarterly report" in html.lower()
+
+
+def test_a_licensed_source_is_named_on_the_report(conn, tmp_path):
+    """A reader without a subscription cannot follow a Scopus citation. That
+    should be stated on the page, not discovered."""
+    observe(conn, "a", "2026-W14", "scopus", "d1")
+    observe(conn, "a", "2026-W15", "arxiv", "d2")
+    context = quarter.build_context(conn, "2026-Q2", Watchlist(1, (tech("a"),)))
+    assert context["licensed"] == ["scopus"]
+    html = quarter.render_quarter(conn, "2026-Q2", Watchlist(1, (tech("a"),)), out_dir=tmp_path).read_text()
+    assert "scopus" in html.lower()
+    assert "subscription" in html.lower()
+
+
+def test_a_report_from_public_sources_alone_says_nothing_about_licensing(conn, tmp_path):
+    observe(conn, "a", "2026-W14", "arxiv", "d1")
+    context = quarter.build_context(conn, "2026-Q2", Watchlist(1, (tech("a"),)))
+    assert context["licensed"] == []
+    html = quarter.render_quarter(conn, "2026-Q2", Watchlist(1, (tech("a"),)), out_dir=tmp_path).read_text()
+    assert "subscription" not in html.lower()
