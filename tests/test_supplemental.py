@@ -269,3 +269,26 @@ def test_a_proximity_only_technology_is_reported_as_unphrasable():
     watchlist = matcher.Watchlist(version=1, context=("logistics",), technologies=(tech,))
     assert supplemental.unphrasable(watchlist) == ["proximity_only"]
     assert supplemental.watchlist_phrases(watchlist) == []
+
+
+def test_the_sheet_can_be_narrowed_to_one_source(capsys):
+    """Three long queries on one sheet is how the ABI/INFORM query ended up
+    pasted into Lens, where PUB() and pd() mean nothing and the result was a
+    clean, believable zero."""
+    supplemental.print_queries("2026-Q2", _watchlist(), only="lens")
+    printed = capsys.readouterr().out
+    assert "Lens.org" in printed
+    assert "ProQuest" not in printed
+    assert "PUB(" not in printed
+
+
+def test_narrowing_to_an_unknown_source_is_an_error():
+    with pytest.raises(supplemental.RegistryProblem):
+        supplemental.print_queries("2026-Q2", _watchlist(), only="nope")
+
+
+def test_the_cli_passes_the_source_through(capsys):
+    from observatory import run
+    run.main(["--export-queries", "2026-Q2", "--source", "lens"])
+    printed = capsys.readouterr().out
+    assert "Lens.org" in printed and "ProQuest" not in printed

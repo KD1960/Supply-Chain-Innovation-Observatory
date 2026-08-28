@@ -343,6 +343,9 @@ def main(argv=None) -> int:
     parser.add_argument("--export-queries", default=None, metavar="YYYY-Qn",
                         help="print the queries a human pastes into Scopus, Lens "
                              "and ABI/INFORM for a period, then exit")
+    parser.add_argument("--source", default=None, metavar="NAME",
+                        help="with --export-queries, print only this source's "
+                             "query (lens, scopus, abi_inform)")
     args = parser.parse_args(argv)
     if args.rebuild and args.only:
         # Clearing the derived tables and then replaying one collector would
@@ -367,7 +370,7 @@ def main(argv=None) -> int:
     # Before the database is even opened: this reads the watchlist and the
     # source registry and touches nothing else.
     if args.export_queries:
-        supplemental.print_queries(args.export_queries, watchlist)
+        supplemental.print_queries(args.export_queries, watchlist, only=args.source)
         return 0
 
     conn = store.connect()

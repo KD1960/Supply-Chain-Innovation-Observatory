@@ -266,8 +266,15 @@ def build_query(source_id: str, period: str, watchlist, registry: Registry | Non
     return render(registry.sources[source_id].query, values, period)
 
 
-def export_queries(period: str, watchlist, registry: Registry | None = None) -> list[dict]:
+def export_queries(period: str, watchlist, registry: Registry | None = None,
+                   only: str | None = None) -> list[dict]:
     registry = registry or load()
+    if only and only not in registry.sources:
+        raise RegistryProblem(
+            f"unknown source {only!r}; the registry holds "
+            f"{', '.join(sorted(registry.sources))}"
+        )
+    wanted = [registry.sources[only]] if only else list(registry.sources.values())
     start, end = period_bounds(period)
     return [
         {
@@ -278,18 +285,19 @@ def export_queries(period: str, watchlist, registry: Registry | None = None) -> 
             "lexicon_version": watchlist.version,
             "query": build_query(source.id, period, watchlist, registry),
         }
-        for source in registry.sources.values()
+        for source in wanted
     ]
 
 
-def print_queries(period: str, watchlist, registry: Registry | None = None) -> None:
+def print_queries(period: str, watchlist, registry: Registry | None = None,
+                  only: str | None = None) -> None:
     """The sheet a person works from.
 
     It carries everything the sidecar will demand, because an export whose
     query nobody recorded cannot be reproduced, and an export that cannot be
     reproduced is not evidence.
     """
-    entries = export_queries(period, watchlist, registry)
+    entries = export_queries(period, watchlist, registry, only)
     print(f"\nSupplemental exports for {period}  "
           f"(registry v{entries[0]['registry_version']}, "
           f"lexicon v{entries[0]['lexicon_version']})")
@@ -313,6 +321,14 @@ def print_queries(period: str, watchlist, registry: Registry | None = None) -> N
     print("The record count matters. An export capped by the database looks exactly")
     print("like a complete one, and the import refuses any file whose parsed count")
     print("disagrees with what you declare here.\n")
+    if any(entry["source"] == "abi_inform" for entry in entries):
+        _print_term_note(watchlist)
+    print("Lens.org's search syntax and its CPC set are UNVERIFIED -- nobody has run")
+    print("them yet. Check the first result set by hand before trusting it, and")
+    print("correct sources.yaml rather than the code if the syntax is wrong.\n")
+
+
+def _print_term_note(watchlist) -> None:
     phrases = watchlist_phrases(watchlist)
     missing = unphrasable(watchlist)
     print(f"The trade press query carries {min(len(phrases), MAX_TERMS)} of "
@@ -325,6 +341,3 @@ def print_queries(period: str, watchlist, registry: Registry | None = None) -> N
         print(f"  the trade press slice entirely:")
         print(f"      {', '.join(missing)}")
     print()
-    print("Lens.org's search syntax and its CPC set are UNVERIFIED -- nobody has run")
-    print("them yet. Check the first result set by hand before trusting it, and")
-    print("correct sources.yaml rather than the code if the syntax is wrong.\n")
