@@ -142,3 +142,50 @@ def test_importing_twice_does_not_double_count(tmp_path, conn):
 
 def test_a_missing_root_is_not_an_error(tmp_path, conn):
     assert manual.import_exports(conn, Watchlist(1, (tech(),)), root=tmp_path / "nope") == 0
+
+
+# --- patents ---------------------------------------------------------------
+#
+# Captured from a real Lens.org RIS export of 185 US patents granted in
+# 2026-Q3. Written against the file rather than the documentation, because a
+# fixture built from documentation tests the documentation.
+
+LENS_RIS = """TY  - PAT
+CY  - US
+M3  - B1
+SN  - US 12673822 B1
+ID  - 063-505-904-835-801
+C2  - 2026/07/07
+PY  - 2026
+M1  - US 202318339727 A
+DA  - 2023/06/22
+C1  - 2023/06/22
+UR  - https://lens.org/063-505-904-835-801
+TI  - Package storage space optimization systems and methods using reconfigurable racks
+AU  - MALSHE ROHIT
+PB  - AMAZON TECH INC
+ER  -
+"""
+
+
+def test_a_patent_is_dated_by_its_grant_not_its_filing():
+    """DA is the filing date and runs years before the window that retrieved
+    the record -- across a real export it spanned 2017 to 2025 for patents
+    granted in one quarter. Keying on it files every patent into a week the
+    query never asked about, which is the USAspending failure exactly."""
+    record = manual.parse_ris(LENS_RIS)[0]
+    assert record["date"] == "2026-07-07"
+
+
+def test_a_patents_assignee_becomes_its_entity():
+    """Who was granted it is the interesting half of a patent."""
+    assert manual.parse_ris(LENS_RIS)[0]["venue"] == "AMAZON TECH INC"
+
+
+def test_a_non_patent_record_still_uses_its_own_date():
+    """RIS is shared with the bibliographic databases, where DA is the
+    publication date and means what it says."""
+    article = manual.parse_ris(
+        "TY  - JOUR\nTI  - A paper\nDA  - 2026/05/04\nPY  - 2026\nER  -\n"
+    )[0]
+    assert article["date"] == "2026-05-04"

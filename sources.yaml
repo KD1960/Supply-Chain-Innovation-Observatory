@@ -79,6 +79,11 @@ sources:
       Free with a registered account; no library subscription needed. Export
       granted patents only -- a grant is a dated event, an application is a
       filing whose eventual status is unknown, and mixing them double-counts.
+      EXPORT AS CSV AND TICK "Abstract" AND "CPC Classifications". The RIS
+      export carries neither: a real 185-patent RIS export matched 2 records,
+      because a patent title says "Information processing device, information
+      processing method, and information processing" and the abstract is where
+      the technology is named.
     query: >-
       ({cpc}) AND date_published:[{start} TO {end}]
       AND jurisdiction:"US" AND publication_type:"GRANTED_PATENT"

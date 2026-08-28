@@ -87,7 +87,10 @@ def parse_ris(text: str) -> list[dict]:
                 current, last_tag = {}, None
                 continue
             key = {"TI": "title", "T1": "title", "AB": "abstract", "DO": "doi",
-                   "PY": "year", "DA": "date", "UR": "url", "T2": "venue"}.get(tag)
+                   "PY": "year", "DA": "date", "UR": "url", "T2": "venue",
+                   # Patents. TY says which kind of record this is; a patent
+                   # carries two dates and they are years apart.
+                   "TY": "kind", "C2": "grant_date", "PB": "assignee"}.get(tag)
             if key:
                 current[key] = f"{current[key]} {value}".strip() if key in current else value
                 last_tag = key
@@ -117,6 +120,16 @@ def parse_csv(text: str) -> list[dict]:
 
 
 def _normalise(record: dict) -> dict:
+    # A patent's event is its grant. `DA` on a patent record is the filing
+    # date, which across a real Lens export ran from 2017 to 2025 for patents
+    # all granted inside one quarter -- keying on it files every one of them
+    # into a week the query never asked about. `TY - PAT` is what distinguishes
+    # the two, and a bibliographic record is left alone.
+    if (record.get("kind") or "").strip().upper() == "PAT":
+        if record.get("grant_date"):
+            record = dict(record, date=record["grant_date"])
+        if record.get("assignee") and not record.get("venue"):
+            record = dict(record, venue=record["assignee"])
     doi = (record.get("doi") or "").strip()
     doi = re.sub(r"^https?://(dx\.)?doi\.org/", "", doi)
     return {
