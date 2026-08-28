@@ -16,6 +16,7 @@ template should not need a code change.
 
 from __future__ import annotations
 
+import collections
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,6 +51,8 @@ class Source:
     # Classification prefix -> technology. Where a source's retrieval is
     # specific enough to stand as evidence without the text agreeing.
     evidences: dict | None = None
+    # The list to break this source's query up by when one export will not fit.
+    split_by: str | None = None
 
 
 @dataclass(frozen=True)
@@ -291,8 +294,26 @@ def build_query(source_id: str, period: str, watchlist, registry: Registry | Non
     return render(registry.sources[source_id].query, values, period)
 
 
+def _split_values(registry: Registry, source: Source) -> list[tuple[str, dict[str, str]]]:
+    """One (label, list-values) pair per piece of a split query.
+
+    A source with nothing to split on is one piece, which keeps the caller from
+    needing to care whether splitting applied.
+    """
+    base = _rendered_lists(registry)
+    spec = registry.lists.get(source.split_by or "")
+    if not spec:
+        return [("", base)]
+    return [
+        (str(item), dict(base, **{
+            source.split_by: spec.get("each", "{}").replace("{}", str(item))
+        }))
+        for item in spec.get("items", [])
+    ]
+
+
 def export_queries(period: str, watchlist, registry: Registry | None = None,
-                   only: str | None = None) -> list[dict]:
+                   only: str | None = None, split: bool = False) -> list[dict]:
     registry = registry or load()
     if only and only not in registry.sources:
         raise RegistryProblem(
@@ -301,42 +322,62 @@ def export_queries(period: str, watchlist, registry: Registry | None = None,
         )
     wanted = [registry.sources[only]] if only else list(registry.sources.values())
     start, end = period_bounds(period)
-    return [
-        {
-            "source": source.id, "name": source.name, "family": source.family,
-            "format": source.format, "note": " ".join((source.note or "").split()),
-            "period": period, "start": start, "end": end,
-            "registry_version": registry.version,
-            "lexicon_version": watchlist.version,
-            "query": build_query(source.id, period, watchlist, registry),
-        }
-        for source in wanted
-    ]
+    entries = []
+    for source in wanted:
+        pieces = _split_values(registry, source) if split else [("", None)]
+        for label, values in pieces:
+            if values is None:
+                values = _rendered_lists(registry)
+            values = dict(values)
+            values[WATCHLIST_KEY] = watchlist_terms(watchlist)
+            suffix = f"-{re.sub(r'[^A-Za-z0-9]+', '', label)}" if label else ""
+            entries.append({
+                "source": source.id, "name": source.name, "family": source.family,
+                "format": source.format, "note": " ".join((source.note or "").split()),
+                "period": period, "start": start, "end": end, "piece": label,
+                "filename": f"{source.id}{suffix}.{source.format}",
+                "registry_version": registry.version,
+                "lexicon_version": watchlist.version,
+                "query": render(source.query, values, period),
+            })
+    return entries
 
 
 def print_queries(period: str, watchlist, registry: Registry | None = None,
-                  only: str | None = None) -> None:
+                  only: str | None = None, split: bool = False) -> None:
     """The sheet a person works from.
 
     It carries everything the sidecar will demand, because an export whose
     query nobody recorded cannot be reproduced, and an export that cannot be
     reproduced is not evidence.
     """
-    entries = export_queries(period, watchlist, registry, only)
+    entries = export_queries(period, watchlist, registry, only, split)
     print(f"\nSupplemental exports for {period}  "
           f"(registry v{entries[0]['registry_version']}, "
           f"lexicon v{entries[0]['lexicon_version']})")
     print(f"Covering {entries[0]['start']} to {entries[0]['end']}, "
-          f"by ISO week rather than calendar month.\n")
+          f"by ISO week rather than calendar month.")
+    by_source = collections.Counter(entry["source"] for entry in entries)
+    for source_id, pieces in by_source.items():
+        if pieces > 1:
+            print(f"{source_id}: split into {pieces} separate exports, because one "
+                  f"would exceed the database's export limit. All {pieces} are "
+                  f"needed; a missing one is a missing slice that still looks whole.")
+    print()
+    seen_note: set[str] = set()
     for entry in entries:
         print("=" * 78)
-        print(f"{entry['name']}   [{entry['family']} evidence, export as {entry['format'].upper()}]")
-        if entry["note"]:
+        piece = f"  ({entry['piece']})" if entry.get("piece") else ""
+        print(f"{entry['name']}{piece}   "
+              f"[{entry['family']} evidence, export as {entry['format'].upper()}]")
+        # Once per source. Repeating a paragraph of caveats above each of twelve
+        # queries buries the queries.
+        if entry["note"] and entry["source"] not in seen_note:
             print(f"  {entry['note']}")
+            seen_note.add(entry["source"])
         print(f"\n  QUERY -- paste verbatim:\n\n{entry['query']}\n")
-        print(f"  Save the export to: data/manual/{period}/{entry['source']}.{entry['format']}")
-        print(f"  Beside it write:    data/manual/{period}/{entry['source']}."
-              f"{entry['format']}.meta.yaml\n")
+        print(f"  Save the export to: data/manual/{period}/{entry['filename']}")
+        print(f"  Beside it write:    data/manual/{period}/{entry['filename']}.meta.yaml\n")
         print(f"      source: {entry['source']}")
         print(f"      exported: <the date you ran it>")
         print(f"      query: <paste the same string>")

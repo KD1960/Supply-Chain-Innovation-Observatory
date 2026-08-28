@@ -316,3 +316,56 @@ def test_a_period_spanning_two_years_asks_for_both():
 
 def test_a_single_year_period_asks_for_one_year():
     assert supplemental.pubyear_clause(("2026-04-01", "2026-06-30")) == "PUBYEAR = 2026"
+
+
+# --- splitting an export that will not fit ---------------------------------
+#
+# Scopus returned 2,607 documents for one year of twelve journals against a
+# 1,000-record export limit. Splitting by hand is how a quarter goes half
+# collected while every file still looks complete.
+
+
+def test_splitting_scopus_gives_one_query_per_journal():
+    entries = supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+    issns = supplemental.load().lists["issn"]["items"]
+    scopus = [e for e in entries if e["source"] == "scopus"]
+    assert len(scopus) == len(issns)
+
+
+def test_each_split_query_names_exactly_one_journal():
+    for entry in supplemental.export_queries("2026-Q2", _watchlist(), split=True):
+        if entry["source"] == "scopus":
+            assert entry["query"].count("ISSN(") == 1
+
+
+def test_each_split_query_gets_its_own_filename():
+    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+               if e["source"] == "scopus"]
+    names = [e["filename"] for e in entries]
+    assert len(set(names)) == len(names)
+    assert all(name.endswith(".ris") for name in names)
+
+
+def test_a_split_query_still_carries_the_period():
+    for entry in supplemental.export_queries("2026-Q2", _watchlist(), split=True):
+        assert "PUBYEAR" in entry["query"] or "date_published" in entry["query"] or "pd(" in entry["query"]
+
+
+def test_without_splitting_there_is_one_query_per_source():
+    entries = supplemental.export_queries("2026-Q2", _watchlist())
+    assert len(entries) == len(supplemental.load().sources)
+
+
+def test_a_source_that_cannot_be_split_is_left_whole():
+    """Splitting ABI/INFORM by publication would not help: its size comes from
+    the term list, not the publication list."""
+    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+               if e["source"] == "abi_inform"]
+    assert len(entries) == 1
+
+
+def test_the_sheet_says_how_many_files_a_split_expects(capsys):
+    supplemental.print_queries("2026-Q2", _watchlist(), only="scopus", split=True)
+    printed = capsys.readouterr().out
+    count = len(supplemental.load().lists["issn"]["items"])
+    assert f"{count} separate exports" in printed

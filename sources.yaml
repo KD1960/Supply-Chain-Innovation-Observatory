@@ -116,14 +116,19 @@ sources:
     signal: journal_papers
     stage: idea
     format: ris
+    # Which list to split on when one export will not fit. Scopus returned
+    # 2,607 documents for a year of these twelve journals against a 1,000
+    # record export limit; one query per journal keeps every file under it and
+    # keeps the split reproducible rather than improvised.
+    split_by: issn
     note: >-
       TURN ON "Advanced query" FIRST. In basic mode Scopus wraps the whole
       string in TITLE-ABS-KEY(...) and searches for it as literal text, which
       returns nothing and looks like an empty quarter.
 
-      Export RIS with abstracts included. Scopus caps an abstract-inclusive
-      export at 2,000 records and says so only in the interface; if the count
-      approaches it, split the ISSN list in half and export twice.
+      Export RIS with abstracts included. Scopus caps an export at 1,000
+      records and says so only in the interface, so use --split: one year of
+      these twelve journals is 2,607 documents.
 
       PUBYEAR rather than a date range: PUBDATETXT(a TO b) was a guess and
       Scopus rejected it. A year is wider than the quarter, which costs nothing
