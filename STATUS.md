@@ -25,8 +25,8 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 |---|---|
 | Tests | **350 passing** |
 | Lexicon | version **6**, 50 active technologies, 7 families |
-| Observations | **1,606** across 54 weeks, 2025-W34 → 2026-W35 |
-| By source | github 774, arxiv 611, edgar 128, hn 72, federalregister 21, usaspending **0** |
+| Observations | **1,637** across 54 weeks, 2025-W34 → 2026-W35 |
+| By source | github 774, arxiv 611, edgar 128, hn 72, usaspending **31**, federalregister 21 |
 | Raw weeks on disk | 53, 2025-W35 → 2026-W35 |
 | Source runs | 318 recorded, **none has ever failed** |
 | Deliverable | annual report, `output/report-2026.html` |
@@ -102,8 +102,12 @@ year. Investment remains the thinnest stage, and whether federal infrastructure
 money should count as domain evidence without technology resolution is an open
 question for the owner.
 
-**The database does not have this data yet.** Raw usaspending on disk was
-fetched under the old query; `--backfill 52` would refetch and rebuild.
+**Backfilled 2026-08-28.** 52 weeks refetched under the programme query:
+**31 observations across 28 awards, $390M, 30 of them carrying coordinates.**
+The Build Map has points for the first time. The old raw is kept at
+`data/raw-retired/usaspending-keyword-query/` — it is the evidence for the 36-in-
+a-year claim, and backfill would have skipped every week without clearing
+`source_runs`, since resumability correctly treats a recorded run as done.
 
 **GitHub measures the wrong population.** Of 735 matched repositories, 78% have
 exactly one star and the largest has 118. I sampled 60 repos first seen in
@@ -111,10 +115,12 @@ exactly one star and the largest has 118. I sampled 60 repos first seen in
 star, and none had been deleted.** These are inert student and portfolio projects,
 not an ecosystem — and GitHub is 48% of all observations.
 
-**Nine technologies are silent for the whole year:** advanced planning and
-scheduling, autonomous yard trucks, inland ports, port electrification, item-level
-RFID, GS1 2D barcodes, GenAI for supply chain planning, active cold chain
-packaging, smart labels. Each was probed against the corpus directly, so this is
+**Seven technologies are silent for the whole year** (was nine): advanced
+planning and scheduling, autonomous yard trucks, item-level RFID, GS1 2D
+barcodes, GenAI for supply chain planning, active cold chain packaging, smart
+labels. **Port electrification (15 observations) and inland ports (1) broke
+their silence on the USAspending fix** — federal money was the source that saw
+them, which is exactly the argument for widening the base. Each was probed against the corpus directly, so this is
 a finding rather than a mystery: they are absent from *these six sources*, not
 from the world. Trade press and patents would see them.
 
