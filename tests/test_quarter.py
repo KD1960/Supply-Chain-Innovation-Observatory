@@ -352,3 +352,82 @@ def test_the_report_says_how_many_it_gated(conn):
     assert context["single_source_documents"] == sum(
         row["total"] for row in context["rows"] if row["single_source"]
     )
+
+
+# --- evidence families -----------------------------------------------------
+#
+# Counting source names overstates diversity when two sources measure the same
+# thing. arXiv and Scopus are both research literature: a technology at 6 arXiv
+# plus 5 Scopus papers would clear a two-source floor while resting entirely on
+# academic interest. Measured on 2026-Q2 before this was built, five
+# technologies would have cleared on a Scopus export alone -- freight
+# decarbonisation, critical infrastructure security, electric heavy-duty trucks,
+# warehouse robotics and humanoid logistics.
+
+
+def test_arxiv_and_scopus_are_the_same_kind_of_evidence():
+    assert quarter.family_of("arxiv") == quarter.family_of("scopus")
+
+
+def test_code_patents_filings_and_trade_press_are_all_distinct():
+    families = {quarter.family_of(s)
+                for s in ("github", "lens", "edgar", "abi_inform", "federalregister")}
+    assert len(families) == 5
+
+
+def test_an_unregistered_source_gets_its_own_family():
+    """A hand-made export under an unknown name must not be silently folded in
+    with something else; that would invent corroboration."""
+    assert quarter.family_of("some_new_export") == "some_new_export"
+    assert quarter.family_of("some_new_export") != quarter.family_of("arxiv")
+
+
+def test_two_research_sources_do_not_make_a_technology_diverse():
+    assert quarter.is_single_source(_row({"arxiv": 6, "scopus": 5})) is True
+
+
+def test_research_plus_patents_does_make_it_diverse():
+    assert quarter.is_single_source(_row({"arxiv": 6, "lens": 5})) is False
+
+
+def test_concentration_is_measured_across_families_not_sources():
+    """Split across two research sources, the evidence is still 100% research."""
+    assert quarter.is_single_source(_row({"arxiv": 50, "scopus": 45, "github": 5})) is True
+
+
+def test_the_floor_is_one_until_the_new_sources_land():
+    """Calibrating a threshold against a corpus about to triple is backwards.
+    The mechanism ships now; the number is set once there is data to set it
+    against."""
+    assert quarter.FAMILY_FLOOR == 1
+
+
+def test_a_source_below_the_floor_does_not_count_towards_diversity(monkeypatch):
+    """Both cases sit under the 80% concentration rule, so only the floor can
+    decide them -- otherwise this would pass without the floor existing."""
+    monkeypatch.setattr(quarter, "FAMILY_FLOOR", 3)
+    assert quarter.is_single_source(_row({"arxiv": 7, "github": 2})) is True
+    assert quarter.is_single_source(_row({"arxiv": 7, "github": 3})) is False
+
+
+def test_the_current_six_sources_are_each_their_own_family():
+    """Today every collector is a distinct kind of evidence, so introducing
+    families must not change a single verdict on the existing corpus."""
+    families = {quarter.family_of(s) for s in quarter.SOURCES}
+    assert len(families) == len(quarter.SOURCES)
+
+
+def test_the_report_states_the_floor_and_the_family_requirement(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert context["family_floor"] == quarter.FAMILY_FLOOR
+    assert context["single_source_share"] == quarter.SINGLE_SOURCE_SHARE
+
+
+def test_rows_report_how_many_families_back_them(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    solo = next(r for r in context["rows"] if r["id"] == "solo")
+    broad = next(r for r in context["rows"] if r["id"] == "broad")
+    assert solo["families"] == 1
+    assert broad["families"] >= 2

@@ -297,13 +297,56 @@ The quarterly report already computes each technology's top source and its
 percentage share (`quarter.py:153`) and prints it as a tag. It is decoration; it
 becomes a gate.
 
+**Diversity is counted across kinds of evidence, not source names**, because
+two sources measuring the same thing are one piece of evidence twice. arXiv and
+Scopus are both research literature: a technology at 6 preprints and 5 journal
+papers would clear a two-source floor while resting entirely on academic
+interest. Measured on 2026-Q2, five technologies would have cleared on a Scopus
+export alone — freight decarbonisation, critical infrastructure security,
+electric heavy-duty trucks, warehouse robotics and humanoid logistics.
+
+| Family | Sources |
+|---|---|
+| research | arXiv, Scopus |
+| code | GitHub |
+| patents | Lens.org, PatentsView |
+| filings | EDGAR |
+| trade | ABI/INFORM |
+| regulation | Federal Register |
+| money | USAspending |
+| community | Hacker News |
+
+An unregistered source is its own family. Folding an unknown export in with
+something else would invent corroboration nobody checked.
+
 Per technology per period, over the observations in that period:
 
-    concentration = max over sources of ( documents from that source / total documents )
-    distinct_sources = count of sources contributing at least one document
+    concentration = max over families of ( documents from that family / total documents )
+    distinct_families = count of families supplying at least FAMILY_FLOOR documents
 
 A technology is **single-source** when `concentration >= 0.80` or
-`distinct_sources < 2`.
+`distinct_families < 2`.
+
+**`FAMILY_FLOOR` is 1 for now, deliberately.** One document from a second family
+is not corroboration — on 2026-Q2, eleven of the eighteen technologies that
+passed the gate had a second source contributing one or two documents, and
+raising the floor to 3 would gate 27 of 34. But that number measures how thin
+the corpus is today rather than where the threshold belongs, and Scopus,
+ABI/INFORM and Lens are expected to change it substantially. Patents and trade
+press are new families for exactly the hardware and deployment technologies that
+are silent now. The mechanism ships at a floor of 1; the number is set against
+real data after the first quarter that has the new sources in it.
+
+**Normalisation was tested and rejected.** Raw counts are not comparable across
+sources — GitHub retrieved 30,459 documents in 2026-Q2 against Hacker News's
+2,304 — so expressing each technology as a share of its source's own corpus
+looks like the obvious correction. It is not. Warehouse management systems is 21
+GitHub repositories and 21 EDGAR filings, two families genuinely corroborating;
+raw concentration reads 50% and normalised reads 87% EDGAR, because EDGAR is
+small. Normalisation trades a corpus-size distortion for a small-denominator one
+that is worse, and ranking by normalised share puts a three-document technology
+in the top two. Corroboration asks whether each family independently produced
+enough evidence, which is a question about counts, not shares.
 
 For a single-source technology the report **withholds its inferences** and keeps
 its observations. Which fields those are depends on the report:

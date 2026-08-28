@@ -36,6 +36,54 @@ SOURCES = ("arxiv", "github", "hn", "edgar", "federalregister", "usaspending")
 # nobody can argue with.
 SINGLE_SOURCE_SHARE = 0.80
 
+# What kind of evidence each source produces. Diversity is counted across these
+# rather than across source names, because two sources measuring the same thing
+# are one piece of evidence twice.
+#
+# arXiv and Scopus are the case that forces this: both are research literature,
+# so a technology at 6 preprints and 5 journal papers would clear a two-source
+# floor while resting entirely on academic interest. Measured on 2026-Q2, five
+# technologies would have cleared on a Scopus export alone -- freight
+# decarbonisation, critical infrastructure security, electric heavy-duty trucks,
+# warehouse robotics and humanoid logistics.
+EVIDENCE_FAMILIES: dict[str, str] = {
+    "arxiv": "research",
+    "scopus": "research",
+    "github": "code",
+    "patentsview": "patents",
+    "lens": "patents",
+    "edgar": "filings",
+    "abi_inform": "trade",
+    "federalregister": "regulation",
+    "usaspending": "money",
+    "hn": "community",
+}
+
+# Documents a family must supply before it counts towards diversity. One
+# document from a second family is not corroboration -- on 2026-Q2, eleven of
+# the eighteen technologies that passed the gate had a second source
+# contributing one or two documents.
+#
+# Deliberately left at 1 for now. Raising it to 3 would gate 27 of 34
+# technologies, but that measures how thin the corpus is today rather than where
+# the threshold belongs; Scopus, ABI/INFORM and Lens are expected to change it
+# substantially. The mechanism ships now and the number is set against real data
+# after the first quarter that has them.
+FAMILY_FLOOR = 1
+
+
+def family_of(source: str) -> str:
+    """An unregistered source is its own family. Folding an unknown export in
+    with something else would invent corroboration that nobody checked."""
+    return EVIDENCE_FAMILIES.get(source, source)
+
+
+def by_family(by_source) -> collections.Counter:
+    totals: collections.Counter = collections.Counter()
+    for source, count in (by_source or {}).items():
+        totals[family_of(source)] += count
+    return totals
+
 
 def is_single_source(row: dict) -> bool:
     """Whether this technology's evidence is really one source's coverage.
@@ -49,10 +97,10 @@ def is_single_source(row: dict) -> bool:
     total = row.get("total") or 0
     if total <= 0:
         return True
-    by_source = row.get("by_source") or {}
-    if len([n for n in by_source.values() if n]) < 2:
+    families = by_family(row.get("by_source"))
+    if len([n for n in families.values() if n >= FAMILY_FLOOR]) < 2:
         return True
-    return max(by_source.values()) / total >= SINGLE_SOURCE_SHARE
+    return max(families.values()) / total >= SINGLE_SOURCE_SHARE
 
 
 def quarter_of(week: str) -> str:
@@ -172,8 +220,11 @@ def build_context(conn, name: str, watchlist) -> dict:
             continue
         top_source, top_count = row["by_source"].most_common(1)[0]
         gated = is_single_source(row)
+        families = by_family(row["by_source"])
         rows.append({
             "single_source": gated,
+            "families": len([n for n in families.values() if n >= FAMILY_FLOOR]),
+            "top_family": families.most_common(1)[0][0],
             "id": tech.id,
             "name": tech.name,
             "family": tech.family,
@@ -202,6 +253,7 @@ def build_context(conn, name: str, watchlist) -> dict:
             row["total"] for row in rows if row["single_source"]
         ),
         "single_source_share": SINGLE_SOURCE_SHARE,
+        "family_floor": FAMILY_FLOOR,
         "previous": previous_period(name),
         "weeks": weeks,
         "weeks_run": ran,

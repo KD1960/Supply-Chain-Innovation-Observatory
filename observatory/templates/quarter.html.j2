@@ -117,11 +117,17 @@
   {% if single_source_count %}
   <p class="note"><strong>{{ single_source_count }} of {{ rows|length }}
   technologies</strong> &mdash; holding {{ single_source_documents }} of
-  {{ documents }} documents &mdash; draw
-  {{ (single_source_share * 100)|round|int }}% or more of their evidence from a
-  single source. They are marked below, and this {{ period_noun }}'s movement is
-  withheld for them. A share computed from one source measures that source's
-  coverage, not the technology; the counts stand, the movement does not.</p>
+  {{ documents }} documents &mdash; rest on a single kind of evidence. They are
+  marked below, and this {{ period_noun }}'s movement is withheld for them. A
+  share computed from one source measures that source's coverage, not the
+  technology; the counts stand, the movement does not.</p>
+  <p>Diversity is counted across <em>kinds</em> of evidence rather than source
+  names, because two sources measuring the same thing are one piece of evidence
+  twice: research (preprints and journals), code, patents, filings, trade press,
+  regulation, federal awards and community discussion. A technology is marked
+  when one kind supplies {{ (single_source_share * 100)|round|int }}% or more of
+  its documents, or when fewer than two kinds reach
+  {{ family_floor }} document{{ "s" if family_floor != 1 }}.</p>
   {% endif %}
 </section>
 
