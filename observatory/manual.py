@@ -38,7 +38,7 @@ from pathlib import Path
 
 import yaml
 
-from . import config, matcher, store
+from . import config, matcher, store, supplemental
 
 REQUIRED_META = ("source", "exported", "query", "records")
 # Every field these databases disagree about the spelling of.
@@ -49,6 +49,8 @@ CSV_FIELDS = {
     "year": ("year", "publication year", "py"),
     "date": ("date", "publication date", "da"),
     "url": ("url", "link"),
+    "venue": ("venue", "journal", "source title", "publication title", "applicants"),
+    "classifications": ("cpc classifications", "classifications", "ipcr classifications"),
 }
 
 
@@ -136,10 +138,34 @@ def _normalise(record: dict) -> dict:
         "title": (record.get("title") or "").strip(),
         "abstract": (record.get("abstract") or "").strip(),
         "venue": (record.get("venue") or "").strip(),
+        "classifications": (record.get("classifications") or "").strip(),
         "doi": doi,
         "date": _iso_date(record.get("date"), record.get("year")),
         "url": (record.get("url") or "").strip() or (f"https://doi.org/{doi}" if doi else ""),
     }
+
+
+def classification_evidence(source: str, record: dict) -> list[str]:
+    """Technologies the retrieval evidences, from the record's own classification.
+
+    A code is a tree, so the map names a branch and matching is by prefix.
+    Only sources that declare a map get anything; everything else has to earn
+    its match from the text like any other document.
+    """
+    registry = supplemental.load()
+    declared = (registry.sources[source].evidences or {}) if source in registry.sources else {}
+    if not declared:
+        return []
+    codes = [
+        code.strip()
+        for code in re.split(r"[;,]", record.get("classifications") or "")
+        if code.strip()
+    ]
+    found: list[str] = []
+    for prefix, tech_id in declared.items():
+        if any(code.startswith(prefix) for code in codes) and tech_id not in found:
+            found.append(tech_id)
+    return found
 
 
 def read_exports(root: Path) -> list[tuple[dict, list[dict]]]:
@@ -183,7 +209,20 @@ def import_exports(conn, watchlist, root: Path | None = None) -> int:
             # The abstract is the licensed asset. It is read here, decides the
             # match, and is never handed to anything that persists.
             haystack = f"{record['title']}\n{record['venue']}\n{record['abstract']}"
-            hits = watchlist.match(haystack)
+            hits = list(watchlist.match(haystack))
+            # The classification the patent was filed under, added after the
+            # text matches and skipped where the text already found it, so a
+            # patent that both says the word and carries the code is still one
+            # observation.
+            already = {tech_id for tech_id, _ in hits}
+            for tech_id in classification_evidence(source, record):
+                if tech_id not in already:
+                    prefix = next(
+                        code for code, mapped in
+                        (supplemental.load().sources[source].evidences or {}).items()
+                        if mapped == tech_id
+                    )
+                    hits.append((tech_id, f"cpc:{prefix}"))
             if not hits:
                 continue
             week = config.iso_week(dt.date.fromisoformat(record["date"]))

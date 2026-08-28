@@ -189,3 +189,92 @@ def test_a_non_patent_record_still_uses_its_own_date():
         "TY  - JOUR\nTI  - A paper\nDA  - 2026/05/04\nPY  - 2026\nER  -\n"
     )[0]
     assert article["date"] == "2026-05-04"
+
+
+# --- patent classification as evidence -------------------------------------
+#
+# Measured on a real 185-patent export: text matching reached 2 records, and
+# reached 11 even with the context gate switched off. Patents describe
+# mechanisms while the watchlist speaks trade vocabulary -- an abstract about
+# "reconfigurable racks for standardized packages" is warehouse automation and
+# never says so. The classification the patent was filed under does say so.
+
+LENS_CSV_HEADER = "Title,Abstract,Publication Date,Applicants,CPC Classifications\n"
+
+
+def _lens_row(title, abstract, codes, applicant="ACME CORP", date="2026/07/07"):
+    return LENS_CSV_HEADER + f'"{title}","{abstract}",{date},"{applicant}","{codes}"\n'
+
+
+def test_a_specific_classification_attributes_without_the_words():
+    """B65G1/137 is storage devices with indicating or control means -- an
+    AS/RS. The patent is warehouse automation whether or not it says so."""
+    text = _lens_row("Reconfigurable rack system",
+                     "Racks may be configured based on expected package mix.",
+                     "B65G1/1378; G06Q10/087")
+    records = manual.parse_csv(text)
+    assert "warehouse_robotics" in manual.classification_evidence("lens", records[0])
+
+
+def test_a_broad_classification_attributes_nothing():
+    """G06Q10/087 is inventory management -- a business domain, not a
+    technology. It covered 135 of 185 patents including 'Material conveying
+    method' and 'Automated chain of custody tracking'."""
+    text = _lens_row("Chain of custody tracking", "Tracking techniques.",
+                     "G06Q10/087; G06Q10/083")
+    assert manual.classification_evidence("lens", manual.parse_csv(text)[0]) == []
+
+
+def test_classification_matching_is_by_prefix():
+    """A code is a tree. G06K7/10 is a kind of G06K7, and the map names the
+    branch rather than every leaf."""
+    text = _lens_row("Tag reader", "A reader.", "G06K7/10297")
+    assert "item_level_rfid" in manual.classification_evidence("lens", manual.parse_csv(text)[0])
+
+
+def test_a_source_with_no_classification_map_attributes_nothing():
+    assert manual.classification_evidence("scopus", {"classifications": "B65G1/1378"}) == []
+
+
+def test_every_mapped_technology_exists_in_the_watchlist():
+    from observatory import matcher, supplemental
+    known = {tech.id for tech in matcher.load_watchlist().active}
+    for source in supplemental.load().sources.values():
+        for code, tech_id in (source.evidences or {}).items():
+            assert tech_id in known, f"{code} maps to unknown {tech_id}"
+
+
+def test_the_applicant_becomes_the_entity():
+    text = _lens_row("A patent", "An abstract.", "B65G1/1378", applicant="AMAZON TECH INC")
+    assert manual.parse_csv(text)[0]["venue"] == "AMAZON TECH INC"
+
+
+def test_classification_evidence_is_recorded_as_the_matched_pattern(tmp_path):
+    """A count has to be traceable to what produced it. Here that is a
+    classification code, not a regex."""
+    export = tmp_path / "lens.csv"
+    export.write_text(_lens_row("Rack system", "Racks.", "B65G1/1378"))
+    (tmp_path / "lens.csv.meta.yaml").write_text(
+        "source: lens\nexported: 2026-08-28\nquery: test\nrecords: 1\n")
+    from observatory import matcher, store
+    conn = store.connect(":memory:")
+    store.init_schema(conn)
+    manual.import_exports(conn, matcher.load_watchlist(), tmp_path)
+    rows = conn.execute("SELECT tech_id, matched_pattern FROM observations").fetchall()
+    assert ("warehouse_robotics", "cpc:B65G1/137") in [(r[0], r[1]) for r in rows]
+
+
+def test_text_and_classification_evidence_do_not_double_count(tmp_path):
+    export = tmp_path / "lens.csv"
+    export.write_text(_lens_row(
+        "Automated storage and retrieval for a warehouse",
+        "An automated storage and retrieval system in a warehouse.", "B65G1/1378"))
+    (tmp_path / "lens.csv.meta.yaml").write_text(
+        "source: lens\nexported: 2026-08-28\nquery: test\nrecords: 1\n")
+    from observatory import matcher, store
+    conn = store.connect(":memory:")
+    store.init_schema(conn)
+    manual.import_exports(conn, matcher.load_watchlist(), tmp_path)
+    rows = conn.execute(
+        "SELECT COUNT(*) FROM observations WHERE tech_id='warehouse_robotics'").fetchone()
+    assert rows[0] == 1

@@ -88,6 +88,28 @@ sources:
       ({cpc}) AND date_published:[{start} TO {end}]
       AND jurisdiction:"US" AND publication_type:"GRANTED_PATENT"
 
+    # The classification a patent was filed under, standing as evidence in its
+    # own right. Measured on a real 185-patent export: text matching reached 2
+    # records, and 11 even with the context gate off. Patents describe
+    # mechanisms; the watchlist speaks trade vocabulary. An abstract about
+    # "reconfigurable racks for standardized packages" is warehouse automation
+    # and never once says so.
+    #
+    # Only codes that name a MECHANISM are here. The broad G06Q10/08 business
+    # codes are deliberately absent: G06Q10/087 is "inventory management" and
+    # would have labelled 135 of 185 patents as warehouse management systems,
+    # among them "Material conveying method" and "Automated chain of custody
+    # tracking techniques". That is the ERP-is-97%-GitHub failure in a new
+    # costume. Matching is by prefix, because a code is a tree.
+    evidences:
+      "B65G1/137": warehouse_robotics    # storage devices with indicating or control means
+      "B65G1/04": warehouse_robotics     # storage with mechanical conveyors
+      "B64U": delivery_drones            # unmanned aerial vehicles
+      "G06K7": item_level_rfid           # reading record carriers -- tag and barcode readers
+      "H04W4/80": item_level_rfid        # short-range wireless services
+      "G06V20": cv_inspection            # scene and image understanding
+      "B25J": robotic_manufacturing      # manipulators
+
   scopus:
     name: Scopus
     family: research

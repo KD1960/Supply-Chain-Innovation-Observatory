@@ -47,6 +47,9 @@ class Source:
     format: str
     query: str
     note: str = ""
+    # Classification prefix -> technology. Where a source's retrieval is
+    # specific enough to stand as evidence without the text agreeing.
+    evidences: dict | None = None
 
 
 @dataclass(frozen=True)
