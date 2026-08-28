@@ -50,8 +50,10 @@
   p{margin:0 0 14px}
   .panel{background:var(--surface);border:1px solid var(--rule);border-radius:3px;
          padding:20px 22px;margin:20px 0 0;overflow-x:auto}
-  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px;
-        font-variant-numeric:tabular-nums}
+  /* min-width so a narrow viewport scrolls the panel rather than clipping the
+     last column against it. */
+  table{width:100%;min-width:620px;border-collapse:collapse;font-family:var(--mono);
+        font-size:13px;font-variant-numeric:tabular-nums}
   th{font-family:var(--display);font-size:10.5px;font-weight:650;letter-spacing:.09em;
      text-transform:uppercase;color:var(--muted);text-align:left;padding:0 12px 8px 0;
      border-bottom:1px solid var(--rule);white-space:nowrap}
@@ -63,6 +65,16 @@
   .up{color:var(--rise);font-weight:600} .down{color:var(--fall);font-weight:600}
   .tag{font-family:var(--display);font-size:10.5px;letter-spacing:.06em;
        text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  /* A gated row is marked, not merely annotated. A number printed beside a
+     caveat is still read as a number. */
+  .tag.gated{color:var(--fall);font-weight:650}
+  tr.gated .name{color:var(--body)}
+  tr.gated .name::before{content:"\2022\00a0";color:var(--fall);font-weight:700}
+  .withheld{font-family:var(--display);font-size:10.5px;letter-spacing:.06em;
+            text-transform:uppercase;color:var(--muted);white-space:nowrap;
+            text-align:right}
+  .note{background:var(--sunk);border-left:3px solid var(--fall);padding:14px 18px;
+        margin:18px 0 0;font-size:14.5px}
   .names{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0;list-style:none}
   .names li{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--rule);
             background:var(--surface);padding:4px 8px;border-radius:2px}
@@ -102,6 +114,15 @@
   <p>Counts are documents matched, not mentions: a technology named twice in one
   filing counts once. The concentration column names the source that supplied most
   of the evidence, which is usually most of it.</p>
+  {% if single_source_count %}
+  <p class="note"><strong>{{ single_source_count }} of {{ rows|length }}
+  technologies</strong> &mdash; holding {{ single_source_documents }} of
+  {{ documents }} documents &mdash; draw
+  {{ (single_source_share * 100)|round|int }}% or more of their evidence from a
+  single source. They are marked below, and this {{ period_noun }}'s movement is
+  withheld for them. A share computed from one source measures that source's
+  coverage, not the technology; the counts stand, the movement does not.</p>
+  {% endif %}
 </section>
 
 <div class="panel">
@@ -113,14 +134,14 @@
     </tr></thead>
     <tbody>
       {% for row in rows %}
-      <tr>
+      <tr{% if row.single_source %} class="gated"{% endif %}>
         <td class="name">{{ row.name }}</td>
         <td class="num">{{ row.total }}</td>
         <td class="num{% if not row.by_source.arxiv %} dim{% endif %}">{{ row.by_source.arxiv }}</td>
         <td class="num{% if not row.by_source.github %} dim{% endif %}">{{ row.by_source.github }}</td>
         <td class="num{% if not row.by_source.hn %} dim{% endif %}">{{ row.by_source.hn }}</td>
         <td class="num{% if not row.filers %} dim{% endif %}">{{ row.filers }}</td>
-        <td class="tag">{{ row.concentration }}% {{ row.top_source }}</td>
+        <td class="tag{% if row.single_source %} gated{% endif %}">{{ row.concentration }}% {{ row.top_source }}</td>
       </tr>
       {% endfor %}
     </tbody>

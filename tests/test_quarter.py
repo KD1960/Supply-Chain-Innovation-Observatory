@@ -1,3 +1,5 @@
+import collections
+
 import pytest
 
 from observatory import quarter, store
@@ -245,3 +247,108 @@ def test_a_report_from_public_sources_alone_says_nothing_about_licensing(conn, t
     assert context["licensed"] == []
     html = quarter.render_quarter(conn, "2026-Q2", Watchlist(1, (tech("a"),)), out_dir=tmp_path).read_text()
     assert "subscription" not in html.lower()
+
+
+# --- the source diversity gate ---------------------------------------------
+#
+# Measured on the real corpus before this was built: across 2026-Q1 and Q2,
+# about half of all technologies drew 80% or more of their evidence from one
+# source, those technologies held 63% of every document, and four of the five
+# largest were among them. The two largest movers in both quarters -- ERP
+# platforms and ML demand forecasting -- were 87-97% GitHub, where 78% of
+# matched repositories have a single star and a 60-repo sample gained none in
+# nine months. "ERP is rising fastest" was really "GitHub indexed more one-star
+# ERP repositories".
+
+
+def _row(counts, filers=0):
+    return {"total": sum(counts.values()), "by_source": collections.Counter(counts),
+            "filers": filers}
+
+
+def _seed_two_quarters(conn):
+    """Q1 and Q2 both populated, so share shifts exist to be withheld.
+
+    `solo` is one source throughout; `broad` is spread across four. Both grow,
+    so a gate that merely dropped small technologies would not pass these."""
+    for quarter_weeks, span in (("2026-W0%d", range(1, 10)), ("2026-W%d", range(14, 27))):
+        pass
+    for n in range(1, 10):                      # Q1
+        observe(conn, "solo", f"2026-W{n:02d}", "github", f"s-q1-{n}")
+    for n in range(1, 9):
+        observe(conn, "broad", f"2026-W{n:02d}",
+                ("arxiv", "github", "edgar", "hn")[n % 4], f"b-q1-{n}")
+    for n in range(14, 27):                     # Q2
+        observe(conn, "solo", f"2026-W{n:02d}", "github", f"s-q2-{n}")
+    for n in range(14, 26):
+        observe(conn, "broad", f"2026-W{n:02d}",
+                ("arxiv", "github", "edgar", "hn")[n % 4], f"b-q2-{n}")
+    for week in quarter.weeks_in_quarter("2026-Q1") + quarter.weeks_in_quarter("2026-Q2"):
+        conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    conn.commit()
+    return Watchlist(version=1, context=("x",), technologies=(tech("solo"), tech("broad")))
+
+
+def test_a_technology_from_one_source_is_flagged():
+    assert quarter.is_single_source(_row({"github": 100})) is True
+
+
+def test_the_threshold_bites_at_eighty_percent():
+    """80 is a judgement, not a derivation, so it is pinned by a test that
+    fails if anybody moves it quietly."""
+    assert quarter.is_single_source(_row({"github": 79, "arxiv": 21})) is False
+    assert quarter.is_single_source(_row({"github": 80, "arxiv": 20})) is True
+
+
+def test_two_sources_are_not_enough_if_one_dominates():
+    assert quarter.is_single_source(_row({"github": 95, "arxiv": 5})) is True
+
+
+def test_a_broadly_evidenced_technology_passes():
+    assert quarter.is_single_source(_row({"github": 30, "arxiv": 30, "edgar": 25, "hn": 15})) is False
+
+
+def test_a_technology_with_no_documents_is_not_scored_as_diverse():
+    assert quarter.is_single_source(_row({})) is True
+
+
+def test_share_shift_is_withheld_for_a_single_source_technology(conn):
+    """The report's only inference is the share shift, so that is what the gate
+    has to take away. A shift in a 97%-GitHub technology's share is a shift in
+    GitHub's coverage wearing the technology's name."""
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    for row in context["rows"]:
+        if row["single_source"]:
+            assert row["shift"] is None, f"{row['id']} kept a shift it cannot support"
+
+
+def test_counts_survive_the_gate(conn):
+    """Document counts are observations, not inferences. Suppressing them would
+    hide that the evidence exists at all."""
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    gated = [row for row in context["rows"] if row["single_source"]]
+    assert gated
+    assert all(row["total"] > 0 for row in gated)
+
+
+def test_no_gated_technology_reaches_the_movers_list(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    listed = {row["id"] for row in context["risers"] + context["fallers"]}
+    gated = {row["id"] for row in context["rows"] if row["single_source"]}
+    assert not (listed & gated)
+
+
+def test_the_report_says_how_many_it_gated(conn):
+    """A threshold nobody can see is a threshold nobody can argue with."""
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert context["single_source_count"] == sum(
+        1 for row in context["rows"] if row["single_source"]
+    )
+    assert context["single_source_documents"] == sum(
+        row["total"] for row in context["rows"] if row["single_source"]
+    )

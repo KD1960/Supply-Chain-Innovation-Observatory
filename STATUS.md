@@ -118,7 +118,17 @@ packaging, smart labels. Each was probed against the corpus directly, so this is
 a finding rather than a mystery: they are absent from *these six sources*, not
 from the world. Trade press and patents would see them.
 
-**Sources barely overlap.** Of the 18 technologies with 19+ documents, seven draw
+**Sources barely overlap** — and the quarterly report now says so on its own
+face. The source-diversity gate (2026-08-28) marks any technology drawing 80%+
+of its evidence from one source and withholds its share movement, because a
+share computed from one source measures that source's coverage. On 2026-Q2 that
+is **16 of 34 technologies holding 63% of all documents**, and it removes the
+report's two largest movers: ERP platforms (97% GitHub) and ML demand
+forecasting (92% GitHub). "ERP is rising fastest" was really "GitHub indexed
+more one-star ERP repositories". The counts stay; only the movement is withheld.
+
+The underlying overlap problem is unchanged and is what the supplemental sources
+spec exists to fix: Of the 18 technologies with 19+ documents, seven draw
 over 80% of their evidence from a single source — ERP 95% GitHub, vehicle routing
 92% arXiv, blockchain 99% GitHub, rail intermodal 100% Federal Register. No
 technology is evenly present across research, code and filings.

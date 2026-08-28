@@ -25,6 +25,35 @@ QUARTER_WEEKS = 13
 # without a subscription cannot follow -- so the report says so.
 SOURCES = ("arxiv", "github", "hn", "edgar", "federalregister", "usaspending")
 
+# A technology drawing this much of its evidence from one source is reported as
+# a count and nothing more. Measured on the real corpus at the time this was
+# built: across 2026-Q1 and Q2 about half of all technologies sat at or above
+# it, those technologies held 63% of every document, and four of the five
+# largest were among them.
+#
+# 80 is a judgement rather than a derivation, which is why the report prints how
+# many technologies it caught -- a threshold nobody can see is a threshold
+# nobody can argue with.
+SINGLE_SOURCE_SHARE = 0.80
+
+
+def is_single_source(row: dict) -> bool:
+    """Whether this technology's evidence is really one source's coverage.
+
+    A stage score, a pipeline position or a share shift computed from one
+    source is arithmetically a restatement of what that source happened to
+    index. Reporting it beside a caveat is not enough: this project has already
+    shipped one wrong ranking that way, and a number printed next to a warning
+    is still read as a number.
+    """
+    total = row.get("total") or 0
+    if total <= 0:
+        return True
+    by_source = row.get("by_source") or {}
+    if len([n for n in by_source.values() if n]) < 2:
+        return True
+    return max(by_source.values()) / total >= SINGLE_SOURCE_SHARE
+
 
 def quarter_of(week: str) -> str:
     year, number = week.split("-W")
@@ -142,7 +171,9 @@ def build_context(conn, name: str, watchlist) -> dict:
         if not row:
             continue
         top_source, top_count = row["by_source"].most_common(1)[0]
+        gated = is_single_source(row)
         rows.append({
+            "single_source": gated,
             "id": tech.id,
             "name": tech.name,
             "family": tech.family,
@@ -151,7 +182,9 @@ def build_context(conn, name: str, watchlist) -> dict:
             "by_source": {source: row["by_source"].get(source, 0) for source in SOURCES},
             "top_source": top_source,
             "concentration": round(100 * top_count / row["total"]),
-            "shift": shifts.get(tech.id),
+            # Withheld rather than annotated. The counts stay -- they are
+            # observations, and hiding them would hide that the evidence exists.
+            "shift": None if gated else shifts.get(tech.id),
         })
     rows.sort(key=lambda item: -item["total"])
     licensed = sorted({
@@ -164,6 +197,11 @@ def build_context(conn, name: str, watchlist) -> dict:
     movers.sort(key=lambda item: -item["shift"])
     return {
         "quarter": name,
+        "single_source_count": sum(1 for row in rows if row["single_source"]),
+        "single_source_documents": sum(
+            row["total"] for row in rows if row["single_source"]
+        ),
+        "single_source_share": SINGLE_SOURCE_SHARE,
         "previous": previous_period(name),
         "weeks": weeks,
         "weeks_run": ran,
