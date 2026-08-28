@@ -292,3 +292,27 @@ def test_the_cli_passes_the_source_through(capsys):
     run.main(["--export-queries", "2026-Q2", "--source", "lens"])
     printed = capsys.readouterr().out
     assert "Lens.org" in printed and "ProQuest" not in printed
+
+
+def test_scopus_filters_by_publication_year_not_a_date_range():
+    """PUBDATETXT(a TO b) was a guess and Scopus rejected it. PUBYEAR is a
+    documented field code; the quarter is narrowed with the interface's own
+    date limiter, which is a mechanical setting rather than a judgement about
+    relevance, and the pipeline files each paper by its own date anyway."""
+    query = supplemental.build_query("scopus", "2026-Q2", _watchlist())
+    assert "PUBYEAR" in query
+    assert "PUBDATETXT" not in query
+    assert "2026" in query
+
+
+def test_a_period_spanning_two_years_asks_for_both():
+    """An ISO quarter's first Monday can fall in the previous December."""
+    years = supplemental.years_in(("2025-12-29", "2026-03-29"))
+    assert years == ["2025", "2026"]
+    assert supplemental.pubyear_clause(("2025-12-29", "2026-03-29")) == (
+        "( PUBYEAR = 2025 OR PUBYEAR = 2026 )"
+    )
+
+
+def test_a_single_year_period_asks_for_one_year():
+    assert supplemental.pubyear_clause(("2026-04-01", "2026-06-30")) == "PUBYEAR = 2026"

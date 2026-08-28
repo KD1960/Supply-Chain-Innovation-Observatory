@@ -117,11 +117,20 @@ sources:
     stage: idea
     format: ris
     note: >-
+      TURN ON "Advanced query" FIRST. In basic mode Scopus wraps the whole
+      string in TITLE-ABS-KEY(...) and searches for it as literal text, which
+      returns nothing and looks like an empty quarter.
+
       Export RIS with abstracts included. Scopus caps an abstract-inclusive
       export at 2,000 records and says so only in the interface; if the count
       approaches it, split the ISSN list in half and export twice.
+
+      PUBYEAR rather than a date range: PUBDATETXT(a TO b) was a guess and
+      Scopus rejected it. A year is wider than the quarter, which costs nothing
+      because the pipeline files each paper by its own date. Narrow with the
+      interface's date limiter if the export is too large.
     query: >-
-      ({issn}) AND PUBDATETXT({start} TO {end})
+      ({issn}) AND {pubyear}
 
   abi_inform:
     name: ProQuest ABI/INFORM

@@ -27,7 +27,7 @@ from . import config, quarter
 REGISTRY_PATH = Path(__file__).resolve().parent.parent / "sources.yaml"
 
 # Placeholders every query may use, on top of the lists declared in the file.
-PERIOD_KEYS = ("start", "end")
+PERIOD_KEYS = ("start", "end", "pubyear")
 # Built from watchlist.yaml rather than from the registry, so a lexicon edit
 # reaches the trade press query without anybody remembering to copy it across.
 WATCHLIST_KEY = "watchlist_terms"
@@ -225,6 +225,27 @@ def watchlist_terms(watchlist, join: str = " OR ") -> str:
     return join.join(f'"{phrase}"' for phrase in kept)
 
 
+def years_in(bounds: tuple[str, str]) -> list[str]:
+    start, end = bounds
+    return [str(year) for year in range(int(start[:4]), int(end[:4]) + 1)]
+
+
+def pubyear_clause(bounds: tuple[str, str]) -> str:
+    """Scopus's date filter, as a year rather than a range.
+
+    `PUBDATETXT(a TO b)` was a guess and Scopus rejected the query outright.
+    PUBYEAR is documented. A year is wider than the quarter asked for, which
+    costs nothing: the pipeline files every document by its own date, so a wide
+    export lands in the right weeks and a narrow one loses papers. The quarter
+    is narrowed in the interface's date limiter when the export is too large --
+    a mechanical setting, not a judgement about relevance.
+    """
+    years = years_in(bounds)
+    if len(years) == 1:
+        return f"PUBYEAR = {years[0]}"
+    return "( " + " OR ".join(f"PUBYEAR = {year}" for year in years) + " )"
+
+
 def render(template: str, values: dict[str, str], period: str) -> str:
     """Substitute every placeholder, or refuse.
 
@@ -232,7 +253,8 @@ def render(template: str, values: dict[str, str], period: str) -> str:
     and that something is not what anybody asked for.
     """
     start, end = period_bounds(period)
-    available = dict(values, start=start, end=end)
+    available = dict(values, start=start, end=end,
+                     pubyear=pubyear_clause((start, end)))
     missing = [
         name for name in re.findall(r"\{(\w+)\}", template) if name not in available
     ]
