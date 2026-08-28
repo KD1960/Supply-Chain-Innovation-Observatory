@@ -189,8 +189,8 @@ Roughly in value order.
 5. **Gartner Hype Cycle, if ASU licenses it.** Not just another source — an
    independent published placement to correlate our pipeline position against,
    which turns "does this metric mean anything" into a testable claim.
-6. **Decide what to do about GitHub.** Raising the star floor to 5 leaves 32
-   repositories of 735. That may be the honest answer; it is the owner's call.
+6. **Reconsider the GitHub floor** once Lens patents are collecting. Decided
+   and recorded in §8; not open until then.
 
 ## 8. Owner decisions already made — do not relitigate
 
@@ -202,6 +202,15 @@ Roughly in value order.
   call. The pipeline never edits `watchlist.yaml`; a human merges.
 - `raw_fetch` is an append-only log of fetch attempts.
 - GitHub clone cohorts require at least 1 star.
+- **GitHub stays at the 1-star floor until Lens patents are collecting**
+  (decided 2026-08-28), then the floor is reconsidered. Raising it to 5 now
+  would cut GitHub from 774 observations to roughly 35 and leave the Experiment
+  stage with almost nothing, because patents are specified but not yet built.
+  The source-diversity gate already withholds claims for the five technologies
+  that are 80%+ GitHub, which is the harm the floor was meant to address. A
+  fork-based filter was tested as an alternative and rejected: recent-push rates
+  move only from 70% to 78%, because repos are searched in the week they are
+  created and are therefore fresh by construction.
 - arXiv's old-ID limitation: leave the plan's code, log it.
 - Momentum dropped; annual report is the deliverable; collection stays weekly.
 - Three proposed technologies were rejected as fields rather than technologies:
