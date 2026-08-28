@@ -51,6 +51,11 @@ CSV_FIELDS = {
     "url": ("url", "link"),
     "venue": ("venue", "journal", "source title", "publication title", "applicants"),
     "classifications": ("cpc classifications", "classifications", "ipcr classifications"),
+    # The database's own record identifier. Without one, identity falls back to
+    # a truncated title, and a real Lens export of 185 patents collapsed into
+    # 183 documents that way -- a continuation and its parent share their words.
+    "identifier": ("lens id", "publication number", "accession number", "eid",
+                   "ut", "id", "document id"),
 }
 
 
@@ -92,7 +97,8 @@ def parse_ris(text: str) -> list[dict]:
                    "PY": "year", "DA": "date", "UR": "url", "T2": "venue",
                    # Patents. TY says which kind of record this is; a patent
                    # carries two dates and they are years apart.
-                   "TY": "kind", "C2": "grant_date", "PB": "assignee"}.get(tag)
+                   "TY": "kind", "C2": "grant_date", "PB": "assignee",
+                   "ID": "identifier", "AN": "identifier", "SN": "identifier"}.get(tag)
             if key:
                 current[key] = f"{current[key]} {value}".strip() if key in current else value
                 last_tag = key
@@ -135,6 +141,7 @@ def _normalise(record: dict) -> dict:
     doi = (record.get("doi") or "").strip()
     doi = re.sub(r"^https?://(dx\.)?doi\.org/", "", doi)
     return {
+        "identifier": (record.get("identifier") or "").strip(),
         "title": (record.get("title") or "").strip(),
         "abstract": (record.get("abstract") or "").strip(),
         "venue": (record.get("venue") or "").strip(),
@@ -143,6 +150,22 @@ def _normalise(record: dict) -> dict:
         "date": _iso_date(record.get("date"), record.get("year")),
         "url": (record.get("url") or "").strip() or (f"https://doi.org/{doi}" if doi else ""),
     }
+
+
+def document_id(source: str, record: dict) -> str:
+    """What makes this record one document rather than another.
+
+    The database's own identifier first, then a DOI, and a truncated title only
+    as a last resort. That last resort is not safe on its own: patents carry no
+    DOI, and 185 real ones produced 183 identities because two pairs shared a
+    title. Two rows silently became one, which is this project's oldest failure
+    mode wearing a new hat.
+    """
+    for key in ("identifier", "doi"):
+        value = (record.get(key) or "").strip()
+        if value:
+            return f"{source}:{value}"
+    return f"{source}:{(record.get('title') or '')[:120]}"
 
 
 def classification_evidence(source: str, record: dict) -> list[str]:
@@ -226,7 +249,7 @@ def import_exports(conn, watchlist, root: Path | None = None) -> int:
             if not hits:
                 continue
             week = config.iso_week(dt.date.fromisoformat(record["date"]))
-            doc_id = f"{source}:{record['doi'] or record['title'][:120]}"
+            doc_id = document_id(source, record)
             written += store.upsert_observations(conn, [
                 matcher.Observation(
                     source=source, week=week, tech_id=tech_id, doc_id=doc_id,

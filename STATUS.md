@@ -23,10 +23,10 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **429 passing** |
+| Tests | **437 passing** |
 | Lexicon | version **6**, 50 active technologies, 7 families |
 | Observations | **1,637** across 54 weeks, 2025-W34 → 2026-W35 |
-| By source | github 774, arxiv 611, edgar 128, hn 72, usaspending **31**, federalregister 21 |
+| By source | github 774, arxiv 611, edgar 128, **lens 85**, hn 72, usaspending 31, federalregister 21 |
 | Raw weeks on disk | 53, 2025-W35 → 2026-W35 |
 | Source runs | 318 recorded, **none has ever failed** |
 | Deliverable | annual report, `output/report-2026.html` |
@@ -115,6 +115,12 @@ exactly one star and the largest has 118. I sampled 60 repos first seen in
 2025-Q4 and re-queried them live 9–12 months later: **not one had gained a single
 star, and none had been deleted.** These are inert student and portfolio projects,
 not an ecosystem — and GitHub is 48% of all observations.
+
+**A manual export needs its own record identifier.** Identity fell back to the
+first 120 characters of the title, and 185 real patents produced 183 documents:
+patents carry no DOI, and a continuation shares its parent's words. Two rows
+became one and nothing said so. `manual.document_id` now prefers the database's
+identifier (Lens ID, EID, accession number), then a DOI, then the title.
 
 **Patents needed classification evidence, not text.** A real 185-patent Lens
 export matched **2 records** by text, and 11 even with the context gate off.

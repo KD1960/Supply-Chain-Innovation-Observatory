@@ -278,3 +278,48 @@ def test_text_and_classification_evidence_do_not_double_count(tmp_path):
     rows = conn.execute(
         "SELECT COUNT(*) FROM observations WHERE tech_id='warehouse_robotics'").fetchone()
     assert rows[0] == 1
+
+
+# --- document identity -----------------------------------------------------
+#
+# A real Lens export of 185 patents produced 183 distinct doc_ids. Patents carry
+# no DOI, so identity fell back to the first 120 characters of the title, and
+# two pairs of genuinely different patents shared one -- a continuation and its
+# parent are routinely filed under the same words. Two rows became one and
+# nothing said so. Nineteen of the titles were longer than the truncation, so
+# the collision rate was not going to stay at two.
+
+
+def test_two_records_sharing_a_title_stay_two_documents():
+    same_title = (
+        "Title,Abstract,Publication Date,Applicants,CPC Classifications,Lens ID\n"
+        '"Shelving structure","A.",2026/07/07,"A CORP","B65G1/1378",063-505-904-835-801\n'
+        '"Shelving structure","B.",2026/07/14,"B CORP","B65G1/1378",151-191-575-003-57X\n'
+    )
+    records = manual.parse_csv(same_title)
+    assert len({manual.document_id("lens", r) for r in records}) == 2
+
+
+def test_a_record_identifier_is_preferred_over_the_title():
+    record = {"doi": "", "title": "A patent", "identifier": "063-505-904-835-801"}
+    assert manual.document_id("lens", record) == "lens:063-505-904-835-801"
+
+
+def test_a_doi_is_preferred_over_a_title_when_there_is_no_identifier():
+    record = {"doi": "10.1000/xyz", "title": "A paper", "identifier": ""}
+    assert manual.document_id("scopus", record) == "scopus:10.1000/xyz"
+
+
+def test_a_record_with_only_a_title_still_gets_an_identity():
+    record = {"doi": "", "title": "A paper with no identifiers at all", "identifier": ""}
+    assert manual.document_id("scopus", record).startswith("scopus:A paper")
+
+
+def test_the_real_export_keeps_every_record_distinct():
+    """The regression this exists to catch, measured against the actual file."""
+    from pathlib import Path
+    export = Path("data/manual/2026-Q3/lens-export-supplychaininnovation.csv")
+    if not export.exists():
+        return
+    records = manual.parse_csv(export.read_text(errors="replace"))
+    assert len({manual.document_id("lens", r) for r in records}) == len(records)
