@@ -305,10 +305,18 @@ Per technology per period, over the observations in that period:
 A technology is **single-source** when `concentration >= 0.80` or
 `distinct_sources < 2`.
 
-For a single-source technology the report **withholds** pipeline position, stage
-scores and the lab-to-field index, and prints in their place the source that
-supplied the evidence and the share it supplied. Document counts, which are
-observations rather than inferences, are still shown.
+For a single-source technology the report **withholds its inferences** and keeps
+its observations. Which fields those are depends on the report:
+
+- The **quarterly report** shows no stage scores or pipeline position. Its one
+  inference is the share shift against the previous period, so that is what is
+  withheld, and a gated technology is also kept out of the movers list. Counts,
+  the per-source breakdown, and the source that supplied most of the evidence
+  are all still shown. *(Built 2026-08-28. The spec first named position and
+  stage scores here, which this report does not display; the principle is the
+  same and the fields were wrong.)*
+- The **weekly dashboard**, which does show stage scores, position and the
+  lab-to-field index, withholds those. Not yet built.
 
 Two reasons for withholding rather than annotating. A number printed beside a
 caveat is still read as a number, and this project has already shipped one wrong
@@ -320,10 +328,14 @@ The 0.80 threshold is a judgment, not a derivation. It is a named constant, and
 the quarterly report states how many technologies it gated so the choice stays
 visible and arguable rather than buried.
 
-**Expected effect on the current corpus:** seven of the eighteen well-evidenced
-technologies are gated today. If the four new sources work, most should clear.
-Whether they do is the measurement that tells us whether this spec succeeded, and
-§8 records it.
+**Measured effect on the current corpus**, once built: on 2026-Q2, **16 of 34
+technologies holding 324 of 511 documents** are gated, and 19 of 34 on Q1. Four
+of the five largest technologies are among them, as are both quarters' two
+largest movers — ERP platforms at 97% GitHub and ML demand forecasting at 92%.
+The report's headline finding was a restatement of what GitHub indexed.
+
+If the four new sources work, most of those should clear. Whether they do is the
+measurement that tells us whether this spec succeeded, and §9 records it.
 
 ### 5.6 Cadence
 
