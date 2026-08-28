@@ -130,6 +130,17 @@ def observations_for_document(
     watchlist: Watchlist, document, source: str, week: str, raw_ref: int | None
 ) -> list[Observation]:
     haystack = f"{document.title or ''}\n{document.text or ''}"
+    hits = list(watchlist.match(haystack))
+    # Evidence the retrieval carries in its own right. Added after the text
+    # matches and skipped where the text already found it, so an award that both
+    # says the word and came from a declaring source is still one observation.
+    already = {tech_id for tech_id, _ in hits}
+    note = getattr(document, "evidence_note", None) or "declared"
+    hits.extend(
+        (tech_id, note)
+        for tech_id in getattr(document, "evidences", ())
+        if tech_id not in already
+    )
     return [
         Observation(
             source=source,
@@ -147,5 +158,5 @@ def observations_for_document(
             matched_pattern=pattern,
             raw_ref=raw_ref,
         )
-        for tech_id, pattern in watchlist.match(haystack)
+        for tech_id, pattern in hits
     ]

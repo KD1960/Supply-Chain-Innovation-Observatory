@@ -77,11 +77,33 @@ looks the way it does.
 
 ## 5. What is broken or missing
 
-**USAspending returns nothing usable.** 36 award records in a year, none of which
-matched. It searches contracts only — not grants, where port and freight money
-lives — with six keywords, and then discards awards whose descriptions do not
-contain a watchlist phrase. **The Investment stage has no data at all and the
-Build Map has never plotted a point.** This is the largest broken thing.
+**USAspending is fixed** (2026-08-27). It searched six multi-word phrases, and
+the API phrase-matches them against terse award prose: `port` returns over a
+hundred awards in a week where `port infrastructure` returns one. Six such
+phrases retrieved 36 awards in a year and matched none of them.
+
+Widening the keywords -- which §7 used to recommend -- was measured and
+rejected: broad terms retrieve defence logistics services, passenger transit and
+highway resurfacing, trading a false zero for thousands of rows of false signal.
+
+It now queries **assistance-listing programmes** instead, the same
+container-filter principle as ISSNs and CPC codes in the supplemental-sources
+spec. Nine freight programmes are queried and eleven named exclusions record why
+they are not. Two programmes whose entire purpose is one tracked technology
+(Clean Ports, MARAD Air Emissions) attribute directly, because federal award
+prose describes civil works and would otherwise never match.
+
+Measured live over four weeks: **111 awards retrieved and 8 observations, from
+36 and 0.** Every observation carries coordinates, so the Build Map has points
+for the first time.
+
+**The match rate is still only 7%**, so this yields roughly 100 observations a
+year. Investment remains the thinnest stage, and whether federal infrastructure
+money should count as domain evidence without technology resolution is an open
+question for the owner.
+
+**The database does not have this data yet.** Raw usaspending on disk was
+fetched under the old query; `--backfill 52` would refetch and rebuild.
 
 **GitHub measures the wrong population.** Of 735 matched repositories, 78% have
 exactly one star and the largest has 118. I sampled 60 repos first seen in
@@ -152,10 +174,9 @@ pinned model and published prompts. The weekly run must stay deterministic.
 
 Roughly in value order.
 
-1. **Fix USAspending.** Include grants and assistance awards, widen the keyword
-   list, and treat the query itself as evidence — an award found by searching
-   "warehouse automation" is relevant whether or not its description repeats the
-   phrase. This unblocks a whole pipeline stage.
+1. **Backfill USAspending.** The collector is fixed but the corpus is not;
+   `--backfill 52` refetches under the programme query. Then decide whether the
+   7% match rate is enough for the Investment stage to make claims from.
 2. **First real licensed export.** `--import-manual` is built and tested but has
    only ever seen a synthetic file. When Kevin supplies a real Web of Science or
    Scopus export, check the field mapping against what that database actually

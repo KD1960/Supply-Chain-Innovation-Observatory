@@ -26,6 +26,12 @@ class Document:
     amount: float | None = None
     lat: float | None = None
     lon: float | None = None
+    # Technologies the retrieval itself evidences, independent of the text. A
+    # source sets this only where the query is specific enough to stand as
+    # evidence on its own -- a federal programme that funds nothing but one
+    # technology, whose awards describe civil works and would never match.
+    evidences: tuple[str, ...] = ()
+    evidence_note: str | None = None
 
 
 @dataclass(frozen=True)
