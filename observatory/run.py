@@ -13,7 +13,8 @@ import json
 import sys
 from pathlib import Path
 
-from . import config, discover, http, manual, matcher, metrics, normalize, quarter, render, store
+from . import (config, discover, http, manual, matcher, metrics, normalize,
+               quarter, render, store, supplemental)
 from .collectors import base
 from .collectors.arxiv import ArxivCollector
 from .collectors.edgar import EdgarCollector
@@ -339,6 +340,9 @@ def main(argv=None) -> int:
                         help="write the annual report for a calendar year, e.g. 2026")
     parser.add_argument("--import-manual", action="store_true",
                         help="ingest licensed exports from data/manual, then rescore")
+    parser.add_argument("--export-queries", default=None, metavar="YYYY-Qn",
+                        help="print the queries a human pastes into Scopus, Lens "
+                             "and ABI/INFORM for a period, then exit")
     args = parser.parse_args(argv)
     if args.rebuild and args.only:
         # Clearing the derived tables and then replaying one collector would
@@ -359,6 +363,12 @@ def main(argv=None) -> int:
         collectors = tuple(c for c in COLLECTORS if c.name == args.only)
         if not collectors:
             parser.error(f"unknown collector {args.only!r}")
+
+    # Before the database is even opened: this reads the watchlist and the
+    # source registry and touches nothing else.
+    if args.export_queries:
+        supplemental.print_queries(args.export_queries, watchlist)
+        return 0
 
     conn = store.connect()
     store.init_schema(conn)

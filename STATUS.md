@@ -23,7 +23,7 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **350 passing** |
+| Tests | **415 passing** |
 | Lexicon | version **6**, 50 active technologies, 7 families |
 | Observations | **1,637** across 54 weeks, 2025-W34 → 2026-W35 |
 | By source | github 774, arxiv 611, edgar 128, hn 72, usaspending **31**, federalregister 21 |
@@ -40,6 +40,7 @@ documents back into W34. That is the first run nobody supervised.
     python -m observatory.run                  # the weekly run (this is what cron does)
     python -m observatory.run --annual 2026    # the deliverable
     python -m observatory.run --quarter 2026-Q2
+    python -m observatory.run --export-queries 2026-Q4   # the sheet a human works from
     python -m observatory.run --import-manual  # licensed database exports
     python -m observatory.run --rebuild        # replay all raw under the current lexicon
     python -m observatory.run --backfill 52    # fetch N trailing weeks, then rebuild
@@ -193,7 +194,15 @@ Roughly in value order.
 1. **Backfill USAspending.** The collector is fixed but the corpus is not;
    `--backfill 52` refetches under the programme query. Then decide whether the
    7% match rate is enough for the Investment stage to make claims from.
-2. **First real licensed export.** `--import-manual` is built and tested but has
+2. **Run the first supplemental exports.** `--export-queries <quarter>` prints
+   the query for Lens.org, Scopus and ABI/INFORM, where to save each file and
+   what its sidecar must say. Lens is free and needs no library account, so it
+   goes first. **Its CPC set and query syntax are unverified** — read the first
+   result set by hand and correct `sources.yaml`, not the code. The manual
+   importer still needs Lens's CSV column names added to `manual.CSV_FIELDS`,
+   and those must come from a real file rather than from documentation.
+
+3. **First real licensed export.** `--import-manual` is built and tested but has
    only ever seen a synthetic file. When Kevin supplies a real Web of Science or
    Scopus export, check the field mapping against what that database actually
    emits rather than what its documentation claims. Factiva exports RTF/HTML and

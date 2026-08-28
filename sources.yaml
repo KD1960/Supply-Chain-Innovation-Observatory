@@ -1,0 +1,111 @@
+# Supplemental sources: the half of the corpus a human fetches.
+#
+# The principle, from the supplemental-sources spec §3: a human never identifies
+# relevant documents. A person pastes one of these queries into a database and
+# exports the whole result; the matcher decides which technologies each document
+# matches. The filter is always a property of the *container* -- the journal, the
+# patent classification, the publication -- never of the technology.
+#
+# The queries live here rather than in code because their syntax is the one thing
+# nobody can verify without an account. Correcting a template is a config edit.
+#
+# `version` is bumped whenever a query or list changes. A quarter's exports are
+# only comparable with another quarter's if this number matches.
+version: 1
+
+lists:
+  # Patent classifications covering the movement and handling of goods.
+  # UNVERIFIED against a real Lens search -- see spec §8 step 2, which begins by
+  # pulling one quarter under these codes and reading a sample by hand. A
+  # classification set that admits every conveyor belt ever patented is worse
+  # than no patent source.
+  cpc:
+    join: " OR "
+    each: 'class_cpc.symbol:"{}"'
+    items:
+      - "G06Q10/08"     # logistics -- warehousing, loading, distribution, shipping
+      - "G06Q10/087"    # inventory management
+      - "B65G"          # transport or storage devices
+      - "G05D1"         # autonomous vehicle control
+      - "B64U"          # unmanned aerial vehicles
+
+  # Supply chain, operations management and logistics journals, by ISSN.
+  # Titles are entered inconsistently and change; ISSNs do not.
+  # A starter set -- extend it before the first real export, and bump `version`
+  # when you do, because adding a journal changes the denominator.
+  issn:
+    join: " OR "
+    each: "ISSN({})"
+    items:
+      - "0272-6963"   # Journal of Operations Management
+      - "1523-2409"   # Journal of Supply Chain Management
+      - "0960-0035"   # International Journal of Physical Distribution & Logistics Mgmt
+      - "0144-3577"   # International Journal of Operations & Production Management
+      - "1059-1478"   # Production and Operations Management
+      - "1366-5545"   # Transportation Research Part E
+      - "0925-5273"   # International Journal of Production Economics
+      - "1359-8546"   # Supply Chain Management: An International Journal
+      - "0020-7543"   # International Journal of Production Research
+      - "0377-2217"   # European Journal of Operational Research
+      - "2158-1592"   # Journal of Business Logistics
+      - "0022-4154"   # Journal of Purchasing and Supply Management
+
+  # Trade publications. This is the one source that also carries a term filter
+  # (spec §4.2): publication alone yields thousands of stories a quarter. The
+  # cost is stated rather than hidden -- trade press cannot contribute to
+  # auto-discovery, because its slice is shaped by terms already on the
+  # watchlist.
+  publications:
+    join: " OR "
+    each: 'PUB("{}")'
+    items:
+      - "Supply Chain Dive"
+      - "DC Velocity"
+      - "Modern Materials Handling"
+      - "Logistics Management"
+      - "Journal of Commerce"
+      - "FreightWaves"
+      - "Supply Chain Management Review"
+      - "Material Handling & Logistics"
+
+sources:
+  lens:
+    name: Lens.org
+    family: patents
+    signal: patents
+    stage: experiment
+    format: csv
+    note: >-
+      Free with a registered account; no library subscription needed. Export
+      granted patents only -- a grant is a dated event, an application is a
+      filing whose eventual status is unknown, and mixing them double-counts.
+    query: >-
+      ({cpc}) AND date_published:[{start} TO {end}]
+      AND jurisdiction:"US" AND publication_type:"GRANTED_PATENT"
+
+  scopus:
+    name: Scopus
+    family: research
+    signal: journal_papers
+    stage: idea
+    format: ris
+    note: >-
+      Export RIS with abstracts included. Scopus caps an abstract-inclusive
+      export at 2,000 records and says so only in the interface; if the count
+      approaches it, split the ISSN list in half and export twice.
+    query: >-
+      ({issn}) AND PUBDATETXT({start} TO {end})
+
+  abi_inform:
+    name: ProQuest ABI/INFORM
+    family: trade
+    signal: trade_articles
+    stage: diffusion
+    format: ris
+    note: >-
+      Publication-restricted plus one disjunctive term query, not one search per
+      technology. Terms are generated from watchlist.yaml, so this query changes
+      when the lexicon does.
+    query: >-
+      ({publications}) AND ({watchlist_terms})
+      AND pd({start}-{end})
