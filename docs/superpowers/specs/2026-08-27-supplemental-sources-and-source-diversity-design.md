@@ -184,6 +184,50 @@ They live instead in an **external benchmark block** in the quarterly report:
 their ranking beside ours, with the rank correlation stated. When we disagree
 with MHI, that is a finding to explain, not a number to average away.
 
+## 4.5 Sources checked and not adopted
+
+Access to these was confirmed on 2026-08-28. They are recorded here with the
+reason they were not taken up, so that finding them again does not restart the
+argument.
+
+**Nexis Uni — rejected on export format.** Its trade-press and company-news
+coverage is the widest of anything available here, and on content alone it would
+rank first. It delivers PDF and RTF only. That is the same unstructured
+delivery that excluded Factiva in §4.2, and it would need a parser built against
+a brittle layout. What decides it is redundancy rather than format alone:
+ABI/INFORM already covers trade press for this project and exports clean RIS, so
+the parser would buy breadth of outlet, not a new capability. **Reconsider only
+if ABI/INFORM's publication list proves too narrow in the trial of §8** — at
+that point the breadth is worth the parser, and not before.
+
+**Applied Science Commons (Coherent Digital) — open, pending a format check.**
+A grey-literature aggregator: technical reports, standards documents, working
+papers. This is a genuine gap rather than a duplicate. Three of the nine
+technologies silent for a full year — GS1 2D barcodes, digital product passport,
+item-level RFID — are standards-driven, and standards work is published as
+reports and specifications rather than as journal articles or code. None of the
+four adopted sources sees that literature. Worth adopting if it exports
+structured metadata; its export format has not been checked.
+
+**OECD iLibrary and World Bank Publications — benchmark candidates, not
+signals.** Both publish structured indicators; the World Bank's Logistics
+Performance Index is an independently published capability ranking. They belong
+in the external benchmark block of §4.4 beside MHI, not in `weekly_signals`, and
+for the same reason: annual publication cannot feed a quarterly z-score. Their
+resolution is national, so they can corroborate the Build Map's geography but
+say nothing about any single technology.
+
+**Dun & Bradstreet Hoovers — no innovation signal.** Firmographics: industry,
+size, location, officers. It describes companies rather than what they are
+adopting. One narrow use exists — attaching an industry to EDGAR filer CIKs
+would let Corporate Adoption be read by sector — and that is a possible later
+refinement, not a source.
+
+**Barron's — subsumed.** A single investor-facing weekly, almost certainly
+inside ABI/INFORM's index already. Adding it would deepen a source the project
+already has rather than widen the base, which is the opposite of this spec's
+purpose.
+
 ## 5. What gets built
 
 ### 5.1 `--export-queries`
@@ -348,7 +392,10 @@ fail gets a test.
    makes the current report honest, and it works on data already in hand.
 4. **ABI/INFORM trade press.** The largest coverage gain and the most involved
    query.
-5. **Benchmark block**, when the MHI report is confirmed available.
+5. **Benchmark block**, when the MHI report is confirmed available. OECD and
+   World Bank indicators join it there.
+6. **Applied Science Commons**, if its export format turns out to be
+   structured. It is the only candidate that would see standards literature.
 
 Items 1 and 2 are independent of each other and of everything else.
 
