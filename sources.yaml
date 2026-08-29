@@ -53,17 +53,20 @@ lists:
       # the set -- so the miss was visible only because the totals agreed.
       - "1478-4092"   # Journal of Purchasing and Supply Management
 
-  # How a trade term is written into the query. FT() rather than a bare phrase:
-  # ProQuest's default scope is "anywhere except full text", and an ABI/INFORM
-  # trade record carries no abstract at all, so an unfielded term saw only the
-  # title and the indexer's subject terms. Fifty terms matched 19 of the 3,460
-  # articles Supply Chain Dive published in one quarter.
+  # How a trade term is written into the query.
   #
-  # Kept here rather than in code because which field a database searches by
-  # default is the kind of thing only running it reveals.
+  # UNSETTLED, and measured rather than assumed. An unfielded term returned 19
+  # articles for Supply Chain Dive in 2026-Q3; wrapping the same terms in FT()
+  # returned 13. So the two scopes are different, partly overlapping sets and
+  # neither is "everywhere" -- ProQuest's default excludes the article body,
+  # and FT() searches only the article body.
+  #
+  # Unfielded is the better of the two measured so far and stands until the
+  # scope test in docs is run. Correcting this is a config edit, which is why
+  # it lives here.
   trade_terms:
     join: " OR "
-    each: 'FT("{}")'
+    each: '"{}"'
     items: []          # filled from watchlist.yaml at query time
 
   # Trade publications. This is the one source that also carries a term filter
