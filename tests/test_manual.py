@@ -457,3 +457,55 @@ def test_a_year_only_y1_is_still_year_only():
     record = manual.parse_ris(
         "TY  - JOUR\nT1  - A\nY1  - 2026\nPY  - 2026\nDO  - 10.1/x\nER  -\n")[0]
     assert record["year_only"] is True
+
+
+# --- exports that are the same export ---------------------------------------
+#
+# Four ABI/INFORM files arrived holding 182 records between them and 52
+# distinct ones: each was a superset of the last, the signature of exporting a
+# marked-items list that kept growing rather than each query's own result. The
+# importer deduplicates by accession number, so it would have written 52 rows
+# and said nothing, leaving a quarter that looks four-publications-wide and is
+# one.
+
+
+def _export(tmp_path, name, ids):
+    body = "".join(
+        f"TY  - JOUR\nT1  - Article {i}\nAN  - {i}\nJF  - A Journal\n"
+        f"Y1  - 2026/07/01/\nER  -\n" for i in ids)
+    (tmp_path / name).write_text(body)
+    (tmp_path / f"{name}.meta.yaml").write_text(
+        f"source: abi_inform\nexported: 2026-08-29\nquery: q\nrecords: {len(ids)}\n")
+
+
+def test_two_exports_of_the_same_records_are_refused(tmp_path):
+    _export(tmp_path, "a.ris", range(1, 41))
+    _export(tmp_path, "b.ris", range(1, 51))
+    with pytest.raises(manual.ExportProblem) as raised:
+        manual.read_exports(tmp_path)
+    message = str(raised.value).lower()
+    assert "share" in message
+    assert "one result set" in message
+
+
+def test_exports_of_genuinely_different_slices_are_accepted(tmp_path):
+    _export(tmp_path, "a.ris", range(1, 41))
+    _export(tmp_path, "b.ris", range(100, 140))
+    assert len(manual.read_exports(tmp_path)) == 2
+
+
+def test_a_little_overlap_between_slices_is_tolerated(tmp_path):
+    """Two publications can carry the same syndicated story."""
+    _export(tmp_path, "a.ris", range(1, 41))
+    _export(tmp_path, "b.ris", range(38, 78))
+    assert len(manual.read_exports(tmp_path)) == 2
+
+
+def test_the_refusal_names_both_files_and_the_overlap(tmp_path):
+    _export(tmp_path, "scd.ris", range(1, 41))
+    _export(tmp_path, "mmh.ris", range(1, 51))
+    with pytest.raises(manual.ExportProblem) as raised:
+        manual.read_exports(tmp_path)
+    message = str(raised.value)
+    assert "scd.ris" in message and "mmh.ris" in message
+    assert "40" in message

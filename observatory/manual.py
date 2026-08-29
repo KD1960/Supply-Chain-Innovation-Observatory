@@ -307,8 +307,45 @@ def read_exports(root: Path) -> list[tuple[dict, list[dict]]]:
                 f"{declared}. An export capped by the database looks exactly like a "
                 f"complete one; fix the count or re-export before ingesting."
             )
-        found.append((meta, records))
-    return found
+        found.append((meta, records, path))
+    _refuse_overlapping(found)
+    return [(meta, records) for meta, records, _ in found]
+
+
+# Two slices of a corpus may share a syndicated story. Half of one file being
+# inside another is not that.
+OVERLAP_LIMIT = 0.5
+
+
+def _refuse_overlapping(found) -> None:
+    """Refuse a set of exports where one is largely inside another.
+
+    Four ABI/INFORM files once arrived holding 182 records between them and 52
+    distinct ones, each a superset of the last: a marked-items list exported
+    repeatedly as it grew, rather than each query's own result. Nothing
+    downstream would have noticed. The importer deduplicates by accession
+    number, so it writes the 52 and reports success, and the quarter looks
+    four publications wide when it is one.
+    """
+    identified = [
+        (path.name, {record["identifier"] for record in records if record["identifier"]})
+        for _, records, path in found
+    ]
+    for index, (name, ids) in enumerate(identified):
+        for other_name, other_ids in identified[index + 1:]:
+            if not ids or not other_ids:
+                continue
+            shared = len(ids & other_ids)
+            smaller = min(len(ids), len(other_ids))
+            if shared / smaller > OVERLAP_LIMIT:
+                raise ExportProblem(
+                    f"{name} and {other_name} share {shared} of {smaller} records. "
+                    f"They are two exports of one result set, not two slices of a "
+                    f"corpus -- most often a marked-items list exported again as it "
+                    f"grew. Re-export each query on its own, or delete the "
+                    f"duplicates; ingesting these would report a quarter far wider "
+                    f"than it is."
+                )
 
 
 def import_exports(conn, watchlist, root: Path | None = None, session=None) -> int:
