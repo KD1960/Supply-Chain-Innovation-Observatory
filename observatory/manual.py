@@ -38,7 +38,7 @@ from pathlib import Path
 
 import yaml
 
-from . import config, matcher, store, supplemental
+from . import config, crossref, matcher, store, supplemental
 
 REQUIRED_META = ("source", "exported", "query", "records")
 # Every field these databases disagree about the spelling of.
@@ -76,6 +76,8 @@ def _iso_date(date_text: str | None, year: str | None) -> str | None:
     # A record with only a year still belongs somewhere. January 1st is a
     # deliberate, visible approximation rather than a guess at a real day.
     if year and re.match(r"^\d{4}$", year.strip()):
+        # A year is not a week. This is kept only so the record survives to the
+        # resolver, which replaces it; `year_only` is what marks it as unplaced.
         return f"{year.strip()}-01-01"
     return None
 
@@ -148,8 +150,40 @@ def _normalise(record: dict) -> dict:
         "classifications": (record.get("classifications") or "").strip(),
         "doi": doi,
         "date": _iso_date(record.get("date"), record.get("year")),
+        # True when the only date the export gave was a bare year. Scopus RIS
+        # carries nothing else, and that year is the issue year rather than the
+        # publication date -- 12% of a 40-DOI sample stamped 2026 were published
+        # in 2025. Left as it stands, every such record lands on January 1st.
+        "year_only": not (record.get("date") or "").strip() and bool(record.get("year")),
         "url": (record.get("url") or "").strip() or (f"https://doi.org/{doi}" if doi else ""),
     }
+
+
+def dois_needing_dates(records: list[dict]) -> list[str]:
+    """The DOIs worth asking Crossref about: year-only records, and no others."""
+    return [
+        record["doi"] for record in records
+        if record.get("year_only") and record.get("doi")
+    ]
+
+
+def with_resolved_dates(records: list[dict], dates: dict[str, str | None]) -> list[dict]:
+    """Records re-dated from the resolver, dropping the ones it cannot place.
+
+    A record whose date stays a bare year is not dropped for being unimportant.
+    It is dropped because a year is not a week, and the alternative -- January
+    1st -- is a fabricated spike that no downstream reader can see through.
+    The count of what was dropped is reported by the caller.
+    """
+    placed = []
+    for record in records:
+        if not record.get("year_only"):
+            placed.append(record)
+            continue
+        resolved = dates.get(record.get("doi") or "")
+        if resolved:
+            placed.append(dict(record, date=resolved, year_only=False))
+    return placed
 
 
 def document_id(source: str, record: dict) -> str:
@@ -221,19 +255,41 @@ def read_exports(root: Path) -> list[tuple[dict, list[dict]]]:
     return found
 
 
-def import_exports(conn, watchlist, root: Path | None = None) -> int:
+def import_exports(conn, watchlist, root: Path | None = None, session=None) -> int:
     """Match every export under `root` and write the hits as observations."""
+    exports = read_exports(Path(root) if root else config.MANUAL_DIR)
+
+    # One resolver pass across every export, before any of them is matched. A
+    # bibliographic record that carries only a year cannot be placed in a week,
+    # and placing it on January 1st is what put all 2,607 records of one Scopus
+    # export into 2026-W01.
+    needing = [doi for _, records in exports for doi in dois_needing_dates(records)]
+    dates: dict[str, str | None] = {}
+    if needing:
+        print(f"  resolving {len(set(needing))} publication dates via Crossref")
+        dates = crossref.resolve(
+            needing, session=session,
+            progress=lambda done, total: print(f"    {done} of {total}"),
+        )
+
     written = 0
-    for meta, records in read_exports(Path(root) if root else config.MANUAL_DIR):
+    for meta, records in exports:
         source = str(meta["source"])
-        for record in records:
+        placed = with_resolved_dates(records, dates)
+        dropped = len(records) - len(placed)
+        if dropped:
+            # Silent truncation is this project's oldest failure mode, and a
+            # record dropped for having no placeable date is a truncation.
+            print(f"  {source}: {dropped} of {len(records)} records had no date "
+                  f"beyond a year and could not be placed in a week")
+        for record in placed:
             if not record["date"] or not record["title"]:
                 continue
             # The abstract is the licensed asset. It is read here, decides the
             # match, and is never handed to anything that persists.
             haystack = f"{record['title']}\n{record['venue']}\n{record['abstract']}"
             hits = list(watchlist.match(haystack))
-            # The classification the patent was filed under, added after the
+            # The classification the record was filed under, added after the
             # text matches and skipped where the text already found it, so a
             # patent that both says the word and carries the code is still one
             # observation.

@@ -323,3 +323,52 @@ def test_the_real_export_keeps_every_record_distinct():
         return
     records = manual.parse_csv(export.read_text(errors="replace"))
     assert len({manual.document_id("lens", r) for r in records}) == len(records)
+
+
+# --- dates a bibliographic export does not carry ---------------------------
+
+SCOPUS_RIS = """TY  - JOUR
+TI  - A paper about warehouse robotics
+AB  - Autonomous mobile robots in a warehouse.
+PY  - 2026
+DO  - 10.1000/aaa
+T2  - Journal of Operations Management
+ER  -
+"""
+
+
+def test_a_year_only_record_takes_its_date_from_the_resolver():
+    """Scopus RIS carries PY and nothing else, and PY is the issue year: 12% of
+    a 40-DOI sample stamped 2026 were published in 2025. Left alone, 2,607
+    records landed on January 1st."""
+    records = manual.parse_ris(SCOPUS_RIS)
+    enriched = manual.with_resolved_dates(records, {"10.1000/aaa": "2025-02-10"})
+    assert enriched[0]["date"] == "2025-02-10"
+
+
+def test_a_record_the_resolver_cannot_place_is_dropped_not_dated_to_january():
+    records = manual.parse_ris(SCOPUS_RIS)
+    enriched = manual.with_resolved_dates(records, {"10.1000/aaa": None})
+    assert enriched == []
+
+
+def test_a_record_that_already_has_a_real_date_is_left_alone():
+    """A patent's grant date came from the file and needs no lookup."""
+    dated = manual.parse_ris(
+        "TY  - PAT\nTI  - A patent\nC2  - 2026/07/07\nDA  - 2023/01/01\nER  -\n")
+    enriched = manual.with_resolved_dates(dated, {})
+    assert enriched[0]["date"] == "2026-07-07"
+
+
+def test_only_year_only_records_are_sent_to_the_resolver():
+    """2,607 lookups is worth not making twice, and a record that already knows
+    its day has nothing to gain."""
+    records = manual.parse_ris(SCOPUS_RIS) + manual.parse_ris(
+        "TY  - PAT\nTI  - A patent\nC2  - 2026/07/07\nDO  - 10.1000/bbb\nER  -\n")
+    assert manual.dois_needing_dates(records) == ["10.1000/aaa"]
+
+
+def test_a_year_only_record_with_no_doi_cannot_be_placed():
+    records = manual.parse_ris("TY  - JOUR\nTI  - A paper\nPY  - 2026\nER  -\n")
+    assert manual.dois_needing_dates(records) == []
+    assert manual.with_resolved_dates(records, {}) == []

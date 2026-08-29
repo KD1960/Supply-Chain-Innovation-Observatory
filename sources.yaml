@@ -48,7 +48,10 @@ lists:
       - "0020-7543"   # International Journal of Production Research
       - "0377-2217"   # European Journal of Operational Research
       - "2158-1592"   # Journal of Business Logistics
-      - "0022-4154"   # Journal of Purchasing and Supply Management
+      # Corrected 2026-08-28: 0022-4154 was wrong and returned zero records
+      # while the other eleven summed to exactly the 2,607 Scopus reported for
+      # the set -- so the miss was visible only because the totals agreed.
+      - "1478-4092"   # Journal of Purchasing and Supply Management
 
   # Trade publications. This is the one source that also carries a term filter
   # (spec §4.2): publication alone yields thousands of stories a quarter. The
