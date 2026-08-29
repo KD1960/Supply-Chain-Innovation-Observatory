@@ -1,4 +1,4 @@
-lexicon_version: 6
+lexicon_version: 7
 
 # Supply chain and operations vocabulary. A technology marked `needs_context`
 # only counts when the document also uses one of these words somewhere — that is
@@ -121,28 +121,26 @@ technologies:
                "\\bai agent(s)? (for|in) (procurement|sourcing|supply chain)"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: supply_chain_digital_twin, name: Supply chain digital twins, family: digital,
-     include: ["(supply chain|logistics|warehouse) digital twin(s)?",
-               "digital twin of (the )?(supply chain|network)"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     include: ["digital twin(s)?"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
   - {id: demand_forecasting_ml, name: ML demand forecasting, family: digital,
      include: ["demand forecasting", "demand sensing"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: control_tower, name: Supply chain control towers, family: digital,
-     include: ["(supply chain|logistics) control tower(s)?"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     include: ["control tower(s)?"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
   - {id: genai_planning, name: Generative AI for supply chain planning, family: digital,
-     include: ["generative ai (in|for) (supply chain|procurement|logistics)",
-               "\\bllm(s)? (in|for) (supply chain|logistics|procurement)"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     include: ["generative ai", "\\bgenai\\b"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
   - {id: tms_ai, name: AI transportation management, family: digital,
      include: ["transportation management system(s)?", "\\bTMS\\b",
                "\\bai\\b[^.]{0,30}route optimi[sz]ation"],
      exclude: ["transcranial magnetic stimulation", "ROS2-TMS"],
      needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W34}
   - {id: digital_freight, name: Digital freight matching, family: digital,
-     include: ["digital freight (matching|brokerage|network)", "freight marketplace(s)?",
+     include: ["digital (freight )?(matching|brokerage)", "freight marketplace(s)?",
                "digital broker(age)?"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
   # Ungated: "vehicle routing problem" and "multi-agent path finding" are
   # self-scoping, and gating them drops the papers that say "depot" and
   # "customer" but never "logistics".
@@ -156,8 +154,8 @@ technologies:
                "computational experiments", "decision support system(s)?"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
   - {id: last_mile_delivery, name: Last-mile delivery optimization, family: digital,
-     include: ["last[- ]mile delivery", "last[- ]mile logistics", "quick commerce"],
-     exclude: [], status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
+     include: ["last[- ]mile", "quick commerce", "same[- ]day (delivery|fulfil(l)?ment)"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W35}
   - {id: supply_chain_llm, name: Domain-specific LLMs for supply chain, family: digital,
      include: ["(supply chain|logistics|warehouse|procurement)[^.]{0,40}(fine[- ]tun|domain[- ]specific)[^.]{0,20}(llm|language model)",
                "llm[^.]{0,30}(warehouse|logistics|supply chain|procurement)",
@@ -227,9 +225,9 @@ technologies:
 
   # --- Networks & resilience -------------------------------------------------
   - {id: risk_intelligence, name: Supply chain risk intelligence, family: networks,
-     include: ["supply chain risk (intelligence|monitoring|platform)",
+     include: ["risk (intelligence|monitoring) platform(s)?", "risk intelligence",
                "\\bn[- ]tier (visibility|mapping)", "supplier risk platform(s)?"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
   - {id: nearshoring_analytics, name: Nearshoring and network redesign, family: networks,
      include: ["nearshoring", "reshoring", "friend[- ]shoring",
                "network (re)?design optimi[sz]ation"],

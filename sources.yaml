@@ -177,6 +177,11 @@ sources:
       technology. Terms are generated from watchlist.yaml, so this query changes
       when the lexicon does.
     split_by: publications
+    # Terms per query. A fifty-term query is three thousand characters, and
+    # ProQuest answered one with "We can't interpret your search". Batching also
+    # means nobody is ever asked to hand-edit a query, which is how that error
+    # was introduced.
+    max_terms: 15
     query: >-
       ({publications}) AND ({trade_terms})
       AND pd({start}-{end})

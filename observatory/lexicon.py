@@ -167,12 +167,20 @@ def check(conn, week: str, watchlist, proposals_path: Path | None = None) -> tup
     if not isinstance(proposed, dict):
         return [Problem("", "proposal file must be a YAML mapping with a 'technologies' key")], ""
 
-    if "technologies" not in proposed:
-        return [Problem("", "proposal file is missing the 'technologies' key")], ""
+    if "technologies" not in proposed and "revisions" not in proposed:
+        return [Problem("", "proposal file is missing both 'technologies' and 'revisions'")], ""
 
-    entries = proposed["technologies"]
+    entries = proposed.get("technologies") or []
     if not isinstance(entries, list):
         return [Problem("", "'technologies' must be a list")], ""
+
+    # A revision changes an entry the watchlist already has. It fails both of
+    # the tests a new technology must pass -- the id exists, and no candidate
+    # term surfaced it -- and neither is a fault. What a new technology carries
+    # in its candidate evidence, a revision has to carry in `because`.
+    revisions = proposed.get("revisions") or []
+    if not isinstance(revisions, list):
+        return [Problem("", "'revisions' must be a list")], ""
 
     existing = {tech.id for tech in watchlist.technologies}
     evidence = {row["term"]: row["examples"] for row in store.candidates_for_week(conn, week)}
@@ -269,7 +277,43 @@ def check(conn, week: str, watchlist, proposals_path: Path | None = None) -> tup
                     "so this would silently count zero",
                 ))
 
-    return problems, yaml.safe_dump({"technologies": entries}, sort_keys=False)
+    for entry in revisions:
+        if not isinstance(entry, dict):
+            problems.append(Problem("", f"revision entry is not a mapping: {entry!r}"))
+            continue
+        tech_id = entry.get("id", "(missing id)")
+        for required in ("id", "name", "family"):
+            if required not in entry:
+                problems.append(Problem(tech_id, f"missing '{required}', which watchlist.yaml requires"))
+        if tech_id not in existing:
+            problems.append(Problem(
+                tech_id,
+                f"revises {tech_id}, which does not exist in the watchlist -- merged as "
+                f"written it would arrive as a new technology with no added_week and no "
+                f"evidence behind it",
+            ))
+        if not str(entry.get("because") or "").strip():
+            problems.append(Problem(
+                tech_id,
+                "missing 'because' -- a new technology carries its evidence in the "
+                "candidate terms that surfaced it, and a revision has no such trail",
+            ))
+        include = entry.get("include", [])
+        if not isinstance(include, list) or not include:
+            problems.append(Problem(tech_id, "'include' is empty -- the revised technology matches nothing"))
+            include = []
+        for pattern in list(include) + list(entry.get("exclude") or []):
+            try:
+                matcher.compile_pattern(pattern)
+            except re.error as error:
+                problems.append(Problem(tech_id, f"pattern does not compile: {pattern!r} ({error})"))
+
+    written: dict = {}
+    if entries:
+        written["technologies"] = entries
+    if revisions:
+        written["revisions"] = revisions
+    return problems, yaml.safe_dump(written, sort_keys=False)
 
 
 def main(argv=None) -> int:

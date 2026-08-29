@@ -23,12 +23,14 @@
 # "critical minerals" ungated would pull in cryptocurrency and mining, and the
 # context gate is a weaker filter there than the adjacency is -- a mining
 # company's announcement says "supply chain" in passing.
-technologies:
+revisions:
 
   # 0 -> 3 in trade press, 1 -> 28 in Scopus with 18 rejected by the gate.
   # The clearest case: three Supply Chain Dive articles about digital twins in
   # supply chain, none of which said the two phrases adjacently.
   - id: supply_chain_digital_twin
+    because: >-
+      The pattern required the domain word adjacent to the technology word, so "inventory management with digital twins" was missed. Gated instead: 0 to 3 in trade press, 1 to 28 in Scopus with the gate rejecting 18 as other fields.
     name: Supply chain digital twins
     family: digital
     include:
@@ -39,6 +41,8 @@ technologies:
   # A control tower is a term of art in aviation first. Gated rather than
   # qualified, so "control tower" one clause from "inventory" counts.
   - id: control_tower
+    because: >-
+      A control tower is an aviation term first, so the domain was written into the pattern. The gate is the right filter for that and lets "control tower" one clause from "inventory" count.
     name: Supply chain control towers
     family: digital
     include:
@@ -49,6 +53,8 @@ technologies:
   # 2 -> 19 in Scopus. The old patterns required "generative AI in supply
   # chain" as a phrase, which is how nobody writes.
   - id: genai_planning
+    because: >-
+      The pattern required "generative AI in supply chain" as a phrase, which is how nobody writes. Gated: 2 to 19 in Scopus, 7 rejected.
     name: Generative AI for supply chain planning
     family: digital
     include:
@@ -60,6 +66,8 @@ technologies:
   # 55 -> 72 in Scopus. "same-day fulfilment" and a bare "last mile" are the
   # trade-press spellings.
   - id: last_mile_delivery
+    because: >-
+      Adds the trade-press spellings, which the research phrasing missed: 55 to 72 in Scopus.
     name: Last-mile delivery optimization
     family: digital
     include:
@@ -70,6 +78,8 @@ technologies:
     needs_context: true
 
   - id: digital_freight
+    because: >-
+      Same shape as the others -- the domain word sat inside the pattern where the gate belongs.
     name: Digital freight matching
     family: digital
     include:
@@ -80,6 +90,8 @@ technologies:
     needs_context: true
 
   - id: risk_intelligence
+    because: >-
+      Same shape as the others; "risk intelligence" is self-scoping enough for the gate to carry the domain.
     name: Supply chain risk intelligence
     family: networks
     include:
@@ -90,6 +102,8 @@ technologies:
     needs_context: true
 
   - id: cold_chain_iot
+    because: >-
+      Cold chain is already a domain phrase; repeating supply chain inside the pattern only narrowed it.
     name: Cold chain IoT monitoring
     family: physical
     include:
@@ -101,6 +115,8 @@ technologies:
   # Kept narrow rather than gated: "autonomous truck" is already self-scoping,
   # and the third pattern's domain word is doing no work the others do not.
   - id: autonomous_trucking
+    because: >-
+      Drops the third pattern's domain word, which did no work the first two do not. Left ungated: "autonomous truck" is self-scoping.
     name: Autonomous trucking
     family: vehicles
     include:

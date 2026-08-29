@@ -54,6 +54,9 @@ class Source:
     evidences: dict | None = None
     # The list to break this source's query up by when one export will not fit.
     split_by: str | None = None
+    # Terms per query, where the whole list is too long for the database to
+    # parse. None means one query carries them all.
+    max_terms: int | None = None
 
 
 @dataclass(frozen=True)
@@ -373,6 +376,25 @@ def _split_values(registry: Registry, source: Source) -> list[tuple[str, dict[st
     ]
 
 
+def _term_batches(source: Source, watchlist, registry: Registry) -> list[tuple[str, str]]:
+    """The term list in pieces small enough for the database to read.
+
+    Every term appears in exactly one batch. A term dropped between batches is
+    a technology that silently stops being looked for.
+    """
+    if not source.max_terms:
+        return [("", trade_terms(watchlist, registry=registry))]
+    spec = registry.lists.get("trade_terms") or {}
+    each, join = spec.get("each", '"{}"'), spec.get("join", " OR ")
+    phrases = trade_phrases(watchlist)[:MAX_TERMS]
+    batches = [phrases[i:i + source.max_terms]
+               for i in range(0, len(phrases), source.max_terms)]
+    return [
+        (f"terms{index}", join.join(each.replace("{}", phrase) for phrase in batch))
+        for index, batch in enumerate(batches, start=1)
+    ]
+
+
 def export_queries(period: str, watchlist, registry: Registry | None = None,
                    only: str | None = None, split: bool = False) -> list[dict]:
     registry = registry or load()
@@ -386,13 +408,18 @@ def export_queries(period: str, watchlist, registry: Registry | None = None,
     entries = []
     for source in wanted:
         pieces = _split_values(registry, source) if split else [("", None)]
+        batches = _term_batches(source, watchlist, registry) if split else [
+            ("", trade_terms(watchlist, registry=registry))]
         for label, values in pieces:
+          for batch_label, terms in batches:
             if values is None:
                 values = _rendered_lists(registry)
             values = dict(values)
             values[WATCHLIST_KEY] = watchlist_terms(watchlist)
-            values[TRADE_KEY] = trade_terms(watchlist, registry=registry)
-            suffix = f"-{re.sub(r'[^A-Za-z0-9]+', '', label)}" if label else ""
+            values[TRADE_KEY] = terms
+            parts = [part for part in (label, batch_label) if part]
+            suffix = ("-" + "-".join(re.sub(r'[^A-Za-z0-9]+', '', part) for part in parts)
+                      if parts else "")
             entries.append({
                 "source": source.id, "name": source.name, "family": source.family,
                 "format": source.format, "note": " ".join((source.note or "").split()),

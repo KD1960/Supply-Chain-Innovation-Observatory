@@ -359,9 +359,13 @@ def test_without_splitting_there_is_one_query_per_source():
 def test_trade_press_splits_by_publication():
     """One outlet returns 3,460 records for a quarter against a 1,000 export
     limit, so the whole set cannot come out in one file."""
+    registry = supplemental.load()
     entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
                if e["source"] == "abi_inform"]
-    assert len(entries) == len(supplemental.load().lists["publications"]["items"])
+    publications = len(registry.lists["publications"]["items"])
+    batches = -(-min(len(supplemental.trade_phrases(_watchlist())), supplemental.MAX_TERMS)
+                // registry.sources["abi_inform"].max_terms)
+    assert len(entries) == publications * batches
     for entry in entries:
         assert entry["query"].count("PUB.EXACT(") == 1
 
@@ -472,3 +476,49 @@ def test_the_term_wrapper_is_configurable_rather_than_assumed():
     assert "{}" in each
     query = supplemental.build_query("abi_inform", "2026-Q2", _watchlist())
     assert each.replace("{}", "digital twin") in query
+
+
+# --- queries short enough for the database to read --------------------------
+#
+# A fifty-term query is three thousand characters. ProQuest answered one such
+# query with "We can't interpret your search", and asking a person to hand-edit
+# one is asking them to introduce a syntax error. Batching the terms keeps each
+# query short and each export under its limit.
+
+
+def test_a_long_term_list_is_split_into_batches():
+    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+               if e["source"] == "abi_inform"]
+    publications = len(supplemental.load().lists["publications"]["items"])
+    assert len(entries) > publications, "terms should batch, not just publications"
+
+
+def test_no_query_carries_more_terms_than_the_batch_size():
+    limit = supplemental.load().sources["abi_inform"].max_terms
+    for entry in supplemental.export_queries("2026-Q2", _watchlist(), split=True):
+        if entry["source"] == "abi_inform":
+            assert entry["query"].count(" OR ") + 1 <= limit + 1
+
+
+def test_every_term_appears_in_exactly_one_batch():
+    """A term dropped between batches is a technology that silently stops being
+    looked for."""
+    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+               if e["source"] == "abi_inform"]
+    one_publication = [e for e in entries if "Supply Chain Dive" in e["query"]]
+    seen = " ".join(e["query"] for e in one_publication)
+    for phrase in supplemental.trade_phrases(_watchlist())[:supplemental.MAX_TERMS]:
+        assert f'"{phrase}"' in seen, phrase
+
+
+def test_each_batch_gets_its_own_filename():
+    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+               if e["source"] == "abi_inform"]
+    names = [e["filename"] for e in entries]
+    assert len(set(names)) == len(names)
+
+
+def test_a_source_with_no_term_limit_is_not_batched():
+    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+               if e["source"] == "scopus"]
+    assert len(entries) == len(supplemental.load().lists["issn"]["items"])

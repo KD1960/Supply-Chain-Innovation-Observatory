@@ -420,3 +420,96 @@ def test_check_reports_a_problem_when_include_is_missing(conn, watchlist, tmp_pa
     """)
     problems, _ = lexicon.check(conn, "2026-W33", watchlist, path)
     assert any("include" in problem.message for problem in problems)
+
+
+# --- revising an entry that already exists ---------------------------------
+#
+# `check` was written for discovery: new technologies drawn from the week's
+# candidate terms. Ten entries then needed *revising* -- their patterns carried
+# the domain word while the context gate sat off -- and every one was rejected
+# twice over, for existing already and for matching no candidate evidence.
+# Neither is a fault in a revision, and the workflow had no other door.
+
+REVISION = """
+revisions:
+  - id: supply_chain_digital_twin
+    name: Supply chain digital twins
+    family: digital
+    include:
+      - "digital twin(s)?"
+    exclude: []
+    needs_context: true
+    because: >-
+      The pattern required the domain word adjacent to the technology word, so
+      an article saying "inventory management with digital twins" was missed.
+"""
+
+
+def test_a_revision_of_an_existing_technology_is_accepted(conn, tmp_path):
+    path = tmp_path / "r.yaml"
+    path.write_text(REVISION)
+    problems, _ = lexicon.check(conn, "2026-W35", _watchlist(), path)
+    assert problems == []
+
+
+def test_a_revision_must_name_a_technology_that_exists(conn, tmp_path):
+    """Revising something absent is a typo, and it would merge as a new
+    technology with no `added_week` and no evidence behind it."""
+    path = tmp_path / "r.yaml"
+    path.write_text(REVISION.replace("supply_chain_digital_twin", "no_such_thing"))
+    problems, _ = lexicon.check(conn, "2026-W35", _watchlist(), path)
+    assert any("does not exist" in problem.message for problem in problems)
+
+
+def test_a_revision_must_say_why(conn, tmp_path):
+    """A new technology carries its evidence in the candidate terms that
+    surfaced it. A revision has no such trail, so the reason is the trail."""
+    path = tmp_path / "r.yaml"
+    path.write_text(REVISION.replace("    because: >-", "    unused: >-"))
+    problems, _ = lexicon.check(conn, "2026-W35", _watchlist(), path)
+    assert any("because" in problem.message for problem in problems)
+
+
+def test_a_revision_is_not_asked_for_candidate_evidence(conn, tmp_path):
+    """The evidence test exists to stop a proposed technology that matches
+    nothing in the week that surfaced it. A revision was not surfaced by a
+    week."""
+    path = tmp_path / "r.yaml"
+    path.write_text(REVISION)
+    problems, _ = lexicon.check(conn, "2026-W35", _watchlist(), path)
+    assert not any("candidate evidence" in problem.message for problem in problems)
+
+
+def test_a_revisions_patterns_still_have_to_compile(conn, tmp_path):
+    path = tmp_path / "r.yaml"
+    path.write_text(REVISION.replace('"digital twin(s)?"', '"digital twin(s"'))
+    problems, _ = lexicon.check(conn, "2026-W35", _watchlist(), path)
+    assert any("does not compile" in problem.message for problem in problems)
+
+
+def test_a_revision_that_empties_its_patterns_is_refused(conn, tmp_path):
+    path = tmp_path / "r.yaml"
+    path.write_text(REVISION.replace('      - "digital twin(s)?"\n', ""))
+    problems, _ = lexicon.check(conn, "2026-W35", _watchlist(), path)
+    assert any("matches nothing" in problem.message for problem in problems)
+
+
+def test_a_file_may_hold_both_new_technologies_and_revisions(conn, tmp_path):
+    path = tmp_path / "r.yaml"
+    path.write_text(REVISION + """
+technologies:
+  - id: brand_new
+    name: Brand new
+    family: digital
+    include:
+      - "vehicle routing"
+    exclude: []
+    needs_context: false
+""")
+    problems, _ = lexicon.check(conn, "2026-W35", _watchlist(), path)
+    assert not any(p.term == "supply_chain_digital_twin" for p in problems)
+
+
+def _watchlist():
+    from observatory import matcher
+    return matcher.load_watchlist()
