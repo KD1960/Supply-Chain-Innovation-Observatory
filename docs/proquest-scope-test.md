@@ -1,6 +1,44 @@
 # Which ProQuest scope to search
 
-**Status:** open. Two guesses have been wrong; this settles it by measurement.
+**Status:** settled 2026-08-29. Recorded because the conclusion reversed two earlier changes.
+
+## The answer
+
+Supply Chain Dive, 2026-Q3, the term "digital twin":
+
+| Query | Articles |
+|---|---|
+| `PUB.EXACT(...) AND "digital twin"` | **22** |
+| `PUB.EXACT(...) AND FT("digital twin")` | **22** |
+| `PUB.EXACT(...) AND ("digital twin" OR FT("digital twin"))` | **22** |
+| `PUB.EXACT(...) AND ALL("digital twin")` | 1 |
+| `PUB.EXACT(...)` — no term filter | **4,706** |
+
+Unfielded and `FT()` are the same search here, so the plain phrase stands and
+`FT()` was reverted. `ALL()` is not "anywhere" and must never be used.
+
+**The scope was never the problem.** One term returns 22 on its own, so the
+fifty-term query could not have returned 19. Those readings came from
+ProQuest's marked-items list accumulating across searches while signed in --
+each export carried the previous selections rather than that query's own
+results. Clearing the selections between exports is the fix, and
+`manual._refuse_overlapping` now refuses the files if it is forgotten.
+
+A term filter is still needed: 4,706 articles in one publication in one quarter
+is far past the 1,000-record export limit. Fifty terms at roughly this hit rate
+should land in the high hundreds, which fits.
+
+## Two guesses that were wrong
+
+Worth keeping, because both were plausible and both cost a round trip.
+
+- **"ProQuest's default excludes the article body, so wrap terms in FT()."**
+  It does exclude it, and wrapping changed nothing.
+- **"3,460 articles with only 19 matches means the filter is broken."** The
+  3,460 was measured under `PUB(...)`, which matched partially. The real
+  denominator is 4,706, and 22 of it for one niche term is unremarkable.
+
+---
 
 ## What is known
 

@@ -53,17 +53,22 @@ lists:
       # the set -- so the miss was visible only because the totals agreed.
       - "1478-4092"   # Journal of Purchasing and Supply Management
 
-  # How a trade term is written into the query.
+  # How a trade term is written into the query. Settled by measurement on
+  # 2026-08-29, Supply Chain Dive, 2026-Q3, the term "digital twin":
   #
-  # UNSETTLED, and measured rather than assumed. An unfielded term returned 19
-  # articles for Supply Chain Dive in 2026-Q3; wrapping the same terms in FT()
-  # returned 13. So the two scopes are different, partly overlapping sets and
-  # neither is "everywhere" -- ProQuest's default excludes the article body,
-  # and FT() searches only the article body.
+  #     unfielded                          22
+  #     FT("digital twin")                 22
+  #     ("digital twin" OR FT(...))        22
+  #     ALL("digital twin")                 1
   #
-  # Unfielded is the better of the two measured so far and stands until the
-  # scope test in docs is run. Correcting this is a config edit, which is why
-  # it lives here.
+  # Unfielded and FT are the same search here, so the plain phrase stands.
+  # ALL() is not "anywhere" and must never be used.
+  #
+  # The earlier readings of 19 and 13 were not scope at all: they came from
+  # ProQuest's marked-items list accumulating across searches while signed in,
+  # so each export carried the previous selections rather than that query's
+  # results. One term returns 22 on its own, so fifty terms could not have
+  # returned 19. See docs/proquest-scope-test.md.
   trade_terms:
     join: " OR "
     each: '"{}"'
