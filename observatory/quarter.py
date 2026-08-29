@@ -17,13 +17,12 @@ import collections
 import datetime as dt
 from pathlib import Path
 
-from . import config, render
+from . import config, render, supplemental
 
 QUARTER_WEEKS = 13
 # The six public collectors. Anything else in `observations` arrived through a
 # hand-made export from a licensed database (see manual.py), which a reader
 # without a subscription cannot follow -- so the report says so.
-SOURCES = ("arxiv", "github", "hn", "edgar", "federalregister", "usaspending")
 
 # A technology drawing this much of its evidence from one source is reported as
 # a count and nothing more. Measured on the real corpus at the time this was
@@ -69,6 +68,17 @@ EVIDENCE_FAMILIES: dict[str, str] = {
 # the threshold belongs; Scopus, ABI/INFORM and Lens are expected to change it
 # substantially. The mechanism ships now and the number is set against real data
 # after the first quarter that has them.
+
+# Every source that can appear in `observations`. Written as a six-tuple before
+# any human-supplied export existed, which meant Scopus and Lens vanished from
+# the table the moment they arrived: a technology with 26 observations rendered
+# its evidence as "[]" and one with 89 showed a breakdown summing to 18. The
+# totals and the gate were right and the table was not, which is the worse way
+# round.
+COLLECTORS = ("arxiv", "github", "hn", "edgar", "federalregister", "usaspending")
+SOURCES = COLLECTORS + tuple(
+    source for source in EVIDENCE_FAMILIES if source not in COLLECTORS
+)
 FAMILY_FLOOR = 1
 
 
@@ -218,31 +228,39 @@ def build_context(conn, name: str, watchlist) -> dict:
         row = counts.get(tech.id)
         if not row:
             continue
-        top_source, top_count = row["by_source"].most_common(1)[0]
         gated = is_single_source(row)
         families = by_family(row["by_source"])
+        # The family, not the top source. Showing the source's share beside a
+        # verdict reached on the family's produced rows reading "48% arxiv"
+        # next to a GATED mark, which a reader can only take as a mistake.
+        top_family, top_count = families.most_common(1)[0]
         rows.append({
             "single_source": gated,
             "families": len([n for n in families.values() if n >= FAMILY_FLOOR]),
-            "top_family": families.most_common(1)[0][0],
+            "top_family": top_family,
             "id": tech.id,
             "name": tech.name,
             "family": tech.family,
             "total": row["total"],
             "filers": row["filers"],
             "by_source": {source: row["by_source"].get(source, 0) for source in SOURCES},
-            "top_source": top_source,
+            "by_family": dict(families),
+            "top_source": row["by_source"].most_common(1)[0][0],
             "concentration": round(100 * top_count / row["total"]),
             # Withheld rather than annotated. The counts stay -- they are
             # observations, and hiding them would hide that the evidence exists.
             "shift": None if gated else shifts.get(tech.id),
         })
     rows.sort(key=lambda item: -item["total"])
+    # Sources a reader without a subscription cannot follow. Defined by what
+    # they are rather than by absence from a hardcoded list: once supplemental
+    # sources became first-class columns, "not in SOURCES" named nothing.
+    human_fetched = set(supplemental.load().sources)
     licensed = sorted({
         source
         for row in counts.values()
         for source in row["by_source"]
-        if source not in SOURCES
+        if source in human_fetched
     })
     movers = [row for row in rows if row["shift"] is not None]
     movers.sort(key=lambda item: -item["shift"])

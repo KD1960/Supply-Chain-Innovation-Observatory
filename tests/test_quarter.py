@@ -410,11 +410,13 @@ def test_a_source_below_the_floor_does_not_count_towards_diversity(monkeypatch):
     assert quarter.is_single_source(_row({"arxiv": 7, "github": 3})) is False
 
 
-def test_the_current_six_sources_are_each_their_own_family():
-    """Today every collector is a distinct kind of evidence, so introducing
-    families must not change a single verdict on the existing corpus."""
-    families = {quarter.family_of(s) for s in quarter.SOURCES}
-    assert len(families) == len(quarter.SOURCES)
+def test_the_api_collectors_are_each_their_own_family():
+    """Each of the six is a distinct kind of evidence, so introducing families
+    changed no verdict on the corpus as it stood. The supplemental sources are
+    what families exist for: arXiv and Scopus share one."""
+    families = {quarter.family_of(s) for s in quarter.COLLECTORS}
+    assert len(families) == len(quarter.COLLECTORS)
+    assert quarter.family_of("scopus") == quarter.family_of("arxiv")
 
 
 def test_the_report_states_the_floor_and_the_family_requirement(conn):
@@ -431,3 +433,72 @@ def test_rows_report_how_many_families_back_them(conn):
     broad = next(r for r in context["rows"] if r["id"] == "broad")
     assert solo["families"] == 1
     assert broad["families"] >= 2
+
+
+# --- showing every source ---------------------------------------------------
+#
+# SOURCES was a hardcoded six-tuple written before any human-supplied export
+# existed. After Scopus and Lens landed, a technology with 26 observations
+# rendered its evidence breakdown as "[]" and one with 89 showed a breakdown
+# summing to 18. The totals and the gate were right; the table was not.
+
+
+def test_the_source_list_covers_every_registered_supplemental_source():
+    from observatory import supplemental
+    for source_id in supplemental.load().sources:
+        assert source_id in quarter.SOURCES, f"{source_id} would vanish from the table"
+
+
+def test_the_source_list_still_covers_the_api_collectors():
+    for source_id in ("arxiv", "github", "hn", "edgar", "federalregister", "usaspending"):
+        assert source_id in quarter.SOURCES
+
+
+def test_a_rows_breakdown_accounts_for_every_document(conn):
+    """The breakdown is the evidence for the total. If they disagree, one of
+    them is wrong and the reader cannot tell which."""
+    observe(conn, "a", "2026-W14", "arxiv", "d1")
+    observe(conn, "a", "2026-W15", "scopus", "d2")
+    observe(conn, "a", "2026-W16", "lens", "d3")
+    for week in quarter.weeks_in_quarter("2026-Q2"):
+        conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    watchlist = Watchlist(version=1, context=("x",), technologies=(tech("a"),))
+    row = quarter.build_context(conn, "2026-Q2", watchlist)["rows"][0]
+    assert sum(row["by_source"].values()) == row["total"]
+
+
+def test_rows_carry_a_family_breakdown_for_display(conn):
+    """Eight source columns will not fit a table. Families are the unit the
+    gate already uses, and there are fewer of them."""
+    observe(conn, "a", "2026-W14", "arxiv", "d1")
+    observe(conn, "a", "2026-W15", "scopus", "d2")
+    observe(conn, "a", "2026-W16", "lens", "d3")
+    for week in quarter.weeks_in_quarter("2026-Q2"):
+        conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    watchlist = Watchlist(version=1, context=("x",), technologies=(tech("a"),))
+    row = quarter.build_context(conn, "2026-Q2", watchlist)["rows"][0]
+    assert row["by_family"]["research"] == 2      # arxiv and scopus together
+    assert row["by_family"]["patents"] == 1
+    assert sum(row["by_family"].values()) == row["total"]
+
+
+def test_the_concentration_shown_is_the_one_the_gate_used(conn):
+    """Vehicle routing rendered "48% arxiv" beside a GATED mark, because the
+    number came from the top source while the verdict came from the family --
+    arXiv and Scopus together were 97% of its evidence. A reader cannot
+    reconcile those, and would conclude the gate was wrong."""
+    for n in range(1, 8):
+        observe(conn, "a", f"2026-W1{n}", "arxiv", f"x{n}")
+    for n in range(1, 10):
+        observe(conn, "a", f"2026-W2{n%6}", "scopus", f"s{n}")
+    observe(conn, "a", "2026-W14", "github", "g1")
+    for week in quarter.weeks_in_quarter("2026-Q2"):
+        conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    watchlist = Watchlist(version=1, context=("x",), technologies=(tech("a"),))
+    row = quarter.build_context(conn, "2026-Q2", watchlist)["rows"][0]
+    assert row["top_family"] == "research"
+    assert row["concentration"] == round(100 * row["by_family"]["research"] / row["total"])
+    assert row["single_source"] is (row["concentration"] >= 80)

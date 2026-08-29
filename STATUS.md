@@ -23,10 +23,11 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **437 passing** |
+| Tests | **468 passing** |
 | Lexicon | version **6**, 50 active technologies, 7 families |
-| Observations | **1,637** across 54 weeks, 2025-W34 → 2026-W35 |
-| By source | github 774, arxiv 611, edgar 128, **lens 85**, hn 72, usaspending 31, federalregister 21 |
+| Observations | **2,327** across 54 weeks, 2025-W34 → 2026-W35 |
+| By source | github 774, arxiv 611, **scopus 605**, edgar 128, **lens 85**, hn 72, usaspending 31, federalregister 21 |
+| Evidence families | research, code, patents, filings, regulation, money, community — **7 of 8** (no trade press yet) |
 | Raw weeks on disk | 53, 2025-W35 → 2026-W35 |
 | Source runs | 318 recorded, **none has ever failed** |
 | Deliverable | annual report, `output/report-2026.html` |
