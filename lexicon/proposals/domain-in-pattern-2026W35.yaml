@@ -1,0 +1,112 @@
+# Ten technologies whose patterns carry the domain word themselves, with the
+# context gate switched off. The effect is a recall failure that looks like
+# absence: "Target strengthens inventory management with digital twins" does
+# not match `(supply chain|logistics|warehouse) digital twin(s)?`, because the
+# domain word has to sit adjacent to the technology word rather than anywhere
+# in the document.
+#
+# The gate exists for exactly this. Moving the domain out of the pattern and
+# switching `needs_context` on keeps precision -- measured below, the gate
+# rejects 18 of 46 digital-twin papers in Scopus as belonging to other fields
+# -- while recovering documents that say the domain word one clause away.
+#
+# Measured on the corpora in hand, 2026-Q3:
+#
+#   technology                  corpus    now   proposed   gate rejects
+#   supply_chain_digital_twin   trade       0          3              0
+#   supply_chain_digital_twin   scopus      1         28             18
+#   genai_planning              scopus      2         19              7
+#   last_mile_delivery          scopus     55         72              0
+#
+# NOT proposed, deliberately: `blockchain_traceability` and
+# `minerals_traceability` keep their domain-bearing patterns. "Blockchain" and
+# "critical minerals" ungated would pull in cryptocurrency and mining, and the
+# context gate is a weaker filter there than the adjacency is -- a mining
+# company's announcement says "supply chain" in passing.
+technologies:
+
+  # 0 -> 3 in trade press, 1 -> 28 in Scopus with 18 rejected by the gate.
+  # The clearest case: three Supply Chain Dive articles about digital twins in
+  # supply chain, none of which said the two phrases adjacently.
+  - id: supply_chain_digital_twin
+    name: Supply chain digital twins
+    family: digital
+    include:
+      - "digital twin(s)?"
+    exclude: []
+    needs_context: true
+
+  # A control tower is a term of art in aviation first. Gated rather than
+  # qualified, so "control tower" one clause from "inventory" counts.
+  - id: control_tower
+    name: Supply chain control towers
+    family: digital
+    include:
+      - "control tower(s)?"
+    exclude: []
+    needs_context: true
+
+  # 2 -> 19 in Scopus. The old patterns required "generative AI in supply
+  # chain" as a phrase, which is how nobody writes.
+  - id: genai_planning
+    name: Generative AI for supply chain planning
+    family: digital
+    include:
+      - "generative ai"
+      - "\\bgenai\\b"
+    exclude: []
+    needs_context: true
+
+  # 55 -> 72 in Scopus. "same-day fulfilment" and a bare "last mile" are the
+  # trade-press spellings.
+  - id: last_mile_delivery
+    name: Last-mile delivery optimization
+    family: digital
+    include:
+      - "last[- ]mile"
+      - "quick commerce"
+      - "same[- ]day (delivery|fulfil(l)?ment)"
+    exclude: []
+    needs_context: true
+
+  - id: digital_freight
+    name: Digital freight matching
+    family: digital
+    include:
+      - "digital (freight )?(matching|brokerage)"
+      - "freight marketplace(s)?"
+      - "digital broker(age)?"
+    exclude: []
+    needs_context: true
+
+  - id: risk_intelligence
+    name: Supply chain risk intelligence
+    family: networks
+    include:
+      - "risk intelligence"
+      - "n-tier visibility"
+      - "supplier risk platform(s)?"
+    exclude: []
+    needs_context: true
+
+  - id: cold_chain_iot
+    name: Cold chain IoT monitoring
+    family: physical
+    include:
+      - "cold chain (monitoring|visibility|sensor(s)?)"
+      - "temperature[- ]controlled (logistics|monitoring)"
+    exclude: []
+    needs_context: true
+
+  # Kept narrow rather than gated: "autonomous truck" is already self-scoping,
+  # and the third pattern's domain word is doing no work the others do not.
+  - id: autonomous_trucking
+    name: Autonomous trucking
+    family: vehicles
+    include:
+      - "autonomous truck(s|ing)?"
+      - "driverless truck(s|ing)?"
+      - "self[- ]driving (truck|freight)"
+    exclude:
+      - "autonomous trucking (bill|act)"
+    needs_context: false
