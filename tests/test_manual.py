@@ -372,3 +372,88 @@ def test_a_year_only_record_with_no_doi_cannot_be_placed():
     records = manual.parse_ris("TY  - JOUR\nTI  - A paper\nPY  - 2026\nER  -\n")
     assert manual.dois_needing_dates(records) == []
     assert manual.with_resolved_dates(records, {}) == []
+
+
+# --- ProQuest -------------------------------------------------------------
+#
+# Captured from a real ABI/INFORM export. ProQuest names its fields differently
+# from every other RIS producer: the publication is JF rather than T2, the date
+# is Y1 in slash form while DA carries an unparseable "2026 Aug 27", and there
+# is no abstract at all -- only indexer-assigned subject terms.
+
+PROQUEST_RIS = """TY  - JOUR
+T1  - Amazon to expand drone delivery reach sixfold this year
+AN  - 3379430251
+JF  - Supply Chain Dive
+AU  - Garland, Max
+Y1  - 2026/08/27/
+PY  - 2026
+DA  - 2026 Aug 27
+PB  - Industry Dive
+KW  - Supply chains
+KW  - Logistics
+KW  - Postal & delivery services
+UR  - https://www.proquest.com/docview/3379430251
+ER  -
+"""
+
+
+def test_a_proquest_record_is_dated_from_its_slash_form_date():
+    """DA reads "2026 Aug 27", which no ISO parser will take, so every record
+    fell back to the bare year and landed on January 1st."""
+    assert manual.parse_ris(PROQUEST_RIS)[0]["date"] == "2026-08-27"
+
+
+def test_the_publication_becomes_the_venue():
+    """ProQuest uses JF where the bibliographic databases use T2, so every
+    record in a real export carried an empty publication."""
+    assert manual.parse_ris(PROQUEST_RIS)[0]["venue"] == "Supply Chain Dive"
+
+
+def test_subject_terms_are_kept_for_matching():
+    """There is no abstract in a ProQuest trade export. The subject terms are
+    the only thing besides the title that says what the article is about, and
+    including them took the match rate on a real export from 4 of 36 to 9."""
+    record = manual.parse_ris(PROQUEST_RIS)[0]
+    assert "Logistics" in record["keywords"]
+    assert "Postal & delivery services" in record["keywords"]
+
+
+def test_the_haystack_includes_the_subject_terms():
+    record = manual.parse_ris(PROQUEST_RIS)[0]
+    assert "Logistics" in manual.haystack(record)
+    assert "Amazon to expand drone delivery" in manual.haystack(record)
+
+
+def test_a_proquest_record_is_not_treated_as_year_only():
+    """Y1 gives a real day, so this record needs no Crossref lookup."""
+    records = manual.parse_ris(PROQUEST_RIS)
+    assert records[0]["year_only"] is False
+    assert manual.dois_needing_dates(records) == []
+
+
+def test_the_accession_number_is_the_document_identity():
+    assert manual.document_id("abi_inform", manual.parse_ris(PROQUEST_RIS)[0]) == \
+        "abi_inform:3379430251"
+
+
+def test_a_monthly_publications_date_becomes_the_first_of_that_month():
+    """Y1 of "2026/08//" is what a monthly carries. Five Modern Materials
+    Handling records fell through to January on it."""
+    assert manual.parse_ris(
+        "TY  - JOUR\nT1  - A\nY1  - 2026/08//\nPY  - 2026\nER  -\n")[0]["date"] == "2026-08-01"
+
+
+def test_a_bimonthly_issue_takes_the_first_month_of_its_range():
+    """Y1 of "2026///Jul/Aug" is a two-month issue. Its first month is a
+    visible approximation; January is a fabrication."""
+    assert manual.parse_ris(
+        "TY  - JOUR\nT1  - A\nY1  - 2026///Jul/Aug\nPY  - 2026\nER  -\n")[0]["date"] == "2026-07-01"
+
+
+def test_a_year_only_y1_is_still_year_only():
+    """The academic records carry Y1 of "2026" and nothing more. They need the
+    resolver like any other year-only record."""
+    record = manual.parse_ris(
+        "TY  - JOUR\nT1  - A\nY1  - 2026\nPY  - 2026\nDO  - 10.1/x\nER  -\n")[0]
+    assert record["year_only"] is True

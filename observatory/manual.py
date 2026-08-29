@@ -63,8 +63,36 @@ class ExportProblem(Exception):
     """A hand-made export that cannot be trusted, named rather than ingested."""
 
 
+MONTHS = {name: number for number, name in enumerate(
+    ("jan", "feb", "mar", "apr", "may", "jun",
+     "jul", "aug", "sep", "oct", "nov", "dec"), start=1)}
+
+
+def _partial_date(raw: str) -> str | None:
+    """A date that names less than a day, from ProQuest's slash form.
+
+    `2026/08/27/` is a daily, `2026/08//` a monthly, `2026///Jul/Aug` a
+    bimonthly issue. The first of the month, and the first month of a range,
+    are visible approximations. January is a fabrication -- seventeen of
+    thirty-six records landed there before this existed.
+    """
+    parts = [part for part in raw.split("/") if part.strip()]
+    if not parts or not re.match(r"^\d{4}$", parts[0]):
+        return None
+    year = int(parts[0])
+    for part in parts[1:]:
+        cleaned = part.strip().lower()
+        if re.match(r"^\d{1,2}$", cleaned) and 1 <= int(cleaned) <= 12:
+            return f"{year:04d}-{int(cleaned):02d}-01"
+        if cleaned[:3] in MONTHS:
+            return f"{year:04d}-{MONTHS[cleaned[:3]]:02d}-01"
+    return None
+
+
 def _iso_date(date_text: str | None, year: str | None) -> str | None:
-    for raw in (date_text or "", ""):
+    raw_text = (date_text or "").strip()
+    partial = _partial_date(raw_text) if "/" in raw_text else None
+    for raw in (raw_text, ""):
         cleaned = raw.strip().replace("/", "-").strip("-")
         match = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})", cleaned)
         if match:
@@ -73,6 +101,8 @@ def _iso_date(date_text: str | None, year: str | None) -> str | None:
                 return dt.date(year_n, month, day).isoformat()
             except ValueError:
                 break
+    if partial:
+        return partial
     # A record with only a year still belongs somewhere. January 1st is a
     # deliberate, visible approximation rather than a guess at a real day.
     if year and re.match(r"^\d{4}$", year.strip()):
@@ -97,12 +127,21 @@ def parse_ris(text: str) -> list[dict]:
                 continue
             key = {"TI": "title", "T1": "title", "AB": "abstract", "DO": "doi",
                    "PY": "year", "DA": "date", "UR": "url", "T2": "venue",
+                   # ProQuest names things its own way: the publication is JF,
+                   # and the usable date is Y1 in slash form while DA carries
+                   # "2026 Aug 27", which no ISO parser will take.
+                   "JF": "venue", "JO": "venue", "Y1": "issued",
+                   # A trade export has no abstract. The indexer's subject terms
+                   # are the only other thing saying what the article is about.
+                   "KW": "keywords",
                    # Patents. TY says which kind of record this is; a patent
                    # carries two dates and they are years apart.
                    "TY": "kind", "C2": "grant_date", "PB": "assignee",
                    "ID": "identifier", "AN": "identifier", "SN": "identifier"}.get(tag)
             if key:
-                current[key] = f"{current[key]} {value}".strip() if key in current else value
+                separator = "; " if key == "keywords" else " "
+                current[key] = (f"{current[key]}{separator}{value}".strip()
+                                if key in current else value)
                 last_tag = key
             else:
                 last_tag = None
@@ -148,13 +187,16 @@ def _normalise(record: dict) -> dict:
         "abstract": (record.get("abstract") or "").strip(),
         "venue": (record.get("venue") or "").strip(),
         "classifications": (record.get("classifications") or "").strip(),
+        "keywords": (record.get("keywords") or "").strip(),
         "doi": doi,
-        "date": _iso_date(record.get("date"), record.get("year")),
+        "date": _iso_date(record.get("issued") or record.get("date"), record.get("year")),
         # True when the only date the export gave was a bare year. Scopus RIS
         # carries nothing else, and that year is the issue year rather than the
         # publication date -- 12% of a 40-DOI sample stamped 2026 were published
         # in 2025. Left as it stands, every such record lands on January 1st.
-        "year_only": not (record.get("date") or "").strip() and bool(record.get("year")),
+        "year_only": (not _iso_date(record.get("issued"), None)
+                      and not _iso_date(record.get("date"), None)
+                      and bool(record.get("year"))),
         "url": (record.get("url") or "").strip() or (f"https://doi.org/{doi}" if doi else ""),
     }
 
@@ -184,6 +226,20 @@ def with_resolved_dates(records: list[dict], dates: dict[str, str | None]) -> li
         if resolved:
             placed.append(dict(record, date=resolved, year_only=False))
     return placed
+
+
+def haystack(record: dict) -> str:
+    """Everything about a record that says what it is about.
+
+    Subject terms matter because a ProQuest trade export has no abstract at
+    all. On a real 36-record export they took the match rate from 4 to 9, and
+    they carry the domain words -- "Logistics", "Supply chains" -- that the
+    context gate needs before a technology term in a headline can count.
+    """
+    return "\n".join(part for part in (
+        record.get("title"), record.get("venue"),
+        record.get("abstract"), record.get("keywords"),
+    ) if part)
 
 
 def document_id(source: str, record: dict) -> str:
@@ -287,8 +343,7 @@ def import_exports(conn, watchlist, root: Path | None = None, session=None) -> i
                 continue
             # The abstract is the licensed asset. It is read here, decides the
             # match, and is never handed to anything that persists.
-            haystack = f"{record['title']}\n{record['venue']}\n{record['abstract']}"
-            hits = list(watchlist.match(haystack))
+            hits = list(watchlist.match(haystack(record)))
             # The classification the record was filed under, added after the
             # text matches and skipped where the text already found it, so a
             # patent that both says the word and carries the code is still one
