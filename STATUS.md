@@ -23,10 +23,11 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **510 passing** |
+| Tests | **514 passing** |
 | Lexicon | version **7**, 50 active technologies, 7 families |
-| Observations | **2,702** across 54 weeks, 2025-W34 → 2026-W35 |
-| By source | scopus 847, github 846, arxiv 736, edgar 128, lens 85, hn 79, usaspending 33, federalregister 21 |
+| Observations | **2,711** across 54 weeks, 2025-W34 → 2026-W35 |
+| By source | scopus 830, github 826, arxiv 705, edgar 128, lens 85, hn 74, usaspending 33, federalregister 21, abi_inform 9 |
+| Evidence families | **all 8 populated** — research, code, patents, filings, trade, regulation, money, community |
 | Evidence families | research, code, patents, filings, regulation, money, community — **7 of 8** (no trade press yet) |
 | Raw weeks on disk | 53, 2025-W35 → 2026-W35 |
 | Source runs | 318 recorded, **none has ever failed** |
@@ -167,6 +168,15 @@ their silence on the USAspending fix** — federal money was the source that saw
 them, which is exactly the argument for widening the base. Each was probed against the corpus directly, so this is
 a finding rather than a mystery: they are absent from *these six sources*, not
 from the world. Trade press and patents would see them.
+
+**Trade press is thin, and that is a finding rather than a fault.** Supply
+Chain Dive's whole 2026-Q3 slice in ABI/INFORM is 28 articles across five term
+batches, of which 9 mention a tracked technology. The misses were read and are
+right: rate increases, fuel surcharges, 3PL partnerships, earnings. The outlet
+covers supply chain business news and technology is a minority of it. Three
+outlets remain unexported (Modern Materials Handling, Supply Chain Management
+Review, Journal of Commerce); one of the four originally listed publications
+and three others are not indexed by ABI/INFORM at all.
 
 **Sources barely overlap** — and the quarterly report now says so on its own
 face. The source-diversity gate (2026-08-28) marks any technology drawing 80%+
