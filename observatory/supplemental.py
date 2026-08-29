@@ -275,8 +275,12 @@ def trade_phrases(watchlist) -> list[str]:
     return phrases
 
 
-def trade_terms(watchlist, join: str = " OR ") -> str:
-    return join.join(f'"{phrase}"' for phrase in trade_phrases(watchlist)[:MAX_TERMS])
+def trade_terms(watchlist, join: str = " OR ", registry: Registry | None = None) -> str:
+    spec = (registry or load()).lists.get("trade_terms") or {}
+    each = spec.get("each", '"{}"')
+    return spec.get("join", join).join(
+        each.replace("{}", phrase) for phrase in trade_phrases(watchlist)[:MAX_TERMS]
+    )
 
 
 def watchlist_terms(watchlist, join: str = " OR ") -> str:
@@ -347,7 +351,7 @@ def build_query(source_id: str, period: str, watchlist, registry: Registry | Non
         raise RegistryProblem(f"unknown source {source_id!r}")
     values = _rendered_lists(registry)
     values[WATCHLIST_KEY] = watchlist_terms(watchlist)
-    values[TRADE_KEY] = trade_terms(watchlist)
+    values[TRADE_KEY] = trade_terms(watchlist, registry=registry)
     return render(registry.sources[source_id].query, values, period)
 
 
@@ -387,7 +391,7 @@ def export_queries(period: str, watchlist, registry: Registry | None = None,
                 values = _rendered_lists(registry)
             values = dict(values)
             values[WATCHLIST_KEY] = watchlist_terms(watchlist)
-            values[TRADE_KEY] = trade_terms(watchlist)
+            values[TRADE_KEY] = trade_terms(watchlist, registry=registry)
             suffix = f"-{re.sub(r'[^A-Za-z0-9]+', '', label)}" if label else ""
             entries.append({
                 "source": source.id, "name": source.name, "family": source.family,

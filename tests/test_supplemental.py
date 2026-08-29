@@ -460,3 +460,20 @@ def test_no_trade_term_is_a_single_common_word():
     useless, and the query is what a person pastes without checking."""
     for phrase in supplemental.trade_phrases(_watchlist()):
         assert " " in phrase or len(phrase) >= 8, phrase
+
+
+def test_trade_terms_search_the_article_body():
+    """ProQuest's default scope is "anywhere except full text". A trade record
+    in ABI/INFORM carries no abstract at all -- the export had zero AB tags --
+    so an unfielded term only ever saw the title and the subject terms. Fifty
+    terms matched 19 of the 3,460 articles Supply Chain Dive published in a
+    quarter, which is 0.5% and not a vocabulary problem."""
+    query = supplemental.build_query("abi_inform", "2026-Q2", _watchlist())
+    assert 'FT("digital twin")' in query
+
+
+def test_the_term_wrapper_is_configurable_per_source():
+    """Which field a database searches by default is the kind of thing only
+    running it reveals, so correcting it must not be a code change."""
+    registry = supplemental.load()
+    assert registry.lists["trade_terms"]["each"] == 'FT("{}")'
