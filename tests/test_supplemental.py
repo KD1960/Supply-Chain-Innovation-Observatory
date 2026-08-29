@@ -569,3 +569,20 @@ def test_adding_acronyms_does_not_break_the_batching():
     limit = supplemental.load().sources["abi_inform"].max_terms
     for entry in entries:
         assert entry["query"].count(" OR ") + 1 <= limit + 1
+
+
+def test_batches_are_evenly_sized_rather_than_chunked():
+    """Chunking 61 terms into fifteens leaves a fifth batch holding one term --
+    a whole export, and a whole round trip for a person, to ask about "SCADA"
+    alone. Spread them instead."""
+    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+               if e["source"] == "abi_inform" and "Supply Chain Dive" in e["query"]]
+    sizes = [entry["query"].count(" OR ") for entry in entries]
+    assert max(sizes) - min(sizes) <= 1, sizes
+
+
+def test_even_batching_still_respects_the_limit():
+    limit = supplemental.load().sources["abi_inform"].max_terms
+    for entry in supplemental.export_queries("2026-Q2", _watchlist(), split=True):
+        if entry["source"] == "abi_inform":
+            assert entry["query"].count(" OR ") + 1 <= limit + 1

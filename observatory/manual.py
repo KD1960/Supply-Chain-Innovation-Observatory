@@ -312,40 +312,47 @@ def read_exports(root: Path) -> list[tuple[dict, list[dict]]]:
     return [(meta, records) for meta, records, _ in found]
 
 
-# Two slices of a corpus may share a syndicated story. Half of one file being
-# inside another is not that.
-OVERLAP_LIMIT = 0.5
+# How much of the whole set the largest single file may account for. Below
+# this, the other files are adding real records; at or above it, they are
+# copies of one result set wearing different names.
+UNION_LIMIT = 0.95
 
 
 def _refuse_overlapping(found) -> None:
-    """Refuse a set of exports where one is largely inside another.
+    """Refuse a set of exports that adds nothing to its own largest file.
 
     Four ABI/INFORM files once arrived holding 182 records between them and 52
     distinct ones, each a superset of the last: a marked-items list exported
-    repeatedly as it grew, rather than each query's own result. Nothing
-    downstream would have noticed. The importer deduplicates by accession
-    number, so it writes the 52 and reports success, and the quarter looks
-    four publications wide when it is one.
+    repeatedly as it grew. Nothing downstream would have noticed -- the
+    importer deduplicates, so it writes the 52 and reports success, leaving a
+    quarter that looks four publications wide when it is one.
+
+    The test is the union, not pairwise overlap. Pairwise refused honest work:
+    a term batch slices the *query*, not the corpus, so an article carrying
+    terms from two batches appears in both, and a two-record batch fully inside
+    a twelve-record one is exactly what a correct export looks like. What the
+    accumulation case does that batching never does is leave the union no
+    bigger than the largest single file.
     """
-    identified = [
-        (path.name, {record["identifier"] for record in records if record["identifier"]})
-        for _, records, path in found
-    ]
-    for index, (name, ids) in enumerate(identified):
-        for other_name, other_ids in identified[index + 1:]:
-            if not ids or not other_ids:
-                continue
-            shared = len(ids & other_ids)
-            smaller = min(len(ids), len(other_ids))
-            if shared / smaller > OVERLAP_LIMIT:
-                raise ExportProblem(
-                    f"{name} and {other_name} share {shared} of {smaller} records. "
-                    f"They are two exports of one result set, not two slices of a "
-                    f"corpus -- most often a marked-items list exported again as it "
-                    f"grew. Re-export each query on its own, or delete the "
-                    f"duplicates; ingesting these would report a quarter far wider "
-                    f"than it is."
-                )
+    by_source: dict[str, list[tuple[str, set]]] = {}
+    for meta, records, path in found:
+        ids = {record["identifier"] for record in records if record["identifier"]}
+        if ids:
+            by_source.setdefault(str(meta["source"]), []).append((path.name, ids))
+    for source, files in by_source.items():
+        if len(files) < 2:
+            continue
+        union = set().union(*(ids for _, ids in files))
+        largest_name, largest = max(files, key=lambda item: len(item[1]))
+        if len(union) <= len(largest) / UNION_LIMIT * UNION_LIMIT and len(union) <= len(largest):
+            raise ExportProblem(
+                f"{len(files)} {source} exports hold {sum(len(ids) for _, ids in files)} "
+                f"records between them and {len(union)} distinct -- no more than "
+                f"{largest_name} holds on its own. The set adds nothing to its own "
+                f"largest file, which is what a marked-items list exported again as it "
+                f"grew looks like. Clear the selections between exports and re-run; "
+                f"ingesting these would report a quarter far wider than it is."
+            )
 
 
 def import_exports(conn, watchlist, root: Path | None = None, session=None) -> int:

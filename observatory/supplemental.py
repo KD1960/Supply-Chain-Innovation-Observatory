@@ -410,8 +410,11 @@ def _term_batches(source: Source, watchlist, registry: Registry) -> list[tuple[s
     spec = registry.lists.get("trade_terms") or {}
     each, join = spec.get("each", '"{}"'), spec.get("join", " OR ")
     phrases = trade_phrases(watchlist)[:MAX_TERMS]
-    batches = [phrases[i:i + source.max_terms]
-               for i in range(0, len(phrases), source.max_terms)]
+    # Spread evenly rather than chunk. Chunking 61 terms into fifteens leaves a
+    # fifth batch holding one term, which is a whole export and a whole round
+    # trip for a person to ask about "SCADA" on its own.
+    count = -(-len(phrases) // source.max_terms) or 1
+    batches = [phrases[index::count] for index in range(count)]
     return [
         (f"terms{index}", join.join(each.replace("{}", phrase) for phrase in batch))
         for index, batch in enumerate(batches, start=1)

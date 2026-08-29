@@ -484,8 +484,28 @@ def test_two_exports_of_the_same_records_are_refused(tmp_path):
     with pytest.raises(manual.ExportProblem) as raised:
         manual.read_exports(tmp_path)
     message = str(raised.value).lower()
-    assert "share" in message
-    assert "one result set" in message
+    assert "adds nothing" in message or "one result set" in message
+
+
+def test_term_batches_of_one_publication_may_overlap(tmp_path):
+    """A term batch is a slice of the *query*, not of the corpus. An article
+    containing terms from two batches appears in both, and with a two-record
+    batch that is 100% containment -- which the first version of this guard
+    refused outright."""
+    _export(tmp_path, "terms1.ris", [1, 2])
+    _export(tmp_path, "terms2.ris", [1, 2, 3, 4, 5, 6, 7, 8])
+    _export(tmp_path, "terms3.ris", [9, 10, 11, 12])
+    assert len(manual.read_exports(tmp_path)) == 3
+
+
+def test_files_that_add_nothing_to_each_other_are_still_refused(tmp_path):
+    """The accumulation case: every file inside the largest, so the whole set
+    is worth exactly one export however many files it holds."""
+    _export(tmp_path, "a.ris", range(1, 20))
+    _export(tmp_path, "b.ris", range(1, 30))
+    _export(tmp_path, "c.ris", range(1, 40))
+    with pytest.raises(manual.ExportProblem):
+        manual.read_exports(tmp_path)
 
 
 def test_exports_of_genuinely_different_slices_are_accepted(tmp_path):
@@ -501,11 +521,14 @@ def test_a_little_overlap_between_slices_is_tolerated(tmp_path):
     assert len(manual.read_exports(tmp_path)) == 2
 
 
-def test_the_refusal_names_both_files_and_the_overlap(tmp_path):
+def test_the_refusal_gives_the_numbers_and_names_the_largest_file(tmp_path):
+    """A refusal a person cannot act on is an obstacle. It has to say how many
+    files, how many records, how many distinct, and which file already held
+    them all."""
     _export(tmp_path, "scd.ris", range(1, 41))
     _export(tmp_path, "mmh.ris", range(1, 51))
     with pytest.raises(manual.ExportProblem) as raised:
         manual.read_exports(tmp_path)
     message = str(raised.value)
-    assert "scd.ris" in message and "mmh.ris" in message
-    assert "40" in message
+    assert "mmh.ris" in message
+    assert "90" in message and "50" in message
