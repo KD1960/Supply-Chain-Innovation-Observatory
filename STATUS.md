@@ -23,10 +23,10 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **468 passing** |
-| Lexicon | version **6**, 50 active technologies, 7 families |
-| Observations | **2,327** across 54 weeks, 2025-W34 → 2026-W35 |
-| By source | github 774, arxiv 611, **scopus 605**, edgar 128, **lens 85**, hn 72, usaspending 31, federalregister 21 |
+| Tests | **510 passing** |
+| Lexicon | version **7**, 50 active technologies, 7 families |
+| Observations | **2,702** across 54 weeks, 2025-W34 → 2026-W35 |
+| By source | scopus 847, github 846, arxiv 736, edgar 128, lens 85, hn 79, usaspending 33, federalregister 21 |
 | Evidence families | research, code, patents, filings, regulation, money, community — **7 of 8** (no trade press yet) |
 | Raw weeks on disk | 53, 2025-W35 → 2026-W35 |
 | Source runs | 318 recorded, **none has ever failed** |
@@ -76,6 +76,32 @@ looks the way it does.
 - **Standing instruction from the owner:** plain correctness bugs inherited from
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
+
+## 4a. The lexicon carried the domain word where the gate belonged
+
+Ten of fifty technologies wrote the domain into the pattern itself with
+`needs_context` off, so the domain word had to sit *adjacent* to the technology
+word. "Target strengthens inventory management with digital twins" did not
+match `(supply chain|logistics|warehouse) digital twin(s)?` -- it says
+"inventory" one clause away, and the gate built for exactly this was never
+consulted.
+
+Seven were revised at lexicon v7 (2026-08-29). Last-mile delivery went 114 to
+222, digital twins 10 to 89, control towers 9 to 17.
+
+**The rule that came out of it:** the gate rescues a *distinctive* term and
+cannot rescue a *generic* one. `generative ai` ungated went 2 to 77 at roughly
+25% precision -- a hospital management platform, a language-teacher assistant,
+printed circuit board design. It was reverted to adjacency, widened but not
+gated. A document-level gate passes anything that says "supply chain" once
+anywhere, which is enough for a distinctive term and nowhere near enough for a
+generic one.
+
+**Precision after v7 has not been measured properly.** A GitHub row's title is
+`owner/repo-name` and the match happens on the description, which is not
+stored, so 46% of the corpus cannot be judged from the database. A stratified
+hand-coded sample is the only honest way to a precision number, and it has not
+been done.
 
 ## 5. What is broken or missing
 

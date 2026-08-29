@@ -130,8 +130,9 @@ technologies:
      include: ["control tower(s)?"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
   - {id: genai_planning, name: Generative AI for supply chain planning, family: digital,
-     include: ["generative ai", "\\bgenai\\b"],
-     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
+     include: ["(generative ai|genai|llm(s)?) (in|for|across) (supply chain|procurement|logistics|warehous(e|ing)|inventory|manufacturing)",
+               "(supply chain|procurement|logistics) (generative ai|genai|llm(s)?)"],
+     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
   - {id: tms_ai, name: AI transportation management, family: digital,
      include: ["transportation management system(s)?", "\\bTMS\\b",
                "\\bai\\b[^.]{0,30}route optimi[sz]ation"],

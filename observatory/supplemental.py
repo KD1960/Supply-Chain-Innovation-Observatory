@@ -89,7 +89,7 @@ def _rendered_lists(registry: Registry) -> dict[str, str]:
 # terms, which is both too long and mostly spelling variants. One phrase per
 # technology is 50 today; this cap is a guard against a lexicon that grows past
 # what ProQuest will accept, and print_queries says out loud when it bites.
-MAX_TERMS = 60
+MAX_TERMS = 100
 
 # Constructs with no phrase equivalent. A pattern containing one is dropped
 # whole rather than stripped, because stripping leaves the debris behind --
@@ -266,15 +266,38 @@ def trade_phrase(tech) -> str | None:
     return None
 
 
+# An acronym: a short run of capitals, optionally pluralised, optionally with a
+# slash. AMR, AMRs, AS/RS, ERP, S/4HANA.
+ACRONYM = re.compile(r"^[A-Z][A-Z0-9]{1,6}(/[A-Z0-9]{1,6})?s?$")
+
+
+def acronyms_for(tech) -> list[str]:
+    """The acronyms this technology's own patterns already contain.
+
+    Taken from the lexicon rather than invented: an acronym the matcher does
+    not recognise would retrieve documents that nothing can then match, which
+    is work for a person and evidence for nobody.
+    """
+    found: list[str] = []
+    for pattern in tech.include:
+        for phrase in phrases_for(pattern):
+            if ACRONYM.match(phrase) and phrase not in found:
+                found.append(phrase)
+    return found
+
+
 def trade_phrases(watchlist) -> list[str]:
     phrases: list[str] = []
     for tech in watchlist.active:
         phrase = trade_phrase(tech)
-        if not phrase:
-            continue
-        phrase = strip_domain(phrase)
-        if phrase.lower() not in {p.lower() for p in phrases}:
-            phrases.append(phrase)
+        candidates = ([strip_domain(phrase)] if phrase else []) + acronyms_for(tech)
+        for candidate in candidates:
+            # An acronym is ambiguous in a general corpus and unambiguous
+            # inside a supply chain trade publication, which the publication
+            # filter has already guaranteed. "ERP transition" is how a headline
+            # writes what a paper calls enterprise resource planning.
+            if candidate and candidate.lower() not in {p.lower() for p in phrases}:
+                phrases.append(candidate)
     return phrases
 
 

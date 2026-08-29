@@ -460,9 +460,13 @@ def test_stripping_still_works_where_the_remainder_is_distinctive():
 
 
 def test_no_trade_term_is_a_single_common_word():
-    """One term of two characters or one common word makes the whole query
-    useless, and the query is what a person pastes without checking."""
+    """One common word makes the whole query useless -- "system" would have
+    matched nearly every article. An acronym is not a common word: ERP and AMR
+    are unambiguous inside a supply chain trade publication, which the
+    publication filter has already guaranteed."""
     for phrase in supplemental.trade_phrases(_watchlist()):
+        if supplemental.ACRONYM.match(phrase):
+            continue
         assert " " in phrase or len(phrase) >= 8, phrase
 
 
@@ -522,3 +526,46 @@ def test_a_source_with_no_term_limit_is_not_batched():
     entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
                if e["source"] == "scopus"]
     assert len(entries) == len(supplemental.load().lists["issn"]["items"])
+
+
+# --- acronyms ---------------------------------------------------------------
+#
+# "Clorox says ERP transition will provide supply chain gains this year" is how
+# a trade headline writes it; "enterprise resource planning" is the research
+# spelling. Ten technologies hold an acronym in the lexicon that the trade query
+# never asked for.
+#
+# This costs nothing in precision. The query only retrieves; the matcher still
+# decides what counts, and it applies the same patterns either way.
+
+
+def test_trade_terms_include_the_acronym_as_well_as_the_phrase():
+    phrases = supplemental.trade_phrases(_watchlist())
+    assert "ERP" in phrases
+    assert "enterprise resource planning" in phrases
+
+
+def test_an_acronym_is_taken_only_from_the_technologys_own_patterns():
+    """Not invented. If the lexicon does not hold the acronym, the matcher will
+    not recognise it either, and retrieving on it would return documents
+    nothing can match."""
+    tech = _tech("made_up", ("some long phrase without one",))
+    assert supplemental.acronyms_for(tech) == []
+
+
+def test_a_lowercase_word_is_not_mistaken_for_an_acronym():
+    tech = _tech("t", ("shore power",))
+    assert supplemental.acronyms_for(tech) == []
+
+
+def test_acronyms_are_recognised_in_their_usual_shapes():
+    tech = _tech("t", (r"\bAMRs?\b", r"\bAS/RS\b", "warehouse robot(s)?"))
+    assert set(supplemental.acronyms_for(tech)) == {"AMR", "AMRs", "AS/RS"}
+
+
+def test_adding_acronyms_does_not_break_the_batching():
+    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+               if e["source"] == "abi_inform"]
+    limit = supplemental.load().sources["abi_inform"].max_terms
+    for entry in entries:
+        assert entry["query"].count(" OR ") + 1 <= limit + 1
