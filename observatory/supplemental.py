@@ -32,6 +32,7 @@ PERIOD_KEYS = ("start", "end", "pubyear")
 # Built from watchlist.yaml rather than from the registry, so a lexicon edit
 # reaches the trade press query without anybody remembering to copy it across.
 WATCHLIST_KEY = "watchlist_terms"
+TRADE_KEY = "trade_terms"
 
 
 class RegistryProblem(Exception):
@@ -223,6 +224,61 @@ def unphrasable(watchlist) -> list[str]:
     return [tech.id for tech in watchlist.active if _best_phrase(tech) is None]
 
 
+# Words the publication filter has already said. A trade query is confined to
+# supply chain outlets, so repeating the domain inside every term costs recall
+# and buys nothing: no headline writes "supply chain digital twins".
+DOMAIN_PREFIXES = ("supply chain", "logistics", "freight", "warehouse management")
+
+
+def strip_domain(phrase: str) -> str:
+    """A phrase with its leading domain word removed, where one remains.
+
+    Kept whole when the domain word is the whole phrase -- there would be
+    nothing left to search for.
+    """
+    lowered = phrase.lower()
+    for prefix in DOMAIN_PREFIXES:
+        if lowered.startswith(prefix + " "):
+            remainder = phrase[len(prefix):].strip()
+            # Only when what is left still says something on its own. Stripping
+            # "warehouse management" off "warehouse management system" left
+            # "system", which matches nearly every article in a trade
+            # publication -- drowning the export the term was narrowing.
+            if " " in remainder and len(remainder) >= 6:
+                return remainder
+    return phrase
+
+
+def trade_phrase(tech) -> str | None:
+    """The phrase to look for in trade press.
+
+    The shortest distinctive expansion rather than the longest. Trade headlines
+    are short and informal, and the publication filter has already done the
+    domain work that a long formal phrase was carrying.
+    """
+    for pattern in tech.include:
+        candidates = phrases_for(pattern)
+        if candidates:
+            return min(candidates, key=lambda phrase: (len(phrase), phrase))
+    return None
+
+
+def trade_phrases(watchlist) -> list[str]:
+    phrases: list[str] = []
+    for tech in watchlist.active:
+        phrase = trade_phrase(tech)
+        if not phrase:
+            continue
+        phrase = strip_domain(phrase)
+        if phrase.lower() not in {p.lower() for p in phrases}:
+            phrases.append(phrase)
+    return phrases
+
+
+def trade_terms(watchlist, join: str = " OR ") -> str:
+    return join.join(f'"{phrase}"' for phrase in trade_phrases(watchlist)[:MAX_TERMS])
+
+
 def watchlist_terms(watchlist, join: str = " OR ") -> str:
     kept = watchlist_phrases(watchlist)[:MAX_TERMS]
     return join.join(f'"{phrase}"' for phrase in kept)
@@ -291,6 +347,7 @@ def build_query(source_id: str, period: str, watchlist, registry: Registry | Non
         raise RegistryProblem(f"unknown source {source_id!r}")
     values = _rendered_lists(registry)
     values[WATCHLIST_KEY] = watchlist_terms(watchlist)
+    values[TRADE_KEY] = trade_terms(watchlist)
     return render(registry.sources[source_id].query, values, period)
 
 
@@ -330,6 +387,7 @@ def export_queries(period: str, watchlist, registry: Registry | None = None,
                 values = _rendered_lists(registry)
             values = dict(values)
             values[WATCHLIST_KEY] = watchlist_terms(watchlist)
+            values[TRADE_KEY] = trade_terms(watchlist)
             suffix = f"-{re.sub(r'[^A-Za-z0-9]+', '', label)}" if label else ""
             entries.append({
                 "source": source.id, "name": source.name, "family": source.family,

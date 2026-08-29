@@ -56,7 +56,7 @@ def test_the_trade_press_query_is_built_from_the_live_watchlist():
     carries a term filter -- and it must track the lexicon rather than drift out
     of step with it."""
     query = supplemental.build_query("abi_inform", "2026-Q2", _watchlist())
-    assert '"warehouse robotics"' in query.lower()
+    assert '"warehouse robot"' in query.lower()
 
 
 def test_changing_the_watchlist_changes_the_trade_press_query():
@@ -356,12 +356,19 @@ def test_without_splitting_there_is_one_query_per_source():
     assert len(entries) == len(supplemental.load().sources)
 
 
-def test_a_source_that_cannot_be_split_is_left_whole():
-    """Splitting ABI/INFORM by publication would not help: its size comes from
-    the term list, not the publication list."""
+def test_trade_press_splits_by_publication():
+    """One outlet returns 3,460 records for a quarter against a 1,000 export
+    limit, so the whole set cannot come out in one file."""
     entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
                if e["source"] == "abi_inform"]
-    assert len(entries) == 1
+    assert len(entries) == len(supplemental.load().lists["publications"]["items"])
+    for entry in entries:
+        assert entry["query"].count("PUB.EXACT(") == 1
+
+
+def test_a_source_with_nothing_to_split_on_is_left_whole():
+    entries = supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+    assert len([e for e in entries if e["source"] == "lens"]) == 1
 
 
 def test_the_sheet_says_how_many_files_a_split_expects(capsys):
@@ -369,3 +376,87 @@ def test_the_sheet_says_how_many_files_a_split_expects(capsys):
     printed = capsys.readouterr().out
     count = len(supplemental.load().lists["issn"]["items"])
     assert f"{count} separate exports" in printed
+
+
+# --- phrases for a corpus that is already on-topic --------------------------
+#
+# A real ABI/INFORM export returned 36 records where publication-only returns
+# 3,460 for one outlet. The 50 formal phrases were fighting a filter already
+# applied: PUB() constrains to supply chain trade press, so "digital twin" in
+# Supply Chain Dive is the technology and "supply chain digital twins" is a
+# phrase no headline writes.
+
+
+def test_a_trade_phrase_is_the_shortest_distinctive_one():
+    tech = _tech("supply_chain_digital_twin",
+                 ("supply chain digital twin(s)?", "digital twin of the supply chain"))
+    assert supplemental.trade_phrase(tech) == "supply chain digital twin"
+
+
+def test_a_trade_phrase_drops_a_leading_domain_word():
+    """The publication filter already said "supply chain". Repeating it in the
+    term costs recall and buys nothing."""
+    assert supplemental.strip_domain("supply chain digital twin") == "digital twin"
+    assert supplemental.strip_domain("warehouse robotics") == "warehouse robotics"
+
+
+def test_a_phrase_that_is_only_a_domain_word_is_kept_whole():
+    """Stripping "supply chain" from "supply chain" leaves nothing to search."""
+    assert supplemental.strip_domain("supply chain") == "supply chain"
+
+
+def test_trade_phrases_are_shorter_than_the_general_ones():
+    watchlist = _watchlist()
+    general = supplemental.watchlist_phrases(watchlist)
+    trade = supplemental.trade_phrases(watchlist)
+    assert sum(len(p) for p in trade) < sum(len(p) for p in general)
+
+
+def test_the_trade_query_uses_the_trade_phrases():
+    query = supplemental.build_query("abi_inform", "2026-Q2", _watchlist())
+    assert '"digital twin"' in query
+
+
+def test_the_trade_query_matches_publications_exactly():
+    """PUB("Logistics Management") matched the International Journal of
+    Physical Distribution & Logistics Management -- an academic journal already
+    covered by Scopus. Counted as trade, it would fake family diversity, which
+    is the one thing the gate exists to prevent."""
+    query = supplemental.build_query("abi_inform", "2026-Q2", _watchlist())
+    assert "PUB.EXACT(" in query
+    assert 'PUB("' not in query
+
+
+def test_publications_absent_from_the_database_are_not_asked_for():
+    """DC Velocity returns nothing under PUB.EXACT. Asking anyway makes a query
+    longer and a reader think it was covered."""
+    items = supplemental.load().lists["publications"]["items"]
+    for absent in ("DC Velocity", "FreightWaves", "Material Handling & Logistics"):
+        assert absent not in items
+
+
+def _tech(tech_id, include):
+    from observatory import matcher
+    return matcher.Technology(
+        id=tech_id, name=tech_id, family="f", include=include, exclude=(),
+        status="active", added_week="2026-W01", patterns_changed_week="2026-W01")
+
+
+def test_stripping_never_leaves_a_single_generic_word():
+    """"warehouse management system" became "system", which would have matched
+    nearly every article in a trade publication and drowned the export it was
+    meant to narrow."""
+    assert supplemental.strip_domain("warehouse management system") == \
+        "warehouse management system"
+
+
+def test_stripping_still_works_where_the_remainder_is_distinctive():
+    assert supplemental.strip_domain("supply chain digital twin") == "digital twin"
+    assert supplemental.strip_domain("supply chain control tower") == "control tower"
+
+
+def test_no_trade_term_is_a_single_common_word():
+    """One term of two characters or one common word makes the whole query
+    useless, and the query is what a person pastes without checking."""
+    for phrase in supplemental.trade_phrases(_watchlist()):
+        assert " " in phrase or len(phrase) >= 8, phrase

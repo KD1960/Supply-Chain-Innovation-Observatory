@@ -60,16 +60,21 @@ lists:
   # watchlist.
   publications:
     join: " OR "
-    each: 'PUB("{}")'
+    # PUB.EXACT rather than PUB. Partial matching let PUB("Logistics
+    # Management") pull in the International Journal of Physical Distribution &
+    # Logistics Management -- an academic journal already covered by Scopus,
+    # which counted as trade evidence would fake the family diversity the gate
+    # exists to measure.
+    each: 'PUB.EXACT("{}")'
+    # Only titles ABI/INFORM actually indexes. DC Velocity, FreightWaves and
+    # Material Handling & Logistics were checked under PUB.EXACT and return
+    # nothing; asking anyway lengthens the query and leaves a reader thinking
+    # they were covered.
     items:
       - "Supply Chain Dive"
-      - "DC Velocity"
       - "Modern Materials Handling"
-      - "Logistics Management"
-      - "Journal of Commerce"
-      - "FreightWaves"
       - "Supply Chain Management Review"
-      - "Material Handling & Logistics"
+      - "Journal of Commerce"
 
 sources:
   lens:
@@ -150,6 +155,7 @@ sources:
       Publication-restricted plus one disjunctive term query, not one search per
       technology. Terms are generated from watchlist.yaml, so this query changes
       when the lexicon does.
+    split_by: publications
     query: >-
-      ({publications}) AND ({watchlist_terms})
+      ({publications}) AND ({trade_terms})
       AND pd({start}-{end})
