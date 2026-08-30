@@ -23,7 +23,7 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **547 passing** |
+| Tests | **550 passing** |
 | Precision | **51%**, two coders (kappa 0.79) plus a full owner review, 91 judgeable rows |
 | Lexicon | version **9**, 50 active technologies, 7 families |
 | Observations | **2,130** across 54 weeks, 2025-W34 → 2026-W35 |
@@ -78,6 +78,35 @@ looks the way it does.
 - **Standing instruction from the owner:** plain correctness bugs inherited from
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
+
+## 4d. Rates, not ranks — and concentration labels a stage (2026-08-30)
+
+Two owner rulings reversed decisions made earlier the same day.
+
+**Concentration is a finding, not a defect.** The gate withheld a technology's
+movement when one family supplied 80%+ of its evidence. But if 88% of freight
+decarbonisation's documents are research, that *is* the indicator: the
+technology is at the research stage. Withholding it deleted the finding along
+with the risk. Concentration is now reported and the dominant family names a
+stage; nothing is suppressed. The reason for having several sources per stage
+is unchanged — it is how you find out the concentration was collection and not
+substance.
+
+**The 0-100 index was a percentile, and a percentile cannot move.** If every
+technology doubles, every rank stays exactly where it was, which is fatal for a
+tool built to detect movement. It also flattered: vehicle routing read 93 when
+it appears in **0.52%** of supply chain research.
+
+Each family column now carries `matched / retrieved` as a percentage, where 100
+would mean every document that family collected mentioned the technology.
+Nothing comes near it, and those are the true magnitudes. The denominator is
+counted from raw and from the export files rather than stored, so it cannot
+drift from what was actually collected.
+
+**Read the small corpora with care.** Filings and trade press are searched by
+phrase rather than swept, so warehouse management systems reads 21% of filings
+on six documents out of twenty-eight. Research and code hold thousands; one
+document moves the small ones by percentage points.
 
 ## 4c. Operations research retired (lexicon v9, 2026-08-30)
 

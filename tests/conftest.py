@@ -21,3 +21,18 @@ def isolated_manual_dir(tmp_path, monkeypatch):
     empty.mkdir()
     monkeypatch.setattr(config, "MANUAL_DIR", empty)
     return empty
+
+
+@pytest.fixture(autouse=True)
+def isolated_raw_dir(tmp_path, monkeypatch):
+    """The same isolation, for the same reason, plus speed.
+
+    Counting a period's retrieved corpus walks every raw file. Against the real
+    directory that is fifty thousand of them, which took the quarter tests from
+    under a second to twenty-seven, and made every count depend on what happened
+    to be on disk. A test that wants raw writes its own.
+    """
+    empty = tmp_path / "raw"
+    empty.mkdir()
+    monkeypatch.setattr(config, "RAW_DIR", empty)
+    return empty

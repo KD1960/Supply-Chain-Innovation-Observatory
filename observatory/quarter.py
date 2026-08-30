@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import collections
 import datetime as dt
-import math
+import json
+
+import yaml
 from pathlib import Path
 
 from markupsafe import Markup
@@ -83,6 +85,40 @@ SOURCES = COLLECTORS + tuple(
     source for source in EVIDENCE_FAMILIES if source not in COLLECTORS
 )
 FAMILY_FLOOR = 1
+
+# What a family's evidence says about where a technology sits. A technology
+# whose documents concentrate in one family is not a defect to be suppressed --
+# it is a technology at that stage, and saying so is the finding. Freight
+# decarbonisation at 88% research is a technology in the research stage.
+FAMILY_STAGE = {
+    "research": "idea",
+    "code": "experiment",
+    "patents": "experiment",
+    "money": "investment",
+    "regulation": "deployment",
+    "trade": "deployment",
+    "filings": "diffusion",
+    "community": "attention",
+}
+
+
+def family_rates(row, retrieved: dict[str, int]) -> dict[str, float]:
+    """Matched over retrieved, per family, as a percentage.
+
+    100 means every document in that family's supply chain corpus mentioned the
+    technology. Nothing comes near it, and that is the true magnitude: vehicle
+    routing appears in 0.52% of supply chain research. The percentile index this
+    replaces reported that as 93.
+
+    A rate can also move. A percentile cannot -- if every technology doubles,
+    every percentile stays exactly where it was, which is fatal for a tool whose
+    purpose is detecting movement.
+    """
+    return {
+        family: 100 * count / retrieved[family]
+        for family, count in (row["by_family"] or {}).items()
+        if count and retrieved.get(family)
+    }
 
 
 def family_of(source: str) -> str:
@@ -260,44 +296,72 @@ def map_points(conn, name: str) -> list:
     return points
 
 
-def family_scale(rows) -> dict[str, dict[int, float]]:
-    """Where each document count sits within its own family, 0-100.
+def retrieved_by_family(name: str) -> dict[str, int]:
+    """How many documents each family's corpus held in the period.
 
-    Within the family, because the families are not the same size and never
-    will be: GitHub retrieved 30,459 documents in 2026-Q3 against Hacker
-    News's 2,304, and six Federal Register notices is a lot of Federal
-    Register. A raw count says which source is large; a percentile within the
-    family says how a technology stands in the evidence that family produced.
+    The denominator for every rate. Counted from the raw response bodies and
+    the hand-made exports rather than stored, for the same reason the database
+    is a derived artifact: raw is the source of truth and a count taken from it
+    cannot drift from what was actually collected.
+
+    Every one of these corpora is already supply-chain filtered by the query
+    that fetched it, so a rate answers "of the supply chain documents this
+    family produced, what share mentioned the technology".
     """
-    families = {family for row in rows for family in row["by_family"]}
-    scale: dict[str, dict[int, float]] = {}
-    for family in families:
-        counts = sorted(row["by_family"].get(family, 0) for row in rows)
-        span = max(len(counts) - 1, 1)
-        scale[family] = {
-            count: 100 * sum(1 for other in counts if other < count) / span
-            for count in set(counts)
-        }
-    return scale
+    weeks = set(weeks_in_period(name))
+    counts: collections.Counter = collections.Counter()
+    for path in config.RAW_DIR.glob("*/*/*"):
+        week, source = path.parent.parent.name, path.parent.name
+        if week not in weeks or source not in EVIDENCE_FAMILIES:
+            continue
+        try:
+            text = path.read_text(errors="replace")
+        except OSError:
+            continue
+        counts[EVIDENCE_FAMILIES[source]] += _documents_in(source, text)
+    counts.update(_manual_corpus(name))
+    return dict(counts)
 
 
-def index_for(row, scale: dict[str, dict[int, float]]) -> float | None:
-    """A technology's standing across families, 0-100, weighted by evidence.
+def _documents_in(source: str, text: str) -> int:
+    if source == "arxiv":
+        return text.count("<entry>")
+    try:
+        payload = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return 0
+    if source == "github":
+        return len(payload.get("items") or [])
+    if source == "hn":
+        return len(payload.get("hits") or [])
+    if source in ("usaspending", "federalregister"):
+        return len(payload.get("results") or [])
+    if source == "edgar":
+        return len(((payload.get("hits") or {}).get("hits")) or [])
+    return 0
 
-    Weighted by `log1p` of each family's document count, so a family that
-    supplied twenty-seven documents counts for more than one that supplied
-    one -- but not twenty-seven times more. Weighting families equally instead
-    says three documents spread across three families are worth thirty spread
-    across three, which is more confidence than the evidence carries.
-    """
-    pairs = [
-        (scale.get(family, {}).get(count, 0.0), math.log1p(count))
-        for family, count in (row["by_family"] or {}).items() if count
-    ]
-    total = sum(weight for _, weight in pairs)
-    if not total:
-        return None
-    return round(sum(value * weight for value, weight in pairs) / total, 1)
+
+def _manual_corpus(name: str) -> dict[str, int]:
+    """The export files are the retrieved corpus for a hand-fetched source."""
+    from . import manual
+    directory = config.MANUAL_DIR / name
+    counts: collections.Counter = collections.Counter()
+    if not directory.exists():
+        return dict(counts)
+    for path in sorted(directory.iterdir()):
+        if path.suffix.lower() not in (".ris", ".csv", ".txt"):
+            continue
+        sidecar = path.with_name(f"{path.name}.meta.yaml")
+        if not sidecar.exists():
+            continue
+        source = str((yaml.safe_load(sidecar.read_text()) or {}).get("source", ""))
+        family = EVIDENCE_FAMILIES.get(source)
+        if not family:
+            continue
+        text = path.read_text(errors="replace")
+        records = manual.parse_csv(text) if path.suffix.lower() == ".csv" else manual.parse_ris(text)
+        counts[family] += len(records)
+    return dict(counts)
 
 
 def build_context(conn, name: str, watchlist) -> dict:
@@ -314,14 +378,15 @@ def build_context(conn, name: str, watchlist) -> dict:
         row = counts.get(tech.id)
         if not row:
             continue
-        gated = is_single_source(row)
+        concentrated = is_single_source(row)
         families = by_family(row["by_source"])
         # The family, not the top source. Showing the source's share beside a
         # verdict reached on the family's produced rows reading "48% arxiv"
         # next to a GATED mark, which a reader can only take as a mistake.
         top_family, top_count = families.most_common(1)[0]
         rows.append({
-            "single_source": gated,
+            "single_source": concentrated,
+            "stage": FAMILY_STAGE.get(top_family, ""),
             "families": len([n for n in families.values() if n >= FAMILY_FLOOR]),
             "top_family": top_family,
             "id": tech.id,
@@ -333,16 +398,18 @@ def build_context(conn, name: str, watchlist) -> dict:
             "by_family": dict(families),
             "top_source": row["by_source"].most_common(1)[0][0],
             "concentration": round(100 * top_count / row["total"]),
-            # Withheld rather than annotated. The counts stay -- they are
-            # observations, and hiding them would hide that the evidence exists.
-            "shift": None if gated else shifts.get(tech.id),
+            # Kept, not withheld. Concentration in one family is a statement
+            # about which stage a technology is in, which is the question this
+            # project asks; suppressing it deleted the finding along with the
+            # risk. What remains of the original concern -- that a source's
+            # coverage can masquerade as a technology's trajectory -- is handled
+            # by naming the family and its share beside every number.
+            "shift": shifts.get(tech.id),
         })
     # The index needs every row's family breakdown, so it is a second pass.
-    scale = family_scale(rows)
+    retrieved = retrieved_by_family(name)
     for row in rows:
-        # Withheld for a gated technology, like every other inference here: a
-        # single-family index is that family's coverage wearing a score.
-        row["index"] = None if row["single_source"] else index_for(row, scale)
+        row["rates"] = family_rates(row, retrieved)
     rows.sort(key=lambda item: -item["total"])
     # Sources a reader without a subscription cannot follow. Defined by what
     # they are rather than by absence from a hardcoded list: once supplemental

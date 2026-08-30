@@ -111,13 +111,19 @@
 <section>
   <h2>What the {{ period_noun }} held</h2>
   <p class="source">{{ weeks[0] }} to {{ weeks[-1] }} &middot; lexicon version {{ lexicon_version }}</p>
-  <p><strong>Index</strong> is 0&ndash;100: where a technology stands inside each
-  kind of evidence, averaged and weighted by how much evidence each kind
-  supplied. Counts are not comparable across sources &mdash; GitHub returned
-  30,459 documents in 2026-Q3 against Hacker News's 2,304 &mdash; so the index
-  says how a technology stands in what a source produced rather than how large
-  the source is. It is withheld, like every other inference here, where one
-  kind of evidence supplies almost all of it.</p>
+  <p>Each family column gives the document count and, beside it, that count as
+  a <strong>percentage of the family's whole supply-chain corpus</strong> for
+  the {{ period_noun }}. 100% would mean every document that family retrieved
+  mentioned the technology; nothing comes close, and those are the true
+  magnitudes. A rate can also be compared across {{ period_noun }}s, which a
+  rank cannot: if every technology doubles, every rank stays where it was.</p>
+  <p><strong>Read the small corpora with care.</strong> Filings and trade press
+  are searched by phrase rather than swept, so their corpora are small &mdash;
+  a single document moves them by percentage points, where research and code
+  hold thousands.</p>
+  <p><strong>Stage</strong> names the family supplying most of the evidence.
+  A technology concentrated in one family is not a fault: it is a technology at
+  that stage, and the concentration column says how strongly.</p>
   <p>Counts are documents matched, not mentions: a technology named twice in one
   filing counts once. The columns are kinds of evidence rather than databases:
   research covers preprints and journals together, and <em>other</em> gathers
@@ -127,10 +133,13 @@
   {% if single_source_count %}
   <p class="note"><strong>{{ single_source_count }} of {{ rows|length }}
   technologies</strong> &mdash; holding {{ single_source_documents }} of
-  {{ documents }} documents &mdash; rest on a single kind of evidence. They are
-  marked below, and this {{ period_noun }}'s movement is withheld for them. A
-  share computed from one source measures that source's coverage, not the
-  technology; the counts stand, the movement does not.</p>
+  {{ documents }} documents &mdash; draw
+  {{ (single_source_share * 100)|round|int }}% or more of their evidence from
+  one kind. That is reported rather than suppressed: a technology whose
+  documents sit almost entirely in research is a technology at the research
+  stage, and withholding its movement would delete the finding along with the
+  risk. What the concentration column asks you to keep in mind is that one
+  source's coverage can look like a technology's trajectory.</p>
   <p>Diversity is counted across <em>kinds</em> of evidence rather than source
   names, because two sources measuring the same thing are one piece of evidence
   twice: research (preprints and journals), code, patents, filings, trade press,
@@ -144,28 +153,28 @@
 <div class="panel">
   <table>
     <thead><tr>
-      <th class="name">Technology</th><th class="num">Index</th><th class="num">Docs</th>
+      <th class="name">Technology</th><th class="num">Docs</th>
       <th class="num">Research</th><th class="num">Code</th>
       <th class="num">Patents</th><th class="num">Filings</th>
-      <th class="num">Other</th><th class="num">Filers</th>
+      <th class="num">Other</th><th class="tag">Stage</th><th class="num">Filers</th>
       <th class="tag">Concentration</th>
     </tr></thead>
     <tbody>
       {% for row in rows %}
       <tr{% if row.single_source %} class="gated"{% endif %}>
         <td class="name">{{ row.name }}</td>
-        <td class="num{% if row.index is none %} dim{% endif %}">{% if row.index is none %}&mdash;{% else %}{{ row.index|round|int }}{% endif %}</td>
         <td class="num">{{ row.total }}</td>
         {# Families, not sources. Eight source columns will not fit, and the
            gate already reasons in families -- arXiv and Scopus are one kind of
            evidence however many databases supply it. #}
         {% set other = (row.by_family.get('trade', 0) + row.by_family.get('regulation', 0)
                         + row.by_family.get('money', 0) + row.by_family.get('community', 0)) %}
-        <td class="num{% if not row.by_family.get('research') %} dim{% endif %}">{{ row.by_family.get('research', 0) }}</td>
-        <td class="num{% if not row.by_family.get('code') %} dim{% endif %}">{{ row.by_family.get('code', 0) }}</td>
-        <td class="num{% if not row.by_family.get('patents') %} dim{% endif %}">{{ row.by_family.get('patents', 0) }}</td>
-        <td class="num{% if not row.by_family.get('filings') %} dim{% endif %}">{{ row.by_family.get('filings', 0) }}</td>
+        {% for fam in ('research', 'code', 'patents', 'filings') %}
+        <td class="num{% if not row.by_family.get(fam) %} dim{% endif %}">{% if row.by_family.get(fam)
+          %}{{ row.by_family[fam] }}{% if row.rates.get(fam) %} <span class="tag">{{ '%.2f'|format(row.rates[fam]) }}%</span>{% endif %}{% else %}0{% endif %}</td>
+        {% endfor %}
         <td class="num{% if not other %} dim{% endif %}">{{ other }}</td>
+        <td class="tag">{{ row.stage }}</td>
         <td class="num{% if not row.filers %} dim{% endif %}">{{ row.filers }}</td>
         <td class="tag{% if row.single_source %} gated{% endif %}">{{ row.concentration }}% {{ row.top_family }}</td>
       </tr>

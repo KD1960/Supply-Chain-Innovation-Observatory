@@ -313,15 +313,18 @@ def test_a_technology_with_no_documents_is_not_scored_as_diverse():
     assert quarter.is_single_source(_row({})) is True
 
 
-def test_share_shift_is_withheld_for_a_single_source_technology(conn):
-    """The report's only inference is the share shift, so that is what the gate
-    has to take away. A shift in a 97%-GitHub technology's share is a shift in
-    GitHub's coverage wearing the technology's name."""
+def test_a_concentrated_technology_is_labelled_rather_than_silenced(conn):
+    """Reversed on the owner's ruling, 2026-08-30. If 88% of a technology's
+    documents are research, that is an indicator it sits at the research stage,
+    not a defect. Withholding the movement deleted the finding along with the
+    risk; the concentration column carries the caution instead."""
     watchlist = _seed_two_quarters(conn)
     context = quarter.build_context(conn, "2026-Q2", watchlist)
-    for row in context["rows"]:
-        if row["single_source"]:
-            assert row["shift"] is None, f"{row['id']} kept a shift it cannot support"
+    concentrated = [row for row in context["rows"] if row["single_source"]]
+    assert concentrated
+    for row in concentrated:
+        assert row["shift"] is not None
+        assert row["stage"], "the dominant family has to name a stage instead"
 
 
 def test_counts_survive_the_gate(conn):
@@ -334,12 +337,12 @@ def test_counts_survive_the_gate(conn):
     assert all(row["total"] > 0 for row in gated)
 
 
-def test_no_gated_technology_reaches_the_movers_list(conn):
+def test_a_concentrated_technology_is_not_kept_off_the_movers_list(conn):
     watchlist = _seed_two_quarters(conn)
     context = quarter.build_context(conn, "2026-Q2", watchlist)
     listed = {row["id"] for row in context["risers"] + context["fallers"]}
-    gated = {row["id"] for row in context["rows"] if row["single_source"]}
-    assert not (listed & gated)
+    concentrated = {row["id"] for row in context["rows"] if row["single_source"]}
+    assert listed & concentrated
 
 
 def test_the_report_says_how_many_it_gated(conn):
@@ -516,48 +519,9 @@ def test_the_concentration_shown_is_the_one_the_gate_used(conn):
 # document is a high percentile inside a family that holds six.
 
 
-def test_the_index_runs_from_zero_to_one_hundred(conn):
-    watchlist = _seed_two_quarters(conn)
-    context = quarter.build_context(conn, "2026-Q2", watchlist)
-    for row in context["rows"]:
-        if row["index"] is not None:
-            assert 0 <= row["index"] <= 100
 
 
-def test_a_gated_technology_has_no_index(conn):
-    """The index is an inference. The gate withholds inferences, and it is what
-    keeps a one-document technology out of the top of the ranking."""
-    watchlist = _seed_two_quarters(conn)
-    context = quarter.build_context(conn, "2026-Q2", watchlist)
-    for row in context["rows"]:
-        if row["single_source"]:
-            assert row["index"] is None
 
-
-def test_more_evidence_in_a_family_pulls_the_index_towards_that_family():
-    """Volume weighting: a family that supplied 27 documents should count for
-    more than one that supplied 1. Breadth-equal weighting says three
-    documents across three families is worth thirty across three, which is more
-    confidence than the evidence carries."""
-    scale = {"code": {0: 0.0, 1: 50.0, 27: 100.0},
-             "patents": {0: 0.0, 1: 10.0, 27: 20.0}}
-    heavy = quarter.index_for({"by_family": {"code": 27, "patents": 1}}, scale)
-    light = quarter.index_for({"by_family": {"code": 1, "patents": 27}}, scale)
-    assert heavy > light
-
-
-def test_the_index_is_none_when_no_family_supplied_anything():
-    assert quarter.index_for({"by_family": {}}, {}) is None
-
-
-def test_percentiles_are_computed_within_a_family_not_across_all():
-    """Six Federal Register documents and eight hundred GitHub ones are not the
-    same scale, which is the whole reason this exists."""
-    rows = [{"by_family": {"code": 800, "regulation": 1}},
-            {"by_family": {"code": 1, "regulation": 6}}]
-    scale = quarter.family_scale(rows)
-    assert scale["regulation"][6] > scale["regulation"][1]
-    assert scale["code"][800] > scale["code"][1]
 
 
 # --- Build Map --------------------------------------------------------------
@@ -644,3 +608,71 @@ def test_the_rendered_report_actually_contains_its_charts(tmp_path, conn):
     page = path.read_text()
     assert "<svg" in page
     assert "&lt;svg" not in page
+
+
+# --- rates instead of a percentile index ------------------------------------
+#
+# The percentile index reported vehicle routing at 93 when it appears in 0.52%
+# of supply chain research. Worse, a percentile cannot move: if every
+# technology doubles, every percentile stays where it was, which is fatal for a
+# tool whose purpose is detecting movement.
+#
+# A rate is matched over retrieved, so 100 means every document in that
+# family's supply chain corpus mentioned the technology. Nothing is near it,
+# and that is the true magnitude rather than a defect of the scale.
+
+
+def test_a_rate_is_matched_over_retrieved():
+    rates = quarter.family_rates({"by_family": {"patents": 27}}, {"patents": 185})
+    assert round(rates["patents"], 2) == 14.59
+
+
+def test_a_rate_of_one_hundred_means_every_document():
+    rates = quarter.family_rates({"by_family": {"trade": 30}}, {"trade": 30})
+    assert rates["trade"] == 100.0
+
+
+def test_a_family_that_retrieved_nothing_yields_no_rate():
+    """Dividing by a corpus nobody collected would invent a number."""
+    assert quarter.family_rates({"by_family": {"trade": 3}}, {"trade": 0}) == {}
+
+
+def test_rates_cover_only_families_the_technology_appears_in():
+    rates = quarter.family_rates({"by_family": {"code": 5, "patents": 0}},
+                                 {"code": 100, "patents": 185})
+    assert set(rates) == {"code"}
+
+
+# --- concentration labels a stage rather than withholding it ----------------
+#
+# The owner's ruling: if 88% of freight decarbonisation's documents are
+# research, that is an indicator the technology is at that stage, not a defect.
+# Suppressing it deleted exactly the finding the project exists to detect.
+
+
+def test_a_concentrated_technology_keeps_its_movement(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    solo = next(r for r in context["rows"] if r["id"] == "solo")
+    assert solo["families"] == 1
+    assert solo["shift"] is not None, "concentration is a finding, not a reason to withhold"
+
+
+def test_a_concentrated_technology_reaches_the_movers_list(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    listed = {row["id"] for row in context["risers"] + context["fallers"]}
+    assert "solo" in listed
+
+
+def test_the_dominant_family_names_a_stage(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    solo = next(r for r in context["rows"] if r["id"] == "solo")
+    assert solo["top_family"] == "code"
+    assert solo["stage"] == "experiment"
+
+
+def test_every_family_maps_to_a_stage():
+    for family in set(quarter.EVIDENCE_FAMILIES.values()):
+        assert family in quarter.FAMILY_STAGE, family
