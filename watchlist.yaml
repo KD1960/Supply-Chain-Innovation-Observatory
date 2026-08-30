@@ -1,4 +1,4 @@
-lexicon_version: 8
+lexicon_version: 9
 
 # Supply chain and operations vocabulary. A technology marked `needs_context`
 # only counts when the document also uses one of these words somewhere — that is
@@ -149,13 +149,31 @@ technologies:
      include: ["vehicle routing", "travel(l)?ing salesman", "pickup and delivery problem",
                "multi[- ]agent path finding", "\\bMAPF\\b", "capacitated (vehicle )?routing"],
      exclude: [], status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
+  # Retired at lexicon v9, 2026-08-30. A method rather than a technology that
+  # emerges and diffuses: 546 observations, 20% of the whole corpus, of which
+  # 256 were matched by "mixed-integer linear programming" -- a solution
+  # technique that appears in nearly every optimisation paper -- and 65 by
+  # "computational experiments", a phrase from the methods section of one.
+  #
+  # It answered none of the six tracked questions. Operations research has been
+  # out of the lab since the 1950s, it had no deployment signal and no adoption
+  # signal, and 96% of its evidence was research. 31% of its documents were
+  # already counted under a technology that does move -- 87 under vehicle
+  # routing, 43 under last-mile delivery.
+  #
+  # Consistent with the three entries rejected in STATUS section 8 as fields
+  # rather than technologies, one of which was machine learning for operations.
+  # Keeping this one while rejecting that was the inconsistency.
+  #
+  # Retired rather than deleted: the patterns stay, so every past week still
+  # replays under this file, and the reason stays where the next reader is.
   - {id: operations_research, name: Operations research methods, family: digital,
      include: ["operations research", "combinatorial optimi[sz]ation",
                "(mixed[- ])?integer (linear )?programming", "stochastic programming",
                "computational experiments", "decision support system(s)?"],
      exclude: ["passenger rail", "urban rail transit", "metro (train|system)",
                "train speed", "virtual coupling", "bike[- ]shar(e|ing)"],
-     needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W35}
+     needs_context: true, status: retired, added_week: 2026-W34, patterns_changed_week: 2026-W35}
   - {id: last_mile_delivery, name: Last-mile delivery optimization, family: digital,
      include: ["last[- ]mile", "quick commerce", "same[- ]day (delivery|fulfil(l)?ment)"],
      exclude: ["last[- ]mile rail"], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W35}

@@ -23,10 +23,10 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **546 passing** |
+| Tests | **547 passing** |
 | Precision | **51%**, two coders, kappa 0.79, 91 judgeable rows |
-| Lexicon | version **8**, 51 active technologies, 7 families |
-| Observations | **2,676** across 54 weeks, 2025-W34 → 2026-W35 |
+| Lexicon | version **9**, 50 active technologies, 7 families |
+| Observations | **2,130** across 54 weeks, 2025-W34 → 2026-W35 |
 | By source | scopus 830, github 826, arxiv 705, edgar 128, lens 85, hn 74, usaspending 33, federalregister 21, abi_inform 9 |
 | Evidence families | **all 8 populated** — research, code, patents, filings, trade, regulation, money, community |
 | Evidence families | research, code, patents, filings, regulation, money, community — **7 of 8** (no trade press yet) |
@@ -78,6 +78,29 @@ looks the way it does.
 - **Standing instruction from the owner:** plain correctness bugs inherited from
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
+
+## 4c. Operations research retired (lexicon v9, 2026-08-30)
+
+A method, not a technology that emerges and diffuses. It held **546
+observations, 20% of the whole corpus**, of which 256 were matched by
+`mixed-integer linear programming` — a solution technique that appears in
+nearly every optimisation paper — and 65 by `computational experiments`, a
+phrase from the methods section of one.
+
+It answered none of the six tracked questions. Operations research has been out
+of the lab since the 1950s; it had no deployment signal, no adoption signal, and
+96% of its evidence was research. **31% of its documents were already counted
+under a technology that does move** — 87 under vehicle routing, 43 under
+last-mile delivery.
+
+This is consistent with the three entries §8 already rejects as fields rather
+than technologies, one of which is *machine learning for operations*. Keeping
+this one while rejecting that was the inconsistency, and the owner spotted it
+by reading the audit sample.
+
+**Retired, not deleted.** The entry and its patterns stay, so every past week
+still replays under this file, and a test asserts both — that it is retired and
+that its patterns survive.
 
 ## 4b. What the precision audit changed (lexicon v8, 2026-08-30)
 

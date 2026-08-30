@@ -226,3 +226,15 @@ def test_shipped_watchlist_still_keeps_the_true_positive():
     # measuring the FRA's paperwork cadence rather than intermodal technology.
     assert "positive_train_control" in hits
     assert "rail_intermodal_tech" not in hits
+
+
+def test_a_retired_technology_is_not_matched_or_scored():
+    """Operations research was retired at lexicon v9: a method, not a
+    technology that emerges and diffuses. Retiring rather than deleting keeps
+    the entry, its patterns and the reason visible, and keeps every past week
+    rebuildable."""
+    real = matcher.load_watchlist()
+    assert "operations_research" not in {tech.id for tech in real.active}
+    retired = real.by_id("operations_research")
+    assert retired.status == "retired"
+    assert retired.include, "the patterns stay, so an old week still replays"
