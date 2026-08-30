@@ -1,14 +1,47 @@
 # Precision audit — lexicon v7
 
 **Date:** 2026-08-30 · **Sample:** 105 observations, twelve per source, seed 20260830
-**Coder:** Claude (single coder — see *Limits* below)
+**Coders:** two, independent · **Agreement:** 88%, Cohen's kappa 0.79
+**Adjudicated precision: 51%**
 **Sheet:** `output/precision-audit-sample.md`, reproducible from the seed
 
 Loosening the lexicon at v7 added about 1,100 observations. This measures what
 that cost. The question asked of each row was only: *does this document support
 counting it under that technology?*
 
-## Result
+## Second coder, and a correction to the headline
+
+A second coder worked the same sheet blind, without access to the first
+coder's judgments or to this document. Codes are in `docs/audit/`.
+
+| | judgeable | correct | precision |
+|---|---|---|---|
+| coder A | 93 | 55 | 59% |
+| coder B | 91 | 51 | 56% |
+| **adjudicated** | **91** | **47** | **51%** |
+
+Raw agreement 88%, Cohen's kappa **0.79** across three codes and 0.75 on the
+two substantive ones. That is substantial agreement, and both coders
+independently marked the same twelve EDGAR rows unjudgeable — which is the
+strongest evidence that "the filing text is not recoverable" is a fact about
+the data rather than one coder's caution.
+
+**Of thirteen disagreements, nine resolved against coder A and none against
+coder B.** That is not noise, it is a leniency bias, and its direction is
+exactly what should have been expected: coder A wrote the patterns being
+judged. Examples of what it let through — a repository that *integrates with*
+S/4HANA counted as ERP; a security advisory about a transportation management
+product counted as AI transportation management; a paper about visual mapping
+counted as a digital twin on a passing mention; a study of vessel fleet
+decarbonisation counted as port electrification.
+
+**The headline figure is 51%, not 59%.** The single-coder estimate was
+optimistic by eight points. Four PTC disagreements were left standing rather
+than adjudicated: coder B's reasoning — that freight railroads are in scope —
+is fair, and it is precisely why the owner moved PTC to its own technology at
+lexicon v8. That disagreement was about the category, not the rows.
+
+## Result (coder A, retained for the per-source breakdown)
 
 | source | judged | correct | precision |
 |---|---|---|---|
@@ -70,11 +103,11 @@ collector searches for the exact phrase, so the filing provably contains it —
 but "contains the phrase" is not the same as "is about the technology", and
 this audit cannot tell them apart.
 
-**One coder, and it is the same model that wrote the patterns.** The method
-this project sanctions is independent coders with a reported agreement
-statistic. This is one pass by one coder with an obvious stake in the answer.
-Treat 59% as an order of magnitude, not a measurement. A second coder on the
-same sheet would cost an hour and would make the number real.
+**Two coders now, but both are the same model.** The agreement statistic is
+real and the leniency bias it exposed was real. What it cannot rule out is a
+bias both coders share — a human reading the same sheet might find both of
+them wrong in the same direction. A student coder on this sheet remains worth
+an hour.
 
 **Twelve per source is thin.** Enough to find a fault that affects a third of a
 source's rows, nowhere near enough to separate 55% from 65%.

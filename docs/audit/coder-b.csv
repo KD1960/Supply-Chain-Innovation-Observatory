@@ -1,0 +1,106 @@
+n,code,note
+1,Y,
+2,Y,
+3,Y,
+4,Y,
+5,Y,
+6,Y,nearshoring policy tactic
+7,Y,
+8,Y,
+9,Y,
+10,N,generic agentic AI governance; no procurement
+11,Y,
+12,N,UAV comms link; not delivery
+13,Y,
+14,N,software supply chain security
+15,N,supply chain Petri nets; not microfactories
+16,Y,OR optimization for delivery robots
+17,N,warehouse visual mapping; DT passing mention
+18,N,generic GA operator paper
+19,Y,MAPF in logistics
+20,N,TSP mentioned as prior work only
+21,Y,
+22,X,name and form only
+23,X,name and form only
+24,X,name and form only
+25,X,name and form only
+26,X,name and form only
+27,X,name and form only
+28,X,name and form only
+29,X,name and form only
+30,X,name and form only
+31,X,name and form only
+32,X,name and form only
+33,X,name and form only
+34,N,broad advanced-manufacturing pilot; not additive spares
+35,Y,FECR freight railroad included
+36,N,commuter passenger rail
+37,N,passenger transit
+38,Y,CSX freight PTC field test
+39,N,Amtrak passenger
+40,Y,freight terminal railroad
+41,N,passenger transit
+42,N,passenger transit
+43,Y,FECR freight included
+44,Y,freight terminal railroad
+45,N,PATH passenger rapid transit
+46,Y,
+47,Y,
+48,Y,
+49,Y,
+50,Y,
+51,Y,
+52,Y,
+53,N,S/4HANA listed as integration only
+54,Y,
+55,Y,
+56,Y,
+57,Y,
+58,N,agent memory tooling
+59,N,agent hosting platform
+60,N,AI threat modeling
+61,N,software supply chain / CVE
+62,N,job ad
+63,Y,
+64,Y,humanoids in factory
+65,N,last mile used as metaphor
+66,Y,
+67,Y,
+68,Y,
+69,N,security vulns in TMS product; not TMS/AI
+70,N,retail cooler product ID; not inspection
+71,Y,imaging assessment of items at retail facility
+72,N,blockchain shipping; tag tech unspecified
+73,N,camera product ID; not RFID
+74,N,GPS hub pallet tracking; not RFID
+75,N,optical codes / barcodes
+76,N,apartment access control
+77,Y,
+78,Y,
+79,Y,
+80,X,order splitting to workstations; no robot in text
+81,Y,
+82,Y,
+83,Y,
+84,N,GenAI review; DSS passing
+85,Y,
+86,Y,
+87,Y,
+88,Y,
+89,N,ML regression method; SCM passing mention
+90,N,urban passenger rail transit
+91,X,train trajectory OR; freight vs passenger unclear
+92,Y,DT for UAV logistics
+93,N,production scheduling; TSP as subproblem
+94,Y,port emissions and energy transition planning
+95,N,container yard buildout; GHG boilerplate
+96,N,catenary construction; not security
+97,N,wharf reconstruction; not security
+98,N,rail spur construction; term reuse
+99,N,berth rehab; no OR content
+100,N,breakwater replacement
+101,Y,hybrid electric assist harbor tug demo
+102,N,vessel fleet decarbonization study
+103,Y,shore power for reefer containers
+104,N,track rehab; intermodal terminal as endpoint
+105,Y,PTC analytics for short line freight
