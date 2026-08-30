@@ -1,0 +1,118 @@
+# Revisions from the 2026-08-30 precision audit (docs/precision-audit-2026-08-30.md).
+#
+# Two are proposed. Four are questions, because the answer turns on what the
+# owner wants a technology to mean rather than on anything measurable, and
+# every version I could measure was worse than the choice itself.
+#
+# Every figure below is measured against the corpus, not estimated.
+#
+# NOT proposed, deliberately:
+#
+#   The Hacker News post "the last mile tends to be where things stall", about
+#   deploying software, is one row in 223. Every rule broad enough to catch it
+#   also caught drone-delivery papers that use the word "deployment" -- the
+#   narrowest version dropped 42 to fix 1. Left alone; a 0.4% error rate is not
+#   worth a rule that costs 19%.
+#
+#   Swapping G06K7 for the RFID-specific G06K19/07 was measured and changes
+#   nothing: both return 17 patents and both include the apartment
+#   access-control system. The fault is not the class chosen (see question 3).
+
+revisions:
+
+  # 223 -> 222. Fixes the USAspending "LAST MILE RAIL PROJECT", a 6,100-foot
+  # rail spur, which is a different sense of the words entirely.
+  - id: last_mile_delivery
+    name: Last-mile delivery optimization
+    family: digital
+    because: >-
+      A federal grant for a "LAST MILE RAIL PROJECT" -- a 6,100-foot lead track
+      connecting a BNSF yard to an industrial centre -- was counted as
+      last-mile delivery. One exclusion, one row, no other row affected.
+    include:
+      - "last[- ]mile"
+      - "quick commerce"
+      - "same[- ]day (delivery|fulfil(l)?ment)"
+    exclude:
+      - "last[- ]mile rail"
+    needs_context: true
+
+  # 23 -> 21. The technology is operational-technology security; the pattern
+  # was catching physical infrastructure construction.
+  - id: infrastructure_security
+    name: Critical infrastructure and OT security
+    family: networks
+    because: >-
+      "critical infrastructure" alone matched a grant for 141 catenary pole
+      foundations and a wharf reconstruction in San Juan. Requiring the
+      security sense costs two rows and removes both.
+    include:
+      - "critical infrastructure (security|protection|resilience|cyber)"
+      - "operational technology security"
+      - "\\bICS\\b security"
+      - "\\bSCADA\\b"
+    exclude: []
+    needs_context: false
+
+# ---------------------------------------------------------------------------
+# QUESTIONS. Each is a decision about scope, not a pattern that can be measured
+# into correctness. The numbers are here so the choice can be made on evidence.
+# ---------------------------------------------------------------------------
+#
+# 1. rail_intermodal_tech and Positive Train Control
+#
+#    Eleven of twelve sampled Federal Register rows are FRA notices of PTC
+#    system amendments -- Long Island Rail Road, New Jersey Transit, MBTA four
+#    times, Amtrak, PATH. PTC is train control, not intermodal technology, and
+#    most of those railroads carry passengers.
+#
+#    Removing "positive train control": 22 observations -> 2.
+#
+#    PTC is a real, dated, trackable rail technology and it may deserve its own
+#    watchlist entry rather than deletion -- but a new technology is the
+#    owner's decision, and folding it into "rail intermodal technology" is what
+#    made that technology read 100% Federal Register.
+#
+# 2. agentic_procurement: procurement, or supply chain?
+#
+#    The entry is named for procurement; the pattern matches all agentic AI.
+#    On Hacker News it was 0 of 5 -- an agentic-memory database, a "Vercel for
+#    agents", an AI threat-modelling tool, a job advertisement.
+#
+#      as-is                                        85 observations
+#      require a procurement word anywhere          22
+#      adjacency, the rule genai_planning now uses   7
+#
+#    The middle option is not a compromise, it is worse than both: it drops
+#    "Drivers and constraints of agentic AI in supply chain management" while
+#    keeping "Vercel for Agents". The real question is whether this technology
+#    means agentic AI *for procurement* (then: adjacency, 7) or agentic AI *in
+#    supply chain* (then: rename it, and accept that a document-level gate is
+#    all the precision a generic term can have).
+#
+# 3. item_level_rfid: 26 observations at roughly 40% precision, or none
+#
+#    All 26 come from the CPC code; not one was found by text. Three of five
+#    sampled were wrong -- a blockchain shipping patent, a GPS asset-tracking
+#    hub, an apartment access-control system.
+#
+#    The pattern behind it: CPC-as-evidence works for a *mechanism* class and
+#    fails for an *enabling-technology* class. B65G1/137, storage with
+#    indicating means, was 4 of 4 -- it describes a machine that does one
+#    thing. G06K7, reading record carriers, describes a component that appears
+#    in patents about everything, and swapping it for the narrower G06K19/07
+#    changes nothing because the breadth is in the technology, not the code.
+#
+#    Dropping CPC attribution here returns item-level RFID to silence, which is
+#    where it sat for a year before Lens. Twenty-six observations at 40% or
+#    zero at 100% is the owner's tolerance to set, not mine.
+#
+# 4. operations_research and passenger transit
+#
+#    Metro train rescheduling, urban rail transit design, bus service
+#    adjustment, crew scheduling. All of it is operations research and none of
+#    it is supply chain. Excluding passenger transit: 556 -> 544, twelve rows.
+#
+#    Small enough to be arguable either way: operations research methods do
+#    transfer between passenger and freight, and the technology is named for
+#    the methods.
