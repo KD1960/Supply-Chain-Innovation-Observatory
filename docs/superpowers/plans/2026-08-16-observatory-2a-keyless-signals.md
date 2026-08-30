@@ -352,7 +352,7 @@ Feeds two signals: `media_articles` (attention — the denominator of the substa
 - [ ] **Step 1: Capture the fixture from the live API**
 
 ```bash
-curl -s -A "SupplyChainObservatory/1.0 (kevindooley1960@gmail.com)" \
+curl -s -A "SupplyChainObservatory/1.0 (you@example.edu)" \
   --get "https://api.gdeltproject.org/api/v2/doc/doc" \
   --data-urlencode 'query="supply chain" sourcelang:english' \
   -d "mode=artlist" -d "format=json" -d "maxrecords=50" \
@@ -576,7 +576,7 @@ Supplies the Build Map's news-derived points: where in the country supply chain 
 - [ ] **Step 1: Capture the fixture from the live API**
 
 ```bash
-curl -s -A "SupplyChainObservatory/1.0 (kevindooley1960@gmail.com)" \
+curl -s -A "SupplyChainObservatory/1.0 (you@example.edu)" \
   --get "https://api.gdeltproject.org/api/v2/geo/geo" \
   --data-urlencode 'query="distribution center" OR "warehouse"' \
   -d "format=GeoJSON" -d "mode=PointData" -d "TIMESPAN=7d" \
@@ -890,7 +890,7 @@ Federal contract and grant dollars are the Investment stage, and their place of 
 - [ ] **Step 1: Capture the fixture from the live API**
 
 ```bash
-curl -s -A "SupplyChainObservatory/1.0 (kevindooley1960@gmail.com)" \
+curl -s -A "SupplyChainObservatory/1.0 (you@example.edu)" \
   -H "Content-Type: application/json" \
   -X POST "https://api.usaspending.gov/api/v2/search/spending_by_award/" \
   -d '{"filters":{"keywords":["port infrastructure"],"time_period":[{"start_date":"2026-05-01","end_date":"2026-08-17"}],"award_type_codes":["A","B","C","D"]},"fields":["Award ID","Recipient Name","Award Amount","Description","Place of Performance State Code","Start Date"],"page":1,"limit":20,"sort":"Award Amount","order":"desc","subawards":false}' \
@@ -1113,7 +1113,7 @@ The Diffusion signal: how many *distinct* public companies name a technology in 
 SEC requires a descriptive User-Agent with a contact address and rate-limits aggressively. Be polite.
 
 ```bash
-curl -s -A "SupplyChainObservatory/1.0 (kevindooley1960@gmail.com)" \
+curl -s -A "SupplyChainObservatory/1.0 (you@example.edu)" \
   --get "https://efts.sec.gov/LATEST/search-index" \
   --data-urlencode 'q="autonomous trucking"' \
   -d "forms=10-K" -d "startdt=2026-01-01" -d "enddt=2026-08-17" \

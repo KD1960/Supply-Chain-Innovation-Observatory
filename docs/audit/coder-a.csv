@@ -1,0 +1,106 @@
+n,code,note
+1,Y,
+2,Y,
+3,Y,
+4,Y,
+5,Y,
+6,Y,
+7,Y,
+8,Y,
+9,Y,manufacturing automation but the outlet is Supply Chain Dive
+10,N,generic agentic AI governance not procurement
+11,Y,
+12,N,UAV comms architecture not delivery
+13,Y,
+14,N,software supply chain security, out of scope
+15,N,descriptive phrase not the technology
+16,Y,
+17,Y,
+18,N,generic genetic algorithm paper
+19,Y,
+20,N,robotics perception, TSP in passing
+21,Y,
+22,X,edgar: filing text not recoverable
+23,X,edgar: filing text not recoverable
+24,X,edgar: filing text not recoverable
+25,X,edgar: filing text not recoverable
+26,X,edgar: filing text not recoverable
+27,X,edgar: filing text not recoverable
+28,X,edgar: filing text not recoverable
+29,X,edgar: filing text not recoverable
+30,X,edgar: filing text not recoverable
+31,X,edgar: filing text not recoverable
+32,X,edgar: filing text not recoverable
+33,X,edgar: filing text not recoverable
+34,N,NIST advanced manufacturing pilot not additive spares
+35,N,PTC is train control not intermodal
+36,N,PTC passenger railroad
+37,N,PTC passenger railroad
+38,N,PTC passenger railroad
+39,N,PTC Amtrak
+40,Y,Belt Railway of Chicago is a freight switching railroad
+41,N,PTC passenger railroad
+42,N,PTC passenger railroad
+43,N,PTC mixed passenger and freight
+44,N,PTC, second Belt Railway row, coded N as duplicate cadence
+45,N,PTC passenger railroad
+46,Y,
+47,Y,
+48,Y,
+49,Y,
+50,Y,
+51,Y,
+52,Y,
+53,Y,
+54,Y,
+55,Y,
+56,Y,
+57,Y,
+58,N,agentic memory database
+59,N,platform for building agents
+60,N,AI threat modelling tool
+61,N,software supply chain
+62,N,job advertisement
+63,Y,
+64,Y,
+65,N,last mile as a software deployment metaphor
+66,Y,
+67,Y,
+68,Y,
+69,Y,article is about a TMS product
+70,Y,retail product identification by camera
+71,Y,retail item assessment by imaging
+72,N,blockchain shipping not RFID
+73,N,identifier sensor but not item-level RFID
+74,N,GPS asset tracking not RFID
+75,N,optical codes are barcodes not RFID
+76,N,apartment access control
+77,Y,
+78,Y,
+79,Y,
+80,Y,
+81,Y,
+82,Y,
+83,Y,
+84,N,generative AI review not operations research
+85,Y,
+86,Y,
+87,Y,
+88,Y,
+89,N,ML methods paper not OR for supply chain
+90,N,urban rail transit is passenger
+91,N,train signalling is passenger
+92,Y,
+93,Y,
+94,Y,
+95,N,container yard project not decarbonisation technology
+96,N,catenary poles are physical infrastructure not OT security
+97,N,wharf reconstruction not OT security
+98,N,last mile rail spur
+99,N,berth rehabilitation, pattern fired on boilerplate
+100,N,breakwater replacement not shore power
+101,Y,
+102,Y,
+103,Y,
+104,Y,
+105,Y,
