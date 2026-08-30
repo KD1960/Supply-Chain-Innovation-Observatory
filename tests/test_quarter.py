@@ -502,3 +502,145 @@ def test_the_concentration_shown_is_the_one_the_gate_used(conn):
     assert row["top_family"] == "research"
     assert row["concentration"] == round(100 * row["by_family"]["research"] / row["total"])
     assert row["single_source"] is (row["concentration"] >= 80)
+
+
+# --- the 0-100 index --------------------------------------------------------
+#
+# Counts are not comparable across sources: GitHub retrieved 30,459 documents
+# in 2026-Q3 against Hacker News's 2,304. The index expresses a technology's
+# standing *within each family* and averages those, weighted by how much
+# evidence each family actually supplied.
+#
+# It is computed only for technologies that pass the diversity gate. A naive
+# version scored rail intermodal technology 90 on one document, because one
+# document is a high percentile inside a family that holds six.
+
+
+def test_the_index_runs_from_zero_to_one_hundred(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    for row in context["rows"]:
+        if row["index"] is not None:
+            assert 0 <= row["index"] <= 100
+
+
+def test_a_gated_technology_has_no_index(conn):
+    """The index is an inference. The gate withholds inferences, and it is what
+    keeps a one-document technology out of the top of the ranking."""
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    for row in context["rows"]:
+        if row["single_source"]:
+            assert row["index"] is None
+
+
+def test_more_evidence_in_a_family_pulls_the_index_towards_that_family():
+    """Volume weighting: a family that supplied 27 documents should count for
+    more than one that supplied 1. Breadth-equal weighting says three
+    documents across three families is worth thirty across three, which is more
+    confidence than the evidence carries."""
+    scale = {"code": {0: 0.0, 1: 50.0, 27: 100.0},
+             "patents": {0: 0.0, 1: 10.0, 27: 20.0}}
+    heavy = quarter.index_for({"by_family": {"code": 27, "patents": 1}}, scale)
+    light = quarter.index_for({"by_family": {"code": 1, "patents": 27}}, scale)
+    assert heavy > light
+
+
+def test_the_index_is_none_when_no_family_supplied_anything():
+    assert quarter.index_for({"by_family": {}}, {}) is None
+
+
+def test_percentiles_are_computed_within_a_family_not_across_all():
+    """Six Federal Register documents and eight hundred GitHub ones are not the
+    same scale, which is the whole reason this exists."""
+    rows = [{"by_family": {"code": 800, "regulation": 1}},
+            {"by_family": {"code": 1, "regulation": 6}}]
+    scale = quarter.family_scale(rows)
+    assert scale["regulation"][6] > scale["regulation"][1]
+    assert scale["code"][800] > scale["code"][1]
+
+
+# --- Build Map --------------------------------------------------------------
+#
+# In the design spec since the beginning and never plotted a point, because
+# USAspending returned nothing usable for a year. It has 33 geocoded awards
+# now, which is the whole reason that collector was fixed.
+
+
+def test_the_build_map_takes_its_points_from_located_observations(conn):
+    _locate(conn, "a", "2026-W14", 33.4, -112.0, 5_000_000, "Phoenix award")
+    _locate(conn, "a", "2026-W15", 47.6, -122.3, 1_000_000, "Seattle award")
+    points = quarter.map_points(conn, "2026-Q2")
+    assert len(points) == 2
+    assert {round(p.y, 1) for p in points} == {33.4, 47.6}
+
+
+def test_a_bigger_award_gets_a_bigger_dot(conn):
+    _locate(conn, "a", "2026-W14", 33.4, -112.0, 100_000_000, "large")
+    _locate(conn, "a", "2026-W15", 47.6, -122.3, 100_000, "small")
+    points = {p.label.split(" ")[0]: p for p in quarter.map_points(conn, "2026-Q2")}
+    assert points["large"].size > points["small"].size
+
+
+def test_an_award_with_no_amount_still_gets_a_dot(conn):
+    """A grant whose dollars were not reported is still a place where capacity
+    is being built. Dropping it would silently shrink the map."""
+    _locate(conn, "a", "2026-W14", 33.4, -112.0, None, "unpriced")
+    assert len(quarter.map_points(conn, "2026-Q2")) == 1
+
+
+def test_observations_outside_the_period_are_not_plotted(conn):
+    _locate(conn, "a", "2026-W02", 33.4, -112.0, 1000, "last quarter")
+    assert quarter.map_points(conn, "2026-Q2") == []
+
+
+def test_the_map_label_names_the_technology_and_the_money(conn):
+    _locate(conn, "a", "2026-W14", 33.4, -112.0, 2_500_000, "Port project")
+    label = quarter.map_points(conn, "2026-Q2")[0].label
+    assert "Port project" in label and "2.5" in label
+
+
+# --- Substance vs Attention -------------------------------------------------
+
+
+def test_substance_counts_building_and_attention_counts_talking():
+    row = {"by_family": {"code": 4, "patents": 3, "filings": 2, "money": 1,
+                         "regulation": 1, "community": 5, "trade": 2,
+                         "research": 9}}
+    assert quarter.substance(row) == 11
+    assert quarter.attention(row) == 7
+
+
+def test_research_counts_as_neither():
+    """A preprint is not a built thing and it is not hype. The weekly index
+    leaves arXiv out of both halves for the same reason, and folding nine
+    hundred research documents into either would drown the distinction."""
+    assert quarter.substance({"by_family": {"research": 900}}) == 0
+    assert quarter.attention({"by_family": {"research": 900}}) == 0
+
+
+def test_a_technology_with_no_evidence_either_way_is_left_off_the_chart(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    for row in context["substance_rows"]:
+        assert quarter.substance(row) or quarter.attention(row)
+
+
+def _locate(conn, tech_id, week, lat, lon, amount, title):
+    conn.execute(
+        "INSERT INTO observations (source, week, tech_id, doc_id, doc_date, title, "
+        "url, entity, entity_id, amount, lat, lon, matched_pattern, raw_ref) VALUES "
+        "('usaspending', ?, ?, ?, '2026-04-01', ?, '', NULL, NULL, ?, ?, ?, 'x', NULL)",
+        (week, tech_id, f"d-{title}-{week}", title, amount, lat, lon))
+    conn.commit()
+
+
+def test_the_rendered_report_actually_contains_its_charts(tmp_path, conn):
+    """The context held the SVG and the page did not: Jinja autoescapes, so the
+    markup arrived as text. Checking the context is not checking the report."""
+    _locate(conn, "a", "2026-W14", 33.4, -112.0, 5_000_000, "Phoenix award")
+    watchlist = _seed_two_quarters(conn)
+    path = quarter.render_quarter(conn, "2026-Q2", watchlist, tmp_path)
+    page = path.read_text()
+    assert "<svg" in page
+    assert "&lt;svg" not in page

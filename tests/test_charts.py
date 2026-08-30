@@ -123,3 +123,18 @@ def test_build_map_of_nothing_is_still_valid_svg():
 def test_build_map_escapes_labels():
     svg = charts.build_map([charts.Point(x=-100.0, y=40.0, label='<b>&"')])
     assert "&lt;b&gt;" in svg and "<b>" not in svg
+
+
+def test_a_scatter_can_draw_the_parity_diagonal():
+    """Substance against attention is only readable with the line where they
+    are equal: above it a technology has more being built than said about it."""
+    svg = charts.scatter([charts.Point(x=1, y=2, size=4, label="a", colour="#000")],
+                         diagonal=True)
+    assert "<line" in svg
+
+
+def test_a_scatter_omits_the_diagonal_unless_asked():
+    svg = charts.scatter([charts.Point(x=1, y=2, size=4, label="a", colour="#000")])
+    assert svg.count("<line") == charts.scatter(
+        [charts.Point(x=1, y=2, size=4, label="a", colour="#000")]).count("<line")
+    assert "stroke-dasharray" not in svg

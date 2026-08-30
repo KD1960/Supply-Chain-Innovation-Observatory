@@ -111,6 +111,13 @@
 <section>
   <h2>What the {{ period_noun }} held</h2>
   <p class="source">{{ weeks[0] }} to {{ weeks[-1] }} &middot; lexicon version {{ lexicon_version }}</p>
+  <p><strong>Index</strong> is 0&ndash;100: where a technology stands inside each
+  kind of evidence, averaged and weighted by how much evidence each kind
+  supplied. Counts are not comparable across sources &mdash; GitHub returned
+  30,459 documents in 2026-Q3 against Hacker News's 2,304 &mdash; so the index
+  says how a technology stands in what a source produced rather than how large
+  the source is. It is withheld, like every other inference here, where one
+  kind of evidence supplies almost all of it.</p>
   <p>Counts are documents matched, not mentions: a technology named twice in one
   filing counts once. The columns are kinds of evidence rather than databases:
   research covers preprints and journals together, and <em>other</em> gathers
@@ -137,7 +144,7 @@
 <div class="panel">
   <table>
     <thead><tr>
-      <th class="name">Technology</th><th class="num">Docs</th>
+      <th class="name">Technology</th><th class="num">Index</th><th class="num">Docs</th>
       <th class="num">Research</th><th class="num">Code</th>
       <th class="num">Patents</th><th class="num">Filings</th>
       <th class="num">Other</th><th class="num">Filers</th>
@@ -147,6 +154,7 @@
       {% for row in rows %}
       <tr{% if row.single_source %} class="gated"{% endif %}>
         <td class="name">{{ row.name }}</td>
+        <td class="num{% if row.index is none %} dim{% endif %}">{% if row.index is none %}&mdash;{% else %}{{ row.index|round|int }}{% endif %}</td>
         <td class="num">{{ row.total }}</td>
         {# Families, not sources. Eight source columns will not fit, and the
            gate already reasons in families -- arXiv and Scopus are one kind of
@@ -165,6 +173,37 @@
     </tbody>
   </table>
 </div>
+
+{% if substance_rows %}
+<section>
+  <h2>Substance and attention</h2>
+  <p class="source">Documents that are building against documents that are talking</p>
+  <p>Horizontal is attention &mdash; trade press and community discussion.
+  Vertical is substance &mdash; code, patents, filings, federal awards and
+  regulation. Research sits in neither: a preprint is not a built thing and it
+  is not hype, and nine hundred of them would drown the distinction. A
+  technology above the diagonal has more being built than said about it.</p>
+</section>
+<div class="panel">
+  {{ substance_chart }}
+</div>
+{% endif %}
+
+{% if map_points %}
+<section>
+  <h2>Build Map</h2>
+  <p class="source">{{ map_points|length }} located federal awards this {{ period_noun }}</p>
+  <p>Every award with a place of performance, sized by the square root of its
+  obligated dollars so a hundred-million-dollar award is ten times a
+  million-dollar one rather than a hundred. An award whose dollars were not
+  reported still gets a dot &mdash; it is a place where capacity is being built.
+  The frame is the continental United States; Alaska and Hawaii are drawn
+  clamped to the edge rather than dropped.</p>
+</section>
+<div class="panel">
+  {{ build_map }}
+</div>
+{% endif %}
 
 {% if risers %}
 <section>

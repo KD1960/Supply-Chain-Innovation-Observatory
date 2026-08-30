@@ -23,7 +23,7 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **530 passing** |
+| Tests | **546 passing** |
 | Precision | **51%**, two coders, kappa 0.79, 91 judgeable rows |
 | Lexicon | version **8**, 51 active technologies, 7 families |
 | Observations | **2,676** across 54 weeks, 2025-W34 → 2026-W35 |
@@ -32,7 +32,7 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 | Evidence families | research, code, patents, filings, regulation, money, community — **7 of 8** (no trade press yet) |
 | Raw weeks on disk | 53, 2025-W35 → 2026-W35 |
 | Source runs | 318 recorded, **none has ever failed** |
-| Deliverable | annual report, `output/report-2026.html` |
+| Deliverable | quarterly and annual reports, `output/report-*.html` |
 
 The weekly cron fired unattended on Monday 2026-08-24 07:00 and worked: all six
 sources OK, W35 fetched, and the seven-day lookback correctly added 12 more

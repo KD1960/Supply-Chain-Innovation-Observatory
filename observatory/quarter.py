@@ -15,9 +15,12 @@ from __future__ import annotations
 
 import collections
 import datetime as dt
+import math
 from pathlib import Path
 
-from . import config, render, supplemental
+from markupsafe import Markup
+
+from . import charts, config, render, supplemental
 
 QUARTER_WEEKS = 13
 # The six public collectors. Anything else in `observations` arrived through a
@@ -214,6 +217,89 @@ def weeks_run(conn, name: str) -> int:
     return row["n"] if row else 0
 
 
+# Building versus talking, at the family level. Research is in neither: a
+# preprint is not a built thing and it is not hype, and the weekly index leaves
+# arXiv out of both halves for the same reason. Folding nine hundred research
+# documents into either side would drown the distinction the block exists to
+# draw.
+SUBSTANCE_FAMILIES = ("code", "patents", "filings", "money", "regulation")
+ATTENTION_FAMILIES = ("community", "trade")
+
+
+def substance(row) -> int:
+    return sum((row["by_family"] or {}).get(f, 0) for f in SUBSTANCE_FAMILIES)
+
+
+def attention(row) -> int:
+    return sum((row["by_family"] or {}).get(f, 0) for f in ATTENTION_FAMILIES)
+
+
+def map_points(conn, name: str) -> list:
+    """Every located award in the period, as a dot.
+
+    An award whose dollars were not reported still gets a dot: it is a place
+    where capacity is being built, and dropping it would quietly shrink the
+    map. Size is the square root of the money, so a hundred-million-dollar
+    award is ten times a million-dollar one rather than a hundred.
+    """
+    weeks = weeks_in_period(name)
+    placeholders = ",".join("?" for _ in weeks)
+    rows = conn.execute(
+        f"SELECT title, amount, lat, lon FROM observations "
+        f"WHERE week IN ({placeholders}) AND lat IS NOT NULL AND lon IS NOT NULL",
+        weeks,
+    ).fetchall()
+    points = []
+    for row in rows:
+        millions = (row["amount"] or 0) / 1e6
+        size = 3 + min(14, (millions ** 0.5))
+        money = f" — ${millions:.1f}M" if row["amount"] else ""
+        points.append(charts.Point(
+            x=row["lon"], y=row["lat"], size=size,
+            label=f"{row['title'] or 'award'}{money}", colour="#A85B12"))
+    return points
+
+
+def family_scale(rows) -> dict[str, dict[int, float]]:
+    """Where each document count sits within its own family, 0-100.
+
+    Within the family, because the families are not the same size and never
+    will be: GitHub retrieved 30,459 documents in 2026-Q3 against Hacker
+    News's 2,304, and six Federal Register notices is a lot of Federal
+    Register. A raw count says which source is large; a percentile within the
+    family says how a technology stands in the evidence that family produced.
+    """
+    families = {family for row in rows for family in row["by_family"]}
+    scale: dict[str, dict[int, float]] = {}
+    for family in families:
+        counts = sorted(row["by_family"].get(family, 0) for row in rows)
+        span = max(len(counts) - 1, 1)
+        scale[family] = {
+            count: 100 * sum(1 for other in counts if other < count) / span
+            for count in set(counts)
+        }
+    return scale
+
+
+def index_for(row, scale: dict[str, dict[int, float]]) -> float | None:
+    """A technology's standing across families, 0-100, weighted by evidence.
+
+    Weighted by `log1p` of each family's document count, so a family that
+    supplied twenty-seven documents counts for more than one that supplied
+    one -- but not twenty-seven times more. Weighting families equally instead
+    says three documents spread across three families are worth thirty spread
+    across three, which is more confidence than the evidence carries.
+    """
+    pairs = [
+        (scale.get(family, {}).get(count, 0.0), math.log1p(count))
+        for family, count in (row["by_family"] or {}).items() if count
+    ]
+    total = sum(weight for _, weight in pairs)
+    if not total:
+        return None
+    return round(sum(value * weight for value, weight in pairs) / total, 1)
+
+
 def build_context(conn, name: str, watchlist) -> dict:
     counts = totals(conn, name)
     weeks = weeks_in_period(name)
@@ -251,6 +337,12 @@ def build_context(conn, name: str, watchlist) -> dict:
             # observations, and hiding them would hide that the evidence exists.
             "shift": None if gated else shifts.get(tech.id),
         })
+    # The index needs every row's family breakdown, so it is a second pass.
+    scale = family_scale(rows)
+    for row in rows:
+        # Withheld for a gated technology, like every other inference here: a
+        # single-family index is that family's coverage wearing a score.
+        row["index"] = None if row["single_source"] else index_for(row, scale)
     rows.sort(key=lambda item: -item["total"])
     # Sources a reader without a subscription cannot follow. Defined by what
     # they are rather than by absence from a hardcoded list: once supplemental
@@ -271,6 +363,22 @@ def build_context(conn, name: str, watchlist) -> dict:
             row["total"] for row in rows if row["single_source"]
         ),
         "single_source_share": SINGLE_SOURCE_SHARE,
+        "map_points": (points := map_points(conn, name)),
+        # Markup, because the environment autoescapes: without it the SVG
+        # arrives in the page as text and the block renders empty.
+        "build_map": Markup(charts.build_map(points)),
+        "substance_rows": (sub := [
+            row for row in rows if substance(row) or attention(row)
+        ]),
+        "substance_chart": Markup(charts.scatter(
+            [charts.Point(x=attention(row), y=substance(row),
+                          size=4 + min(10, row["total"] ** 0.5),
+                          label=f"{row['name']} — {substance(row)} building, "
+                                f"{attention(row)} talking",
+                          colour="#A85B12")
+             for row in sub],
+            x_label="attention", y_label="substance", diagonal=True,
+        )),
         "family_floor": FAMILY_FLOOR,
         "previous": previous_period(name),
         "weeks": weeks,

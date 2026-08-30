@@ -37,6 +37,7 @@ def scatter(
     height: int = 440,
     x_label: str = "",
     y_label: str = "",
+    diagonal: bool = False,
 ) -> str:
     parts = [
         f'<svg viewBox="0 0 {width} {height}" width="100%" '
@@ -71,6 +72,15 @@ def scatter(
             f'<text x="14" y="{height / 2:.0f}" text-anchor="middle" font-size="12" '
             f'fill="{TEXT_COLOUR}" transform="rotate(-90 14 {height / 2:.0f})">'
             f"{escape(y_label, quote=True)}</text>"
+        )
+    if diagonal:
+        # The line where the two axes are equal. Substance against attention is
+        # only readable with it: above the line a technology has more being
+        # built than said about it, which is the question the block asks.
+        parts.append(
+            f'<line x1="{PADDING}" y1="{height - PADDING}" '
+            f'x2="{width - PADDING}" y2="{PADDING}" stroke="{AXIS_COLOUR}" '
+            f'stroke-dasharray="4 4" stroke-opacity="0.6" />'
         )
     parts.append("</svg>")
     return "".join(parts)
