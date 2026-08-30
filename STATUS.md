@@ -24,7 +24,7 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 | | |
 |---|---|
 | Tests | **547 passing** |
-| Precision | **51%**, two coders, kappa 0.79, 91 judgeable rows |
+| Precision | **51%**, two coders (kappa 0.79) plus a full owner review, 91 judgeable rows |
 | Lexicon | version **9**, 50 active technologies, 7 families |
 | Observations | **2,130** across 54 weeks, 2025-W34 → 2026-W35 |
 | By source | scopus 830, github 826, arxiv 705, edgar 128, lens 85, hn 74, usaspending 33, federalregister 21, abi_inform 9 |

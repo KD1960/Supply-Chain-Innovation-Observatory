@@ -1,7 +1,8 @@
 # Precision audit — lexicon v7
 
 **Date:** 2026-08-30 · **Sample:** 105 observations, twelve per source, seed 20260830
-**Coders:** two, independent · **Agreement:** 88%, Cohen's kappa 0.79
+**Coders:** two, independent, plus the owner's review of the full sheet
+**Agreement:** 88%, Cohen's kappa 0.79
 **Adjudicated precision: 51%**
 **Sheet:** `output/precision-audit-sample.md`, reproducible from the seed
 
@@ -103,11 +104,28 @@ collector searches for the exact phrase, so the filing provably contains it —
 but "contains the phrase" is not the same as "is about the technology", and
 this audit cannot tell them apart.
 
-**Two coders now, but both are the same model.** The agreement statistic is
-real and the leniency bias it exposed was real. What it cannot rule out is a
-bias both coders share — a human reading the same sheet might find both of
-them wrong in the same direction. A student coder on this sheet remains worth
-an hour.
+**A human read the sheet, and disputed none of the judgments.** The owner
+reviewed all 105 items on 2026-08-30. Two things came back, and neither was a
+coding disagreement:
+
+- Items 35–45 and 105 show Positive Train Control under `rail_intermodal_tech`.
+  That is a labelling artifact — the sample was drawn at lexicon v7, before PTC
+  was split out. The codes themselves were not contested.
+- A question about whether `operations_research` was too broad to be useful.
+  That is a **scope** challenge rather than a coding one, and it was right: the
+  entry was retired at v9, taking 546 observations and 20% of the corpus with
+  it.
+
+**What this does establish:** the adjudicated 51% survived a full human read
+without a single code being disputed. That is real, and it is more than the two
+model coders could give on their own.
+
+**What it does not establish:** the owner reviewed rather than independently
+coded, so there is no third set of codes and no agreement statistic with a
+human. A bias shared by both model coders would show up as a disputed code, and
+none were — but a reviewer reading alongside existing judgments is a weaker
+test than one coding blind. If the figure ever needs to carry more weight than
+it does now, that is the remaining move.
 
 **Twelve per source is thin.** Enough to find a fault that affects a third of a
 source's rows, nowhere near enough to separate 55% from 65%.
