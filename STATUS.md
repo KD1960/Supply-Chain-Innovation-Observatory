@@ -24,6 +24,7 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 | | |
 |---|---|
 | Tests | **530 passing** |
+| Precision | **51%**, two coders, kappa 0.79, 91 judgeable rows |
 | Lexicon | version **8**, 51 active technologies, 7 families |
 | Observations | **2,676** across 54 weeks, 2025-W34 → 2026-W35 |
 | By source | scopus 830, github 826, arxiv 705, edgar 128, lens 85, hn 74, usaspending 33, federalregister 21, abi_inform 9 |
@@ -80,9 +81,10 @@ looks the way it does.
 
 ## 4b. What the precision audit changed (lexicon v8, 2026-08-30)
 
-A 105-row stratified audit put precision at **59% across 93 judgeable rows**
-(`docs/precision-audit-2026-08-30.md`). Five faults were acted on; the sixth
-was measured and left alone.
+A 105-row stratified audit, coded independently by two coders, puts precision
+at **51% across 91 judgeable rows** — raw agreement 88%, Cohen's kappa 0.79
+(`docs/precision-audit-2026-08-30.md`, codes in `docs/audit/`). Five faults
+were acted on; the sixth was measured and left alone.
 
 - **Positive train control is its own technology now.** Eleven of twelve
   sampled Federal Register rows for `rail_intermodal_tech` were FRA notices of
@@ -130,11 +132,29 @@ gated. A document-level gate passes anything that says "supply chain" once
 anywhere, which is enough for a distinctive term and nowhere near enough for a
 generic one.
 
-**Precision after v7 has not been measured properly.** A GitHub row's title is
-`owner/repo-name` and the match happens on the description, which is not
-stored, so 46% of the corpus cannot be judged from the database. A stratified
-hand-coded sample is the only honest way to a precision number, and it has not
-been done.
+**Precision is 51%, and the first estimate of it was optimistic.** The obstacle
+to measuring it at all was that the database does not hold the text a match was
+made on — a GitHub row's title is `owner/repo-name` and the match happens on
+the description. `observatory/audit.py` walks an observation back to that text,
+from `raw/` for the API collectors and from `data/manual` for the hand-fetched
+ones; it recovered 105 of 105.
+
+**A single coder read 59%. Two coders adjudicated to 51%.** Of thirteen
+disagreements, **nine resolved against the first coder and none against the
+second** — a leniency bias whose direction was predictable, since that coder
+had written the patterns being judged. It had counted a repository that merely
+*integrates with* S/4HANA as ERP, a security advisory about a transport
+management product as AI transportation management, and a vessel fleet
+decarbonisation study as port electrification.
+
+Both coders independently marked the same twelve EDGAR rows unjudgeable, which
+is good evidence that "the filing text is not recoverable" is a fact about the
+data rather than one coder's caution.
+
+**What the statistic still cannot see:** both coders are the same model. It
+catches a bias one of them holds and is blind to one they share. A human coder
+on the same sheet — it is in `docs/audit/sample.md` — remains worth an hour,
+and is the only thing that would settle whether 51% is itself optimistic.
 
 ## 5. What is broken or missing
 
