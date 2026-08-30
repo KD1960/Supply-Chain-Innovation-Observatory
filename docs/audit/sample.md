@@ -1,6 +1,13 @@
 # Precision audit sample — lexicon v7, 2026-08-30
 
 105 observations, twelve per source, seed 20260830.
+
+**Drawn at lexicon v7.** Items 35 to 45 and 105 show Positive Train Control
+notices coded under `rail_intermodal_tech`, because that is where the lexicon
+put them at the time. They are the evidence that moved PTC to its own
+technology at v8, so the sheet is left as it was drawn rather than re-labelled
+— re-coding a sample after the fact to match a decision the sample caused would
+destroy the record of how the decision was reached.
 The match is marked [[like this]]. For each, the question is only:
 does this document support counting it under that technology?
 
