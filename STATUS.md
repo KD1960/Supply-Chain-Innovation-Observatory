@@ -23,9 +23,9 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **514 passing** |
-| Lexicon | version **7**, 50 active technologies, 7 families |
-| Observations | **2,711** across 54 weeks, 2025-W34 → 2026-W35 |
+| Tests | **530 passing** |
+| Lexicon | version **8**, 51 active technologies, 7 families |
+| Observations | **2,676** across 54 weeks, 2025-W34 → 2026-W35 |
 | By source | scopus 830, github 826, arxiv 705, edgar 128, lens 85, hn 74, usaspending 33, federalregister 21, abi_inform 9 |
 | Evidence families | **all 8 populated** — research, code, patents, filings, trade, regulation, money, community |
 | Evidence families | research, code, patents, filings, regulation, money, community — **7 of 8** (no trade press yet) |
@@ -77,6 +77,38 @@ looks the way it does.
 - **Standing instruction from the owner:** plain correctness bugs inherited from
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
+
+## 4b. What the precision audit changed (lexicon v8, 2026-08-30)
+
+A 105-row stratified audit put precision at **59% across 93 judgeable rows**
+(`docs/precision-audit-2026-08-30.md`). Five faults were acted on; the sixth
+was measured and left alone.
+
+- **Positive train control is its own technology now.** Eleven of twelve
+  sampled Federal Register rows for `rail_intermodal_tech` were FRA notices of
+  PTC amendments, mostly for passenger railroads — that technology was
+  measuring the FRA's paperwork cadence. It falls 22 → 2 and PTC keeps 20 under
+  its own entry. Owner's decision: PTC is not only about intermodal.
+- **`item_level_rfid` 26 → 5.** The rule underneath is the audit's most useful
+  finding: **CPC-as-evidence works for a *mechanism* class and fails for an
+  *enabling technology* class.** `B65G1/137` (storage with indicating means)
+  was 4 of 4; `G06K7` (reading record carriers) attributed a blockchain
+  shipping patent and an apartment access-control system. An enabling class now
+  carries a `confirm` pattern in `sources.yaml` that the text must also match.
+  Swapping to the narrower `G06K19/07` was measured and changes nothing.
+- **`operations_research` 556 → 546**, excluding passenger transit.
+- **`agentic_procurement` 85 → 84.** Only `software supply chain` excluded,
+  which was already out of scope. Two narrower options were measured and
+  rejected: adjacency dropped "Agentic AI Framework for Smart Inventory
+  Replenishment"; a wider exclusion list dropped "Procurement-Agentic-App".
+  **This technology has known low precision** — "agentic AI" is a general
+  buzzword and a document-level gate cannot separate a supply chain agent from
+  an AI-industry post. Read its counts accordingly.
+- **`last_mile_delivery` 223 → 222**, excluding a "LAST MILE RAIL PROJECT".
+
+**Left alone deliberately:** a Hacker News post using "last mile" for software
+deployment is one row in 223, and every rule broad enough to catch it dropped
+42 drone-delivery papers that use the word "deployment".
 
 ## 4a. The lexicon carried the domain word where the gate belonged
 

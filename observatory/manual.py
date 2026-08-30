@@ -266,9 +266,12 @@ def classification_evidence(source: str, record: dict) -> list[str]:
     its match from the text like any other document.
     """
     registry = supplemental.load()
-    declared = (registry.sources[source].evidences or {}) if source in registry.sources else {}
+    entry = registry.sources.get(source)
+    declared = (entry.evidences or {}) if entry else {}
     if not declared:
         return []
+    confirm = (entry.confirm or {}) if entry else {}
+    haystack_text = f"{record.get('title') or ''} {record.get('abstract') or ''}"
     codes = [
         code.strip()
         for code in re.split(r"[;,]", record.get("classifications") or "")
@@ -276,7 +279,13 @@ def classification_evidence(source: str, record: dict) -> list[str]:
     ]
     found: list[str] = []
     for prefix, tech_id in declared.items():
-        if any(code.startswith(prefix) for code in codes) and tech_id not in found:
+        if not any(code.startswith(prefix) for code in codes):
+            continue
+        # An enabling-technology class only counts when the document says so.
+        needed = confirm.get(prefix)
+        if needed and not re.search(needed, haystack_text, re.IGNORECASE):
+            continue
+        if tech_id not in found:
             found.append(tech_id)
     return found
 

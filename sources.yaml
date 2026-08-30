@@ -130,6 +130,17 @@ sources:
     # among them "Material conveying method" and "Automated chain of custody
     # tracking techniques". That is the ERP-is-97%-GitHub failure in a new
     # costume. Matching is by prefix, because a code is a tree.
+    # Classes whose attribution also needs the text to name the technology.
+    # A *mechanism* class describes a machine that does one thing and stands on
+    # its own; an *enabling technology* class describes a component that turns
+    # up in patents about everything. G06K7 -- reading record carriers -- was 2
+    # of 5 in the audit, attributing a blockchain shipping patent, a GPS
+    # asset-tracking hub and an apartment access-control system. The narrower
+    # G06K19/07 was measured and is no better: the breadth is in the
+    # technology, not the code.
+    confirm:
+      "G06K7": "\\brfid\\b|radio[- ]frequency identif|\\bnfc\\b|smart tag|electronic tag|tag(ged|ging)? (item|product|pallet|case)"
+      "H04W4/80": "\\brfid\\b|radio[- ]frequency identif|\\bnfc\\b|smart tag|electronic tag|beacon"
     evidences:
       "B65G1/137": warehouse_robotics    # storage devices with indicating or control means
       "B65G1/04": warehouse_robotics     # storage with mechanical conveyors

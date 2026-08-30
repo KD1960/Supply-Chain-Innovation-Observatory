@@ -227,8 +227,9 @@ def test_a_broad_classification_attributes_nothing():
 
 def test_classification_matching_is_by_prefix():
     """A code is a tree. G06K7/10 is a kind of G06K7, and the map names the
-    branch rather than every leaf."""
-    text = _lens_row("Tag reader", "A reader.", "G06K7/10297")
+    branch rather than every leaf. G06K7 also carries a confirming pattern, so
+    the text has to name the technology as well."""
+    text = _lens_row("RFID tag reader", "An RFID reader for pallets.", "G06K7/10297")
     assert "item_level_rfid" in manual.classification_evidence("lens", manual.parse_csv(text)[0])
 
 
@@ -532,3 +533,41 @@ def test_the_refusal_gives_the_numbers_and_names_the_largest_file(tmp_path):
     message = str(raised.value)
     assert "mmh.ris" in message
     assert "90" in message and "50" in message
+
+
+# --- classification evidence that needs the text to agree -------------------
+#
+# CPC-as-evidence works for a *mechanism* class and fails for an *enabling
+# technology* class. B65G1/137, storage with indicating means, was 4 of 4 in
+# the audit -- it describes a machine that does one thing. G06K7, reading
+# record carriers, describes a component that appears in patents about
+# everything: it attributed a blockchain shipping patent, a GPS asset-tracking
+# hub, and an apartment access-control system. Swapping it for the narrower
+# G06K19/07 was measured and changed nothing, because the breadth is in the
+# technology rather than the code.
+
+
+def test_a_mechanism_class_attributes_on_its_own():
+    record = {"classifications": "B65G1/1378", "title": "Goods sorting robot",
+              "abstract": "A sorting robot and control server."}
+    assert "warehouse_robotics" in manual.classification_evidence("lens", record)
+
+
+def test_an_enabling_class_needs_the_text_to_name_the_technology():
+    """The apartment access-control patent carried G06K7 and said nothing about
+    tags. The class alone must not be enough."""
+    record = {"classifications": "G06K7/10", "title": "Method of providing client service",
+              "abstract": "Scheduling access for a service provider to an apartment."}
+    assert manual.classification_evidence("lens", record) == []
+
+
+def test_an_enabling_class_attributes_when_the_text_agrees():
+    record = {"classifications": "G06K7/10", "title": "Modified RFID tag inventorying process",
+              "abstract": "An RFID tag inventorying process for retail stock."}
+    assert "item_level_rfid" in manual.classification_evidence("lens", record)
+
+
+def test_the_confirming_words_come_from_the_registry_not_the_code():
+    from observatory import supplemental
+    lens = supplemental.load().sources["lens"]
+    assert lens.confirm, "a source declaring enabling classes must say what confirms them"

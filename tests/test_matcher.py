@@ -220,4 +220,9 @@ def test_shipped_watchlist_rejects_the_off_concept_documents_from_the_first_run(
 def test_shipped_watchlist_still_keeps_the_true_positive():
     real = matcher.load_watchlist()
     hits = dict(real.match("Belt Railway of Chicago positive train control safety plan"))
-    assert "rail_intermodal_tech" in hits
+    # PTC moved to its own technology at lexicon v8. Eleven of twelve sampled
+    # Federal Register rows for rail_intermodal_tech were FRA notices of PTC
+    # amendments, mostly for passenger railroads, so that technology was
+    # measuring the FRA's paperwork cadence rather than intermodal technology.
+    assert "positive_train_control" in hits
+    assert "rail_intermodal_tech" not in hits

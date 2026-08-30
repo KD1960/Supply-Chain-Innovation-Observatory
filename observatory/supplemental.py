@@ -52,6 +52,9 @@ class Source:
     # Classification prefix -> technology. Where a source's retrieval is
     # specific enough to stand as evidence without the text agreeing.
     evidences: dict | None = None
+    # Classification prefix -> a pattern the text must also match. For classes
+    # that name an enabling component rather than a mechanism.
+    confirm: dict | None = None
     # The list to break this source's query up by when one export will not fit.
     split_by: str | None = None
     # Terms per query, where the whole list is too long for the database to

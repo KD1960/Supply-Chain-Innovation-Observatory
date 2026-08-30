@@ -1,4 +1,4 @@
-lexicon_version: 7
+lexicon_version: 8
 
 # Supply chain and operations vocabulary. A technology marked `needs_context`
 # only counts when the document also uses one of these words somewhere — that is
@@ -119,7 +119,7 @@ technologies:
   - {id: agentic_procurement, name: Agentic AI for procurement, family: digital,
      include: ["agentic (ai|procurement|sourcing)",
                "\\bai agent(s)? (for|in) (procurement|sourcing|supply chain)"],
-     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: ["software supply chain"], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
   - {id: supply_chain_digital_twin, name: Supply chain digital twins, family: digital,
      include: ["digital twin(s)?"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
@@ -153,10 +153,12 @@ technologies:
      include: ["operations research", "combinatorial optimi[sz]ation",
                "(mixed[- ])?integer (linear )?programming", "stochastic programming",
                "computational experiments", "decision support system(s)?"],
-     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
+     exclude: ["passenger rail", "urban rail transit", "metro (train|system)",
+               "train speed", "virtual coupling", "bike[- ]shar(e|ing)"],
+     needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W35}
   - {id: last_mile_delivery, name: Last-mile delivery optimization, family: digital,
      include: ["last[- ]mile", "quick commerce", "same[- ]day (delivery|fulfil(l)?ment)"],
-     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W35}
+     exclude: ["last[- ]mile rail"], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W35}
   - {id: supply_chain_llm, name: Domain-specific LLMs for supply chain, family: digital,
      include: ["(supply chain|logistics|warehouse|procurement)[^.]{0,40}(fine[- ]tun|domain[- ]specific)[^.]{0,20}(llm|language model)",
                "llm[^.]{0,30}(warehouse|logistics|supply chain|procurement)",
@@ -235,8 +237,17 @@ technologies:
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
   - {id: rail_intermodal_tech, name: Rail intermodal technology, family: networks,
      include: ["intermodal (terminal|technology|automation)",
-               "positive train control", "automated (rail )?inspection portal(s)?"],
-     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+               "automated (rail )?inspection portal(s)?"],
+     exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
+  # Split out of rail_intermodal_tech at lexicon v8. PTC is train control, not
+  # intermodal technology: eleven of twelve sampled Federal Register rows for
+  # that technology were FRA notices of PTC amendments, mostly for passenger
+  # railroads, so it was measuring the FRA's paperwork cadence. It is a real
+  # rail technology and keeps its own entry rather than being deleted.
+  - {id: positive_train_control, name: Positive train control, family: networks,
+     include: ["positive train control", "\\bPTC\\b system(s)?",
+               "interoperable (electronic )?train (management|control)"],
+     exclude: [], status: active, added_week: 2026-W35, patterns_changed_week: 2026-W35}
   - {id: inland_ports, name: Inland ports, family: networks,
      include: ["inland port(s)?", "dry port(s)?", "inland (container )?terminal(s)?"],
      exclude: [], status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
@@ -256,4 +267,5 @@ technologies:
   - {id: infrastructure_security, name: Critical infrastructure and OT security, family: networks,
      include: ["critical infrastructure", "operational technology security",
                "\\bICS\\b security", "\\bSCADA\\b"],
-     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
+     exclude: ["catenary", "wharf", "pole foundation", "breakwater", "dredg"],
+     needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W35}
