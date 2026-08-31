@@ -2,7 +2,9 @@
 name = "supply-chain-observatory"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["requests>=2.31", "PyYAML>=6.0", "Jinja2>=3.1"]
+dependencies = [
+    "svglib>=1.5",
+    "reportlab>=4.0","requests>=2.31", "PyYAML>=6.0", "Jinja2>=3.1"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

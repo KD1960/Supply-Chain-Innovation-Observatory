@@ -14,6 +14,10 @@ from . import geo
 PADDING = 48
 AXIS_COLOUR = "#c9cdd2"
 TEXT_COLOUR = "#3d4348"
+FONT = "ui-sans-serif,-apple-system,Helvetica,Arial,sans-serif"
+# Long enough for "Warehouse management systems", short enough that fifteen of
+# them do not collide.
+LABEL_LIMIT = 28
 
 
 @dataclass(frozen=True)
@@ -38,6 +42,9 @@ def scatter(
     x_label: str = "",
     y_label: str = "",
     diagonal: bool = False,
+    labels: bool = False,
+    above: str = "",
+    below: str = "",
 ) -> str:
     parts = [
         f'<svg viewBox="0 0 {width} {height}" width="100%" '
@@ -62,6 +69,22 @@ def scatter(
                 f'fill="{escape(point.colour, quote=True)}" fill-opacity="0.75">'
                 f"<title>{escape(point.label, quote=True)}</title></circle>"
             )
+            if not labels:
+                continue
+            # Printed beside the dot rather than left in a hover title: a title
+            # is invisible in a PDF and on paper, and these charts are exported
+            # to both. Callers pass a short list -- ten or fifteen points --
+            # because forty labels overlap into nothing.
+            text = point.label.split(" \u2014 ")[0].split(" (")[0]
+            if len(text) > LABEL_LIMIT:
+                text = text[:LABEL_LIMIT - 1].rstrip() + "\u2026"
+            anchor = "end" if cx > width / 2 else "start"
+            dx = -(point.size + 4) if anchor == "end" else point.size + 4
+            parts.append(
+                f'<text x="{cx + dx:.1f}" y="{cy + 3.5:.1f}" text-anchor="{anchor}" '
+                f'font-family="{FONT}" font-size="10" fill="{TEXT_COLOUR}">'
+                f"{escape(text)}</text>"
+            )
     if x_label:
         parts.append(
             f'<text x="{width / 2:.0f}" y="{height - 12}" text-anchor="middle" '
@@ -82,6 +105,18 @@ def scatter(
             f'x2="{width - PADDING}" y2="{PADDING}" stroke="{AXIS_COLOUR}" '
             f'stroke-dasharray="4 4" stroke-opacity="0.6" />'
         )
+        # What the line means, at the end each statement belongs to. A dashed
+        # line nobody explains is decoration; which side a technology sits on
+        # is the whole reading.
+        if above:
+            parts.append(
+                f'<text x="{PADDING + 6}" y="{PADDING + 14}" font-family="{FONT}" '
+                f'font-size="10" fill="{AXIS_COLOUR}">{escape(above)}</text>')
+        if below:
+            parts.append(
+                f'<text x="{width - PADDING - 6}" y="{height - PADDING - 8}" '
+                f'text-anchor="end" font-family="{FONT}" font-size="10" '
+                f'fill="{AXIS_COLOUR}">{escape(below)}</text>')
     parts.append("</svg>")
     return "".join(parts)
 

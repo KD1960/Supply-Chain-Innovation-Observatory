@@ -193,6 +193,11 @@ QUARTERLY_SOFT = ("community_posts", "trade_articles")
 
 def trailing_quarters(name: str, count: int = TRAILING_QUARTERS) -> list[str]:
     from . import quarter as quarters
+    # A year is not a quarter and cannot be stepped back from. Its window is
+    # the four quarters it contains, which is the trailing four ending at its
+    # last anyway.
+    if "-Q" not in name:
+        return [f"{name}-Q{index}" for index in range(1, 5)]
     window = [name]
     for _ in range(count - 1):
         window.append(quarters.previous_quarter(window[-1]))

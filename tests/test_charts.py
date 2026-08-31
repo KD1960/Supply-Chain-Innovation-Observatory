@@ -138,3 +138,44 @@ def test_a_scatter_omits_the_diagonal_unless_asked():
     assert svg.count("<line") == charts.scatter(
         [charts.Point(x=1, y=2, size=4, label="a", colour="#000")]).count("<line")
     assert "stroke-dasharray" not in svg
+
+
+# --- labels and the parity line ---------------------------------------------
+
+def test_a_scatter_can_print_labels_beside_its_points():
+    """A hover title is invisible in a PDF and on paper, and these charts are
+    now exported to both."""
+    svg = charts.scatter([charts.Point(x=1, y=2, size=4, label="Warehouse robotics",
+                                       colour="#000")], labels=True)
+    assert "<text" in svg
+    assert "Warehouse robotics" in svg
+
+
+def test_a_label_is_trimmed_so_it_does_not_run_off_the_chart():
+    long_name = "General-purpose and humanoid robots in logistics and warehousing"
+    svg = charts.scatter([charts.Point(x=1, y=2, size=4, label=long_name, colour="#000")],
+                         labels=True)
+    import re
+    drawn = re.findall(r"<text[^>]*>([^<]+)</text>", svg)
+    assert any(len(text) <= charts.LABEL_LIMIT + 1 for text in drawn)
+
+
+def test_labels_are_off_unless_asked_for():
+    svg = charts.scatter([charts.Point(x=1, y=2, size=4, label="a", colour="#000")])
+    assert "<text" not in svg or "a</text>" not in svg
+
+
+def test_the_diagonal_can_carry_a_meaning_at_each_end():
+    """A dashed line with nothing said about it is decoration. What matters is
+    which side of it a technology sits on."""
+    svg = charts.scatter([charts.Point(x=1, y=2, size=4, label="a", colour="#000")],
+                         diagonal=True, above="more built than said",
+                         below="more said than built")
+    assert "more built than said" in svg
+    assert "more said than built" in svg
+
+
+def test_the_diagonal_has_no_captions_unless_given():
+    svg = charts.scatter([charts.Point(x=1, y=2, size=4, label="a", colour="#000")],
+                         diagonal=True)
+    assert "stroke-dasharray" in svg

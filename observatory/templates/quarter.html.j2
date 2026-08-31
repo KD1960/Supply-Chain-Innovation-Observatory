@@ -76,6 +76,7 @@
   .note{background:var(--sunk);border-left:3px solid var(--fall);padding:14px 18px;
         margin:18px 0 0;font-size:14.5px}
   .names{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0;list-style:none}
+  .lede{font-size:17px;line-height:1.65;color:var(--ink)}
   .names li{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--rule);
             background:var(--surface);padding:4px 8px;border-radius:2px}
   footer{margin:60px 0 0;padding:20px 0 0;border-top:1px solid var(--rule);
@@ -107,6 +108,11 @@
   of weeks looks exactly like a decline, which is why it is named here instead.</p>
 </section>
 {% endif %}
+
+<section>
+  <h2>In summary</h2>
+  <p class="lede">{{ summary }}</p>
+</section>
 
 <section>
   <h2>What the {{ period_noun }} held</h2>
@@ -192,11 +198,30 @@
   <p>Horizontal is attention &mdash; trade press and community discussion.
   Vertical is substance &mdash; code, patents, filings, federal awards and
   regulation. Research sits in neither: a preprint is not a built thing and it
-  is not hype, and nine hundred of them would drown the distinction. A
-  technology above the diagonal has more being built than said about it.</p>
+  is not hype, and nine hundred of them would drown the distinction.</p>
+  <p>The dashed line is where the two are equal. <strong>Above it, more is
+  being built than said</strong>; below it, more is being said than built.</p>
 </section>
 <div class="panel">
   {{ substance_chart }}
+</div>
+{% endif %}
+
+{% if stage_board %}
+<section>
+  <h2>Stage Board</h2>
+  <p class="source">The {{ stage_points|length }} technologies with the most evidence this {{ period_noun }}</p>
+  <p>Horizontal is where a technology sits in the pipeline, from idea through
+  experimentation, investment and deployment to diffusion, as a weighted centre
+  of its stage scores. Vertical is substance minus attention. A dot's size is
+  the volume of evidence behind it.</p>
+  <p>Only technologies with documents in this {{ period_noun }} are placed. A
+  score is a claim about a period, and a period a technology did not appear in
+  is not one it can have a standing in. Scores are computed over the trailing
+  four {{ period_noun }}s.</p>
+</section>
+<div class="panel">
+  {{ stage_board }}
 </div>
 {% endif %}
 
@@ -260,6 +285,43 @@
   {% for tech in silent %}<li>{{ tech.name }}</li>{% endfor %}
 </ul>
 {% endif %}
+
+<section>
+  <h2>Appendix A &mdash; tracked technologies</h2>
+  <p>Each description is generated from the entry's own matching patterns, so
+  it cannot drift away from what the technology actually matches.</p>
+</section>
+<div class="panel">
+  <table>
+    <thead><tr><th class="name">Technology</th><th class="tag">Family</th>
+    <th class="name">Matches on</th></tr></thead>
+    <tbody>
+      {% for tech in appendix_technologies %}
+      <tr><td class="name">{{ tech.name }}</td><td class="tag">{{ tech.family }}</td>
+      <td class="name" style="width:auto"><code>{{ tech.description }}</code></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<section>
+  <h2>Appendix B &mdash; stages and their sources</h2>
+  <p>The pipeline this project measures, and which sources speak to each part
+  of it. A source can inform more than one stage: an SEC filing is both money
+  committed and a sign that a technology has spread far enough to be worth
+  disclosing.</p>
+</section>
+<div class="panel">
+  <table>
+    <thead><tr><th class="name">Stage</th><th class="name">Sources</th></tr></thead>
+    <tbody>
+      {% for row in appendix_stages %}
+      <tr><td class="name">{{ row.stage }}</td>
+      <td class="name" style="width:auto">{{ row.sources|join(', ') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 <footer>
   <ul>

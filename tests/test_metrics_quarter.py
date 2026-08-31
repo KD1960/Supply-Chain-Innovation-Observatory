@@ -98,3 +98,21 @@ def _watchlist():
     return Watchlist(version=1, context=("x",), technologies=(Technology(
         id="a", name="A", family="f", include=("x",), exclude=(), status="active",
         added_week="2020-W01", patterns_changed_week="2020-W01"),))
+
+
+def test_an_annual_period_uses_its_own_four_quarters():
+    """A year is not a quarter and cannot be stepped back from. Its window is
+    the four quarters it contains, which is also the trailing four ending at
+    its last."""
+    assert metrics.trailing_quarters("2026") == [
+        "2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4"]
+
+
+def test_an_annual_period_scores(conn):
+    for month in ("02", "05", "08", "11"):
+        for day in ("04", "11", "18"):
+            _observe(conn, "a", f"2026-{month}-{day}", "arxiv")
+            _observe(conn, "a", f"2026-{month}-{day}", "github", suffix="g")
+    rows = {row["tech_id"]: row for row in metrics.compute_quarter(conn, "2026", _watchlist())}
+    assert rows["a"]["documents"] == 24
+    assert rows["a"]["sai"] is not None

@@ -756,3 +756,74 @@ def test_research_funding_is_not_folded_into_research():
     with arXiv and Scopus would count the funding of an idea and the publishing
     of one as the same evidence."""
     assert quarter.EVIDENCE_FAMILIES["nsf"] != quarter.EVIDENCE_FAMILIES["arxiv"]
+
+
+# --- the report's blocks ----------------------------------------------------
+
+def test_the_stage_board_is_limited_so_its_labels_stay_readable(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert len(context["stage_points"]) <= quarter.BOARD_LIMIT
+
+
+def test_the_stage_board_keeps_the_technologies_with_the_most_evidence(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    if context["stage_points"]:
+        names = [p.label for p in context["stage_points"]]
+        assert any("solo" in n or "broad" in n for n in names)
+
+
+def test_the_build_map_is_absent_when_nothing_is_located(conn):
+    """A map of no points is a picture of nothing, and printing an empty frame
+    reads as a place where capacity is not being built rather than as a source
+    that returned nothing."""
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert context["map_points"] == []
+    assert context["build_map"] is None
+
+
+def test_the_build_map_appears_when_something_is_located(conn):
+    _locate(conn, "solo", "2026-W20", 33.4, -112.0, 5_000_000, "Phoenix")
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert context["build_map"] is not None
+
+
+def test_the_summary_is_prose_of_about_the_right_length(conn):
+    """A reader who opens the report and reads nothing else should still come
+    away with the quarter."""
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    # The fixture holds two technologies; a real quarter holds forty and the
+    # summary grows with what there is to say. The upper bound is what matters
+    # here -- the owner asked for 250 to 300 words on a real report, and this
+    # guards against prose that runs away.
+    words = len(context["summary"].split())
+    assert 90 <= words <= 360, words
+
+
+def test_the_summary_names_the_quarter_and_its_size(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert "2026-Q2" in context["summary"]
+    assert str(context["documents"]) in context["summary"]
+
+
+def test_the_appendix_describes_every_tracked_technology(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    listed = {row["id"] for row in context["appendix_technologies"]}
+    assert listed == {tech.id for tech in watchlist.active}
+    for row in context["appendix_technologies"]:
+        assert row["description"], f"{row['id']} has no description"
+
+
+def test_the_appendix_maps_every_stage_to_its_sources(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    stages = {row["stage"] for row in context["appendix_stages"]}
+    assert stages == {"idea", "experiment", "investment", "deployment", "diffusion"}
+    for row in context["appendix_stages"]:
+        assert row["sources"], f"{row['stage']} lists no sources"

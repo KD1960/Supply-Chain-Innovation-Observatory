@@ -16,13 +16,14 @@ from __future__ import annotations
 import collections
 import datetime as dt
 import json
+import re
 
 import yaml
 from pathlib import Path
 
 from markupsafe import Markup
 
-from . import charts, config, render, store, supplemental
+from . import charts, config, export, render, store, supplemental
 
 QUARTER_WEEKS = 13
 # The six public collectors. Anything else in `observations` arrived through a
@@ -39,6 +40,10 @@ QUARTER_WEEKS = 13
 # many technologies it caught -- a threshold nobody can see is a threshold
 # nobody can argue with.
 SINGLE_SOURCE_SHARE = 0.80
+
+# How many technologies the stage board and the substance chart name. Forty
+# labels overlap into nothing; the point of a label is being able to read it.
+BOARD_LIMIT = 14
 
 # What kind of evidence each source produces. Diversity is counted across these
 # rather than across source names, because two sources measuring the same thing
@@ -109,6 +114,103 @@ FAMILY_STAGE = {
     "filings": "diffusion",
     "community": "attention",
 }
+
+
+# The stage model, and which families speak to each stage. The inverse of
+# FAMILY_STAGE, written out rather than derived, because a family can inform
+# more than one stage: a filing is both an investment and a sign of diffusion.
+STAGE_FAMILIES: dict[str, tuple[str, ...]] = {
+    "idea": ("research", "research funding"),
+    "experiment": ("code", "patents"),
+    "investment": ("money", "filings"),
+    "deployment": ("regulation", "trade"),
+    "diffusion": ("filings", "trade", "community"),
+}
+
+
+def _describe(tech) -> str:
+    """A one-line description, from the technology's own patterns.
+
+    Written from the lexicon rather than kept as prose beside it, so a
+    description cannot drift away from what the entry actually matches -- which
+    is the thing a reader of the appendix wants to know.
+    """
+    phrases = []
+    for pattern in tech.include[:3]:
+        cleaned = re.sub(r"\\b|[\\^$()\[\]{}?*+|]", " ", pattern)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        if cleaned:
+            phrases.append(cleaned)
+    return "matches " + "; ".join(phrases) if phrases else "no patterns"
+
+
+def _summary(name: str, rows, counts, ran: int, total_weeks: int) -> str:
+    """The quarter in prose, for a reader who reads nothing else."""
+    documents = sum(row["total"] for row in rows)
+    # Sorted by the thing the sentence claims to rank by. `rows` arrives
+    # ordered by document count, and saying "ranked by substance" over that
+    # order would be a sentence that is simply not true.
+    top = sorted((row for row in rows if row.get("sai") is not None),
+                 key=lambda row: -row["sai"])[:3]
+    scored = [row for row in rows if row.get("sai") is not None]
+    concentrated = [row for row in rows if row["single_source"]]
+    silent = [row for row in rows if not row["total"]]
+    families = collections.Counter()
+    for row in rows:
+        for family, count in (row["by_family"] or {}).items():
+            if count:
+                families[family] += count
+    leading = ", ".join(f"{family} {count}" for family, count in families.most_common(3))
+    stage_counts = collections.Counter(row["stage"] for row in rows if row.get("stage"))
+    stage_text = ", ".join(f"{count} at {stage}" for stage, count in stage_counts.most_common(3))
+    parts = [
+        f"{name} holds {documents} matched documents across {len(rows)} technologies, "
+        f"collected over {ran} of {total_weeks} weeks.",
+        f"The evidence is led by {leading}." if leading else "",
+        f"By the family supplying most of their evidence, the quarter reads {stage_text}."
+        if stage_text else "",
+    ]
+    if top:
+        names = ", ".join(row["name"] for row in top)
+        parts.append(
+            f"Ranked by substance against attention \u2014 what is being built "
+            f"rather than said \u2014 the quarter's leaders are {names}."
+        )
+    if concentrated:
+        parts.append(
+            f"{len(concentrated)} of {len(rows)} technologies draw "
+            f"{int(SINGLE_SOURCE_SHARE * 100)}% or more of their evidence from one "
+            f"kind. That is reported rather than suppressed: a technology whose "
+            f"documents sit almost entirely in research is a technology at the "
+            f"research stage. It is also the thing most likely to mislead, because "
+            f"one source's coverage can look like a technology's trajectory."
+        )
+    crossing = [row for row in rows if (row.get("lfi") or 0) > 0]
+    if crossing:
+        names = ", ".join(row["name"] for row in crossing[:3])
+        parts.append(
+            f"{len(crossing)} technologies show more evidence from the investment "
+            f"and deployment stages than from research and experimentation, which is "
+            f"what moving out of the laboratory looks like in this data: {names}."
+        )
+    located = [row for row in rows if row.get("by_family", {}).get("money")]
+    if located:
+        parts.append(
+            f"{len(located)} technologies drew federal money this quarter, and the "
+            f"awards that name a place of performance are plotted on the build map."
+        )
+    if silent:
+        parts.append(
+            f"{len(silent)} technologies produced no documents at all this quarter. "
+            f"Absence here means absence from these sources, not from the world."
+        )
+    parts.append(
+        "Counts are documents matched rather than mentions, and every rate is a "
+        "share of what its own family retrieved, so a figure can be compared with "
+        "the same figure a quarter earlier. Small corpora move by whole "
+        "percentage points on a single document."
+    )
+    return " ".join(part for part in parts if part)
 
 
 def family_rates(row, retrieved: dict[str, int]) -> dict[str, float]:
@@ -386,6 +488,18 @@ def build_context(conn, name: str, watchlist) -> dict:
             # by naming the family and its share beside every number.
             "shift": shifts.get(tech.id),
         })
+    # Quarterly metrics: substance against attention, lab to field, and where
+    # in the pipeline a technology sits, each over the trailing four quarters.
+    # A technology with no documents this quarter is left unscored, which is
+    # what the weekly version got wrong.
+    from . import metrics
+    scores = {row["tech_id"]: row for row in metrics.compute_quarter(conn, name, watchlist)}
+    for row in rows:
+        score = scores.get(row["id"], {})
+        row["sai"] = score.get("sai")
+        row["lfi"] = score.get("lfi")
+        row["position"] = score.get("position")
+
     # The index needs every row's family breakdown, so it is a second pass.
     retrieved = retrieved_by_family(conn, name)
     for row in rows:
@@ -403,8 +517,35 @@ def build_context(conn, name: str, watchlist) -> dict:
     })
     movers = [row for row in rows if row["shift"] is not None]
     movers.sort(key=lambda item: -item["shift"])
+    scored = sorted((row for row in rows if row.get("sai") is not None),
+                    key=lambda row: -row["total"])[:BOARD_LIMIT]
+    stage_points = [
+        charts.Point(x=row["position"], y=row["sai"],
+                     size=4 + min(10, row["total"] ** 0.5),
+                     label=f"{row['name']} \u2014 {row['total']} documents",
+                     colour="#A85B12")
+        for row in scored if row.get("position") is not None
+    ]
+
     return {
         "quarter": name,
+        "stage_points": stage_points,
+        "stage_board": Markup(charts.scatter(
+            stage_points, x_label="pipeline position (idea \u2192 diffusion)",
+            y_label="substance minus attention", labels=True,
+        )) if stage_points else None,
+        "summary": _summary(name, rows, counts, ran, len(weeks)),
+        "appendix_technologies": [
+            {"id": tech.id, "name": tech.name, "family": tech.family,
+             "description": _describe(tech)}
+            for tech in watchlist.active
+        ],
+        "appendix_stages": [
+            {"stage": stage, "sources": sorted(
+                source for source, family in EVIDENCE_FAMILIES.items()
+                if family in families_for_stage)}
+            for stage, families_for_stage in STAGE_FAMILIES.items()
+        ],
         "single_source_count": sum(1 for row in rows if row["single_source"]),
         "single_source_documents": sum(
             row["total"] for row in rows if row["single_source"]
@@ -413,10 +554,13 @@ def build_context(conn, name: str, watchlist) -> dict:
         "map_points": (points := map_points(conn, name)),
         # Markup, because the environment autoescapes: without it the SVG
         # arrives in the page as text and the block renders empty.
-        "build_map": Markup(charts.build_map(points)),
-        "substance_rows": (sub := [
-            row for row in rows if substance(row) or attention(row)
-        ]),
+        # None rather than an empty frame. A map with no points reads as a
+        # place where nothing is being built, when it means a source returned
+        # nothing; the template leaves the whole block out.
+        "build_map": Markup(charts.build_map(points)) if points else None,
+        "substance_rows": (sub := sorted(
+            (row for row in rows if substance(row) or attention(row)),
+            key=lambda row: -row["total"])[:BOARD_LIMIT]),
         "substance_chart": Markup(charts.scatter(
             [charts.Point(x=attention(row), y=substance(row),
                           size=4 + min(10, row["total"] ** 0.5),
@@ -424,7 +568,9 @@ def build_context(conn, name: str, watchlist) -> dict:
                                 f"{attention(row)} talking",
                           colour="#A85B12")
              for row in sub],
-            x_label="attention", y_label="substance", diagonal=True,
+            x_label="attention", y_label="substance", diagonal=True, labels=True,
+            above="above: more built than said",
+            below="below: more said than built",
         )),
         "family_floor": FAMILY_FLOOR,
         "previous": previous_period(name),
@@ -453,5 +599,13 @@ def render_quarter(conn, name: str, watchlist, out_dir: Path | None = None) -> P
     directory = Path(out_dir) if out_dir else config.OUTPUT_DIR
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"report-{name}.html"
-    path.write_text(template.render(**build_context(conn, name, watchlist)))
+    context = build_context(conn, name, watchlist)
+    path.write_text(template.render(**context))
+    # The charts again, on their own, for a slide or a paper. Inline SVG is
+    # right for reading the report and useless for anything else.
+    export.write_charts(directory, name, {
+        "substance-attention": context.get("substance_chart"),
+        "stage-board": context.get("stage_board"),
+        "build-map": context.get("build_map"),
+    })
     return path
