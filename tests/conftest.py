@@ -16,6 +16,13 @@ from observatory import config
 
 
 @pytest.fixture(autouse=True)
+def contact_address(monkeypatch):
+    """Every collector identifies itself with a contact address, and asking for
+    the real one would make the suite depend on a developer's .env."""
+    monkeypatch.setenv("SEC_CONTACT_EMAIL", "tests@example.edu")
+
+
+@pytest.fixture(autouse=True)
 def isolated_manual_dir(tmp_path, monkeypatch):
     empty = tmp_path / "manual"
     empty.mkdir()

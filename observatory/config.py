@@ -76,7 +76,17 @@ def require_env(name: str) -> str:
 
 
 def user_agent() -> str:
-    return f"SupplyChainObservatory/1.0 ({require_env('SEC_CONTACT_EMAIL')})"
+    return f"SupplyChainObservatory/1.0 ({contact_email()})"
+
+
+def contact_email() -> str:
+    """The address every collector identifies itself with.
+
+    Required by the SEC, asked for by OpenAlex and Crossref, and politeness
+    everywhere else. One setting, so a source cannot end up anonymous because
+    somebody added a collector and forgot.
+    """
+    return require_env("SEC_CONTACT_EMAIL")
 
 
 def load_dotenv(path: Path | None = None) -> None:

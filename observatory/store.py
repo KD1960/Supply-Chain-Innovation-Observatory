@@ -89,6 +89,25 @@ CREATE TABLE IF NOT EXISTS weekly_metrics (
     PRIMARY KEY (tech_id, week)
 );
 
+-- How many documents each source retrieved, by the document's own date.
+--
+-- The denominator of every rate. The numerator has always been dated by the
+-- document itself; counting the denominator by which week's directory a raw
+-- file sat in was a different thing, and ISO weeks do not line up with
+-- calendar quarters -- 2026-Q4 ran to December 27th and the last four days of
+-- the year fell out of the annual report.
+--
+-- Keyed by week as well as date so a rebuild can replace a week wholesale.
+-- Adding instead would inflate the denominator once per rebuild, which reads
+-- as a rate that quietly shrinks.
+CREATE TABLE IF NOT EXISTS corpus (
+    source TEXT NOT NULL,
+    week TEXT NOT NULL,
+    doc_date TEXT,
+    documents INTEGER NOT NULL,
+    PRIMARY KEY (source, week, doc_date)
+);
+
 CREATE TABLE IF NOT EXISTS candidate_terms (
     term TEXT NOT NULL,
     week TEXT NOT NULL,
@@ -162,6 +181,43 @@ def init_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def record_corpus(conn: sqlite3.Connection, source: str, week: str,
+                  counts) -> None:
+    """Replace a week's retrieved counts for one source.
+
+    Replace rather than add: a rebuild replays every week, and adding would
+    multiply the denominator by however many rebuilds had run.
+    """
+    conn.execute("DELETE FROM corpus WHERE source = ? AND week = ?", (source, week))
+    conn.executemany(
+        "INSERT INTO corpus (source, week, doc_date, documents) VALUES (?, ?, ?, ?)",
+        [(source, week, date, number) for date, number in counts],
+    )
+    conn.commit()
+
+
+def corpus_between(conn: sqlite3.Connection, start: str, end: str) -> dict[str, int]:
+    """Documents retrieved whose own date falls in the period, by source.
+
+    An undated document is excluded: it exists, and `corpus_undated` counts it,
+    but placing it in a period it may not belong to would be an invention.
+    """
+    rows = conn.execute(
+        "SELECT source, SUM(documents) AS n FROM corpus "
+        "WHERE doc_date IS NOT NULL AND doc_date BETWEEN ? AND ? GROUP BY source",
+        (start, end),
+    ).fetchall()
+    return {row["source"]: row["n"] for row in rows}
+
+
+def corpus_undated(conn: sqlite3.Connection) -> dict[str, int]:
+    rows = conn.execute(
+        "SELECT source, SUM(documents) AS n FROM corpus "
+        "WHERE doc_date IS NULL GROUP BY source"
+    ).fetchall()
+    return {row["source"]: row["n"] for row in rows}
+
+
 def clear_derived(conn: sqlite3.Connection) -> None:
     """Drop everything computed from raw, ahead of a --rebuild.
 
@@ -176,7 +232,8 @@ def clear_derived(conn: sqlite3.Connection) -> None:
     """
     conn.executescript(
         "DELETE FROM observations; DELETE FROM weekly_signals; "
-        "DELETE FROM weekly_metrics; DELETE FROM candidate_terms;"
+        "DELETE FROM weekly_metrics; DELETE FROM candidate_terms; "
+        "DELETE FROM corpus;"
     )
     conn.commit()
 

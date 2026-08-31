@@ -22,7 +22,7 @@ from pathlib import Path
 
 from markupsafe import Markup
 
-from . import charts, config, render, supplemental
+from . import charts, config, render, store, supplemental
 
 QUARTER_WEEKS = 13
 # The six public collectors. Anything else in `observations` arrived through a
@@ -53,6 +53,7 @@ SINGLE_SOURCE_SHARE = 0.80
 EVIDENCE_FAMILIES: dict[str, str] = {
     "arxiv": "research",
     "scopus": "research",
+    "openalex": "research",
     "github": "code",
     "patentsview": "patents",
     "lens": "patents",
@@ -174,6 +175,27 @@ def weeks_in_year(year: str) -> list[str]:
     return [f"{year}-W{week:02d}" for week in range(1, last + 1)]
 
 
+def period_bounds(name: str) -> tuple[str, str]:
+    """The calendar dates a period covers.
+
+    Calendar, not ISO. The two do not line up: 2026-Q1 used to begin on
+    December 29th 2025 and the ISO year ended on December 27th, so the last four
+    days of every December were in no report at all. Every observation carries
+    its own date, so the exact boundary costs nothing.
+
+    Collection is untouched and stays on ISO weeks. A wider fetch window
+    silently truncates four of six sources (STATUS section 6); the cadence of
+    the fetch and the boundaries of the report are separate things.
+    """
+    if "-Q" in name:
+        year, number = name.split("-Q")
+        first = 3 * (int(number) - 1) + 1
+        start = dt.date(int(year), first, 1)
+        end = dt.date(int(year) + (first + 3 > 12), (first + 3 - 1) % 12 + 1, 1) - dt.timedelta(days=1)
+        return start.isoformat(), end.isoformat()
+    return f"{int(name):04d}-01-01", f"{int(name):04d}-12-31"
+
+
 def weeks_in_period(name: str) -> list[str]:
     """A period is a quarter (`2026-Q2`) or a whole year (`2026`)."""
     return weeks_in_quarter(name) if "-Q" in name else weeks_in_year(name)
@@ -191,18 +213,20 @@ def previous_quarter(name: str) -> str:
 
 
 def totals(conn, name: str) -> dict[str, dict]:
-    weeks = weeks_in_period(name)
-    placeholders = ",".join("?" for _ in weeks)
+    # Selected by the document's own date, which is the rule the rest of the
+    # pipeline already follows. A paper dated September 30th belongs to Q3
+    # whether or not its ISO week runs into October.
+    start, end = period_bounds(name)
     rows = conn.execute(
-        f"SELECT tech_id, source, COUNT(*) AS n FROM observations "
-        f"WHERE week IN ({placeholders}) GROUP BY tech_id, source",
-        weeks,
+        "SELECT tech_id, source, COUNT(*) AS n FROM observations "
+        "WHERE doc_date BETWEEN ? AND ? GROUP BY tech_id, source",
+        (start, end),
     ).fetchall()
     filers = conn.execute(
-        f"SELECT tech_id, COUNT(DISTINCT entity_id) AS n FROM observations "
-        f"WHERE week IN ({placeholders}) AND source = 'edgar' "
-        f"AND entity_id IS NOT NULL GROUP BY tech_id",
-        weeks,
+        "SELECT tech_id, COUNT(DISTINCT entity_id) AS n FROM observations "
+        "WHERE doc_date BETWEEN ? AND ? AND source = 'edgar' "
+        "AND entity_id IS NOT NULL GROUP BY tech_id",
+        (start, end),
     ).fetchall()
     by_tech: dict[str, dict] = collections.defaultdict(
         lambda: {"total": 0, "by_source": collections.Counter(), "filers": 0}
@@ -296,72 +320,20 @@ def map_points(conn, name: str) -> list:
     return points
 
 
-def retrieved_by_family(name: str) -> dict[str, int]:
-    """How many documents each family's corpus held in the period.
+def retrieved_by_family(conn, name: str) -> dict[str, int]:
+    """The denominator, from the corpus table, by each document's own date.
 
-    The denominator for every rate. Counted from the raw response bodies and
-    the hand-made exports rather than stored, for the same reason the database
-    is a derived artifact: raw is the source of truth and a count taken from it
-    cannot drift from what was actually collected.
-
-    Every one of these corpora is already supply-chain filtered by the query
-    that fetched it, so a rate answers "of the supply chain documents this
-    family produced, what share mentioned the technology".
+    Counted at ingest and stored rather than recomputed, so a report does not
+    have to walk fifty thousand raw files, and so the denominator agrees with
+    the numerator: both are placed by the document's own date.
     """
-    weeks = set(weeks_in_period(name))
-    counts: collections.Counter = collections.Counter()
-    for path in config.RAW_DIR.glob("*/*/*"):
-        week, source = path.parent.parent.name, path.parent.name
-        if week not in weeks or source not in EVIDENCE_FAMILIES:
-            continue
-        try:
-            text = path.read_text(errors="replace")
-        except OSError:
-            continue
-        counts[EVIDENCE_FAMILIES[source]] += _documents_in(source, text)
-    counts.update(_manual_corpus(name))
-    return dict(counts)
-
-
-def _documents_in(source: str, text: str) -> int:
-    if source == "arxiv":
-        return text.count("<entry>")
-    try:
-        payload = json.loads(text)
-    except (json.JSONDecodeError, ValueError):
-        return 0
-    if source == "github":
-        return len(payload.get("items") or [])
-    if source == "hn":
-        return len(payload.get("hits") or [])
-    if source in ("usaspending", "federalregister"):
-        return len(payload.get("results") or [])
-    if source == "edgar":
-        return len(((payload.get("hits") or {}).get("hits")) or [])
-    return 0
-
-
-def _manual_corpus(name: str) -> dict[str, int]:
-    """The export files are the retrieved corpus for a hand-fetched source."""
-    from . import manual
-    directory = config.MANUAL_DIR / name
-    counts: collections.Counter = collections.Counter()
-    if not directory.exists():
-        return dict(counts)
-    for path in sorted(directory.iterdir()):
-        if path.suffix.lower() not in (".ris", ".csv", ".txt"):
-            continue
-        sidecar = path.with_name(f"{path.name}.meta.yaml")
-        if not sidecar.exists():
-            continue
-        source = str((yaml.safe_load(sidecar.read_text()) or {}).get("source", ""))
+    start, end = period_bounds(name)
+    families: collections.Counter = collections.Counter()
+    for source, count in store.corpus_between(conn, start, end).items():
         family = EVIDENCE_FAMILIES.get(source)
-        if not family:
-            continue
-        text = path.read_text(errors="replace")
-        records = manual.parse_csv(text) if path.suffix.lower() == ".csv" else manual.parse_ris(text)
-        counts[family] += len(records)
-    return dict(counts)
+        if family:
+            families[family] += count
+    return dict(families)
 
 
 def build_context(conn, name: str, watchlist) -> dict:
@@ -407,7 +379,7 @@ def build_context(conn, name: str, watchlist) -> dict:
             "shift": shifts.get(tech.id),
         })
     # The index needs every row's family breakdown, so it is a second pass.
-    retrieved = retrieved_by_family(name)
+    retrieved = retrieved_by_family(conn, name)
     for row in rows:
         row["rates"] = family_rates(row, retrieved)
     rows.sort(key=lambda item: -item["total"])

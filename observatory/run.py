@@ -8,6 +8,7 @@ source and never stops the run.
 from __future__ import annotations
 
 import argparse
+import collections
 import datetime as dt
 import json
 import sys
@@ -21,11 +22,13 @@ from .collectors.edgar import EdgarCollector
 from .collectors.federalregister import FederalRegisterCollector
 from .collectors.github import GithubCollector
 from .collectors.hn import HackerNewsCollector
+from .collectors.openalex import OpenAlexCollector
 from .collectors.usaspending import UsaspendingCollector
 
 COLLECTORS = (
     ArxivCollector(),
     HackerNewsCollector(),
+    OpenAlexCollector(),
     FederalRegisterCollector(),
     UsaspendingCollector(),
     EdgarCollector(),
@@ -157,9 +160,15 @@ def ingest_week(conn, week: str, watchlist, collectors, ok_sources: set[str]) ->
 
 def _ingest_source(conn, week: str, watchlist, collector) -> int:
     inserted = 0
+    # Every document the parser saw, matched or not: the denominator of a rate
+    # is the corpus, not the part of it that happened to match. Dated by the
+    # document itself, so a week straddling a quarter boundary contributes to
+    # both in the proportion its documents actually fall.
+    retrieved: collections.Counter = collections.Counter()
     for path, text in base.read_raw(collector.name, week):
         raw_ref = _raw_ref(conn, str(path))
         for document in collector.parse(text):
+            retrieved[document.date[:10] if document.date else None] += 1
             inserted += store.upsert_observations(
                 conn,
                 matcher.observations_for_document(
@@ -167,6 +176,7 @@ def _ingest_source(conn, week: str, watchlist, collector) -> int:
                     _document_week(document, week), raw_ref
                 ),
             )
+    store.record_corpus(conn, collector.name, week, retrieved.items())
     return inserted
 
 

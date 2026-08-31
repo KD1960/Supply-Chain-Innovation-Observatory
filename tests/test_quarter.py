@@ -21,9 +21,23 @@ def conn():
     connection.close()
 
 
-def observe(conn, tech_id, week, source, doc_id, entity_id=None):
+def observe(conn, tech_id, week, source, doc_id, entity_id=None, doc_date=None):
+    """Dated from its week unless a date is given.
+
+    Reports select by the document's own date now, so an undated observation is
+    in no period at all -- which is correct behaviour and useless test data.
+    """
+    if doc_date is None:
+        import datetime as dt
+
+        from observatory import config
+        # Mid-week. A week straddling a quarter boundary now falls in whichever
+        # quarter holds the day, and Monday would put 2026-W14 in March -- true,
+        # but it makes the fixture about the boundary rather than about what the
+        # test is checking. A test that cares about the boundary states a date.
+        doc_date = (config.week_bounds(week)[0] + dt.timedelta(days=3)).isoformat()
     store.upsert_observations(conn, [Observation(
-        source=source, week=week, tech_id=tech_id, doc_id=doc_id, doc_date=None,
+        source=source, week=week, tech_id=tech_id, doc_id=doc_id, doc_date=doc_date,
         title=doc_id, url=f"https://example.test/{doc_id}", entity=None,
         entity_id=entity_id, amount=None, lat=None, lon=None,
         matched_pattern="x", raw_ref=None,
@@ -676,3 +690,51 @@ def test_the_dominant_family_names_a_stage(conn):
 def test_every_family_maps_to_a_stage():
     for family in set(quarter.EVIDENCE_FAMILIES.values()):
         assert family in quarter.FAMILY_STAGE, family
+
+
+# --- calendar periods -------------------------------------------------------
+#
+# ISO weeks and calendar quarters do not line up. 2026-Q1 ran from December
+# 29th 2025, 2026-Q3 ended September 27th, and the ISO year stopped on December
+# 27th -- so the last four days of every year fell out of the annual report.
+# The owner asked for a calendar-year schedule, which the data supports exactly:
+# every observation carries its own date.
+
+
+def test_a_quarter_covers_its_calendar_dates():
+    assert quarter.period_bounds("2026-Q1") == ("2026-01-01", "2026-03-31")
+    assert quarter.period_bounds("2026-Q3") == ("2026-07-01", "2026-09-30")
+    assert quarter.period_bounds("2026-Q4") == ("2026-10-01", "2026-12-31")
+
+
+def test_a_year_covers_all_of_it_including_the_end_of_december():
+    """The ISO year ended on the 27th. Four days of every December were in no
+    report at all."""
+    assert quarter.period_bounds("2026") == ("2026-01-01", "2026-12-31")
+
+
+def test_a_leap_year_february_is_handled():
+    assert quarter.period_bounds("2028-Q1") == ("2028-01-01", "2028-03-31")
+
+
+def test_the_previous_period_is_still_the_one_before():
+    assert quarter.previous_period("2026-Q1") == "2025-Q4"
+    assert quarter.previous_period("2026") == "2025"
+
+
+def test_totals_select_documents_by_their_own_date(conn):
+    """A document dated September 30th belongs to Q3 even though its ISO week
+    runs into October."""
+    _dated(conn, "a", "2026-W40", "2026-09-30", "in Q3")
+    _dated(conn, "a", "2026-W40", "2026-10-02", "in Q4")
+    assert quarter.totals(conn, "2026-Q3")["a"]["total"] == 1
+    assert quarter.totals(conn, "2026-Q4")["a"]["total"] == 1
+
+
+def _dated(conn, tech_id, week, doc_date, doc_id):
+    conn.execute(
+        "INSERT INTO observations (source, week, tech_id, doc_id, doc_date, title, "
+        "url, entity, entity_id, amount, lat, lon, matched_pattern, raw_ref) VALUES "
+        "('arxiv', ?, ?, ?, ?, ?, '', NULL, NULL, NULL, NULL, NULL, 'x', NULL)",
+        (week, tech_id, doc_id, doc_date, doc_id))
+    conn.commit()

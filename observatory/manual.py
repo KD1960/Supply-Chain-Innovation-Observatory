@@ -385,6 +385,15 @@ def import_exports(conn, watchlist, root: Path | None = None, session=None) -> i
     for meta, records in exports:
         source = str(meta["source"])
         placed = with_resolved_dates(records, dates)
+        # The export file is this source's retrieved corpus, and it is the
+        # denominator of its rates. Counted before matching, because the
+        # denominator is the corpus rather than the part of it that matched.
+        retrieved: dict[str, int] = {}
+        for record in placed:
+            key = (record.get("date") or "")[:10] or None
+            retrieved[key] = retrieved.get(key, 0) + 1
+        store.record_corpus(conn, source, str(meta.get("exported", "manual")),
+                            retrieved.items())
         dropped = len(records) - len(placed)
         if dropped:
             # Silent truncation is this project's oldest failure mode, and a
