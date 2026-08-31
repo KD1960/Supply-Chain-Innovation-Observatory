@@ -20,14 +20,19 @@
        color: var(--muted); font-weight: 600; }
   code { font-size: 12px; color: var(--muted); }
   .empty { color: var(--muted); font-style: italic; }
+  .names { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .names li { font-size: 13px; color: var(--muted); border: 1px solid #dde1e6;
+              border-radius: 2px; padding: 4px 8px; }
   a { color: #2b5f8a; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Evidence &middot; week {{ week }}</h1>
-  <p class="sub">Every observation behind this week's counts, and the pattern that
-     matched it. Lexicon v{{ lexicon_version }}.</p>
+  <h1>Evidence &middot; {{ quarter }}</h1>
+  <p class="sub">Every observation behind this {{ period_noun }}'s counts, and the
+     pattern that matched it. {{ start }} to {{ end }}, lexicon v{{ lexicon_version }}.
+     Technologies are ordered by how much evidence they carry; those with none are
+     listed at the foot.</p>
 
   {% for group in groups %}
     <h2 id="{{ group.tech_id }}">{{ group.name }} <span class="sub">({{ group.rows|length }})</span></h2>
@@ -49,12 +54,20 @@
       {% endfor %}
       </tbody>
     </table>
-    {% else %}
-    <p class="empty">No documents matched this technology this week.</p>
     {% endif %}
   {% else %}
     <p class="empty">No active technologies on the watchlist.</p>
   {% endfor %}
+  {% if empty %}
+  <h2 id="none">Looked for, not found</h2>
+  <p class="sub">{{ empty|length }} technologies produced no documents this
+     {{ period_noun }}. They are named because absence is a finding: the system
+     looked and found nothing in these sources. Each keeps its anchor, so a link
+     from the report is never dead.</p>
+  <ul class="names">
+    {% for tech in empty %}<li id="{{ tech.tech_id }}">{{ tech.name }}</li>{% endfor %}
+  </ul>
+  {% endif %}
 </main>
 </body>
 </html>

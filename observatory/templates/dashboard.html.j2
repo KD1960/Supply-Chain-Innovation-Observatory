@@ -31,119 +31,87 @@
 </style>
 </head>
 <body>
-<main>
-  <h1>Supply Chain Innovation Observatory</h1>
-  <p class="sub">Week {{ week }} &middot; generated {{ generated_for }} &middot; lexicon v{{ lexicon_version }}</p>
+<div class="wrap">
+<header>
+  <p class="eyebrow">Supply Chain Innovation Observatory &middot; collection health</p>
+  <h1>{{ week }}</h1>
+</header>
 
-  <h2>Source health</h2>
-  <ul class="health">
-    {% for source in sources %}
-      <li class="chip {{ source.status }}" title="{{ source.note }}">{{ source.name }}</li>
-    {% else %}
-      <li class="empty">No sources have run yet.</li>
-    {% endfor %}
-  </ul>
+<section>
+  <h2>Did the collectors run?</h2>
+  <p>This page answers what a week can answer. Everything interpretive &mdash;
+  the stage board, substance against attention, lab to field, the build map and
+  the evidence behind them &mdash; is in the quarterly report, because a week
+  cannot support it: two thirds of technology-weeks hold no observations at all.
+  lexicon v{{ lexicon_version }}.</p>
+</section>
 
-  <h2>This Week's Movers</h2>
-  {% if movers %}
+<div class="panel">
   <table>
-    <thead><tr><th>Technology</th><th>Family</th>
-      <th class="num">Substance</th><th class="num">Lab&nbsp;&rarr;&nbsp;Field</th>
-      <th class="num">Adopters</th></tr></thead>
+    <thead><tr><th class="name">Source</th><th class="tag">Status</th>
+      <th class="name">Last run</th><th class="num">Retrieved</th>
+      <th class="num">Matched</th></tr></thead>
     <tbody>
-    {% for mover in movers %}
+      {% for source in sources %}
       <tr>
-        <td><a href="{{ evidence_href }}#{{ mover.tech_id }}">{{ mover.name }}</a></td>
-        <td>{{ mover.family }}</td>
-        <td class="num">{{ '%+.2f'|format(mover.sai) if mover.sai is not none else '—' }}</td>
-        <td class="num">{{ '%+.2f'|format(mover.lfi) if mover.lfi is not none else '—' }}</td>
-        <td class="num">{{ mover.adoption if mover.adoption is not none else '—' }}</td>
+        <td class="name">{{ source.name }}</td>
+        <td class="tag">{{ source.status }}</td>
+        <td class="name">{{ source.last_run_week or '&mdash;' }}</td>
+        <td class="num">{{ retrieved.get(source.name, 0) }}</td>
+        <td class="num">{% set found = arrivals | selectattr('0', 'equalto', source.name) | list %}{{ found[0][1] if found else 0 }}</td>
       </tr>
-    {% endfor %}
+      {% endfor %}
     </tbody>
   </table>
+</div>
+
+<section>
+  <h2>What arrived</h2>
+  <p>{{ matched_total }} observations matched this week. A source showing zero
+  matched but a retrieved count above it ran and found nothing on the watchlist,
+  which is ordinary. A source showing nothing retrieved did not run, and that is
+  the thing this page exists to surface.</p>
+</section>
+
+<section>
+  <h2>Rising terms</h2>
+  <p class="source">Phrases appearing far more than usual and matching no active technology</p>
+  {% if not rising_terms %}
+  <p>No new terms rose above the threshold this week.</p>
   {% else %}
-  <p class="empty">Not enough history yet to rank movers.</p>
+  {% if rising_total > rising_terms|length %}
+  <p><strong>Showing the {{ rising_terms|length }} strongest of {{ rising_total }}.</strong>
+  The rest are in <code>candidate_terms</code>; a capped list that did not say so
+  would read as a complete one.</p>
   {% endif %}
-
-  <h2>Stage Board</h2>
-  <p class="sub">Horizontal: position in the pipeline, 1 = idea to 5 = diffusion. Vertical: substance against attention.</p>
-  {{ stage_board_svg }}
-
-  <h2>Substance vs. Attention</h2>
-  <p class="sub">Above the line, more building than talking.
-     Substance this week is
-     {% if substance_signals %}{{ substance_signals|join(', ') }}{% else %}no signal at all{% endif %};
-     attention is
-     {% if attention_signals %}{{ attention_signals|join(', ') }}{% else %}no signal at all{% endif %}.
-     Signals whose collectors are not running yet are simply absent from both.</p>
-  {{ substance_svg }}
-
-  <h2>Lab &rarr; Field Watch</h2>
-  {% if crossovers %}
+  <p>Candidates for the lexicon. The pipeline never edits the watchlist; a human
+  merges, through <code>lexicon prepare</code> and <code>lexicon check</code>.</p>
+</section>
+<div class="panel">
   <table>
-    <thead><tr><th>Technology</th><th class="num">Lab&nbsp;&rarr;&nbsp;Field</th><th>Trend</th></tr></thead>
+    <thead><tr><th class="name">Term</th><th class="num">Count</th>
+      <th class="num">Against trailing mean</th></tr></thead>
     <tbody>
-    {% for row in crossovers %}
-      <tr><td>{{ row.name }}</td><td class="num">{{ '%+.2f'|format(row.lfi) }}</td><td>{{ row.spark }}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="empty">No technology has crossed into deployment this week.</p>
-  {% endif %}
-
-  <h2>Build Map</h2>
-  <p class="sub">Federal award dollars by location. Dot size follows the award amount.</p>
-  {{ build_map_svg }}
-  {% if map_unplaced %}
-  <p class="sub">Location unknown: {{ map_unplaced }} award{{ 's' if map_unplaced != 1 }}
-     with dollars this week could not be resolved to a place and are not drawn above.</p>
-  {% endif %}
-
-  <h2>Rising Terms</h2>
-  <p class="sub">Phrases spiking against their own 12-week baseline that no active
-     technology matches yet. Promote one by adding it to <code>watchlist.yaml</code>.
-     {% if rising_total > rising_terms|length %}
-       Showing the {{ rising_terms|length }} strongest of {{ rising_total }}.
-     {% endif %}</p>
-  {% if rising_terms %}
-  <table>
-    <thead><tr><th>Term</th><th class="num">This week</th><th class="num">Baseline</th>
-      <th class="num">Ratio</th><th>Examples</th></tr></thead>
-    <tbody>
-    {% for candidate in rising_terms %}
-      <tr>
-        <td><code>{{ candidate.term }}</code></td>
-        <td class="num">{{ candidate.count }}</td>
-        <td class="num">{{ '%.1f'|format(candidate.baseline) }}</td>
-        <td class="num">{{ '%.1f'|format(candidate.ratio) }}&times;</td>
-        <td>
-          {# The URL comes from a third-party payload. Every one of them is
-             collector-constructed or federal-API today, but a javascript: URL
-             would render here as a link the owner clicks in a local file, so
-             only the two schemes a document link can honestly have are made
-             clickable; anything else shows as plain text. #}
-          {% for title, url in candidate.examples %}
-            {% if url is string and (url.startswith('https://') or url.startswith('http://')) %}
-            <a href="{{ url }}">{{ title }}</a>
-            {% else %}{{ title }}{% endif %}{% if not loop.last %}<br>{% endif %}
+      {% for row in rising_terms %}
+      <tr><td class="name">{{ row.term }}
+        {% if row.examples %}<br>
+          {% for title, url in row.examples[:2] %}
+            <span class="tag">{% if url and url.startswith('http') %}<a href="{{ url }}">{{ title }}</a>{% else %}{{ title }}{% endif %}</span>
           {% endfor %}
-        </td>
-      </tr>
-    {% endfor %}
+        {% endif %}
+      </td><td class="num">{{ row.count }}</td>
+      <td class="num">{{ '%.1f'|format(row.ratio) }}&times;</td></tr>
+      {% endfor %}
     </tbody>
   </table>
-  {% else %}
-  <p class="empty">No new terms rose above the threshold this week.</p>
-  {% endif %}
+</div>
+{% endif %}
 
-  {% if warming_up %}
-  <footer>
-    Warming up (fewer than 12 weeks of history, no scores yet):
-    {% for tech in warming_up %}<a href="{{ evidence_href }}#{{ tech.tech_id }}">{{ tech.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
-  </footer>
-  {% endif %}
-</main>
+<footer>
+  Collection runs weekly; reporting is quarterly. The quarterly report is
+  <code>report-&lt;quarter&gt;.html</code> and its evidence is
+  <code>evidence-&lt;quarter&gt;.html</code>.
+</footer>
+</div>
 </body>
 </html>

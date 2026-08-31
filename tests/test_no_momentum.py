@@ -43,12 +43,3 @@ def test_the_momentum_helpers_are_gone():
         assert not hasattr(metrics, name), f"{name} outlived momentum"
 
 
-def test_the_dashboard_still_ranks_without_momentum(conn):
-    watchlist = Watchlist(version=1, technologies=(tech("a"), tech("b")))
-    seed(conn, "a", "arxiv_papers", [1] * 13 + [2] * 13 + [4] * 13)
-    seed(conn, "b", "arxiv_papers", [5] * 39)
-    for row in metrics.compute_week(conn, "2026-W33", watchlist):
-        store.upsert_metrics(conn, row)
-    context = render.build_context(conn, "2026-W33", watchlist)
-    assert "movers" in context
-    assert all("momentum" not in mover for mover in context["movers"])

@@ -23,7 +23,7 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **592 passing** |
+| Tests | **615 passing** |
 | Precision | **51%**, two coders (kappa 0.79) plus a full owner review, 91 judgeable rows |
 | Lexicon | version **9**, 50 active technologies, 7 families |
 | Observations | **2,130** across 54 weeks, 2025-W34 → 2026-W35 |
@@ -32,7 +32,8 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 | Evidence families | research, code, patents, filings, regulation, money, community — **7 of 8** (no trade press yet) |
 | Raw weeks on disk | 53, 2025-W35 → 2026-W35 |
 | Source runs | 318 recorded, **none has ever failed** |
-| Deliverable | quarterly and annual reports, `output/report-*.html` |
+| Deliverable | quarterly and annual reports, `output/report-*.html`, with evidence and standalone charts |
+| Weekly page | collection health only — did the collectors run, what arrived, rising terms |
 
 The weekly cron fired unattended on Monday 2026-08-24 07:00 and worked: all six
 sources OK, W35 fetched, and the seven-day lookback correctly added 12 more
@@ -78,6 +79,32 @@ looks the way it does.
 - **Standing instruction from the owner:** plain correctness bugs inherited from
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
+
+## 4g. Interpretation moved to the quarter (2026-08-31)
+
+Week to week was too noisy to read. Two thirds of technology-weeks hold no
+observations, so a weekly ranking mostly reported which week a collector caught
+something — and a trailing z-score let a technology with **nothing at all in
+the week** top "This Week's Movers". On 2026-W36 seven of the top eight had no
+documents in the week they were named for, and the evidence page each linked to
+said so. The owner spotted it on 2026-W49.
+
+Metrics now run on a **four-quarter window**, needing three quarters present,
+and a technology is scored only in a period it actually appeared in. Signals
+are per family rather than per collector, so a stage does not swing on which of
+three research sources happened to run.
+
+**The weekly page is a collection health view.** Did the collectors run, what
+arrived, what terms are rising. Everything interpretive — stage board,
+substance against attention, lab to field, the build map, and the evidence
+behind them — is in the quarterly report.
+
+The quarterly report gained an executive summary, a stage board, labelled
+charts whose parity line says what each side means, two appendices, and
+standalone SVG and PDF of every chart. Its evidence page lists only
+technologies that have documents, ordered by how much, with the rest named at
+the foot: absence is a finding, and forty-two empty headings between a reader
+and the evidence is not.
 
 ## 4f. NSF added, SBIR and CORDIS rejected (2026-08-31)
 

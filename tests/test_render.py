@@ -48,55 +48,14 @@ def conn(watchlist):
     connection.close()
 
 
-def test_context_ranks_movers_by_momentum(conn, watchlist):
-    context = render.build_context(conn, "2026-W33", watchlist)
-    assert [mover["name"] for mover in context["movers"]] == [
-        "Autonomous trucking", "Warehouse robotics"
-    ]
-
-
-def test_context_excludes_warming_up_technologies_from_movers(conn, watchlist):
-    context = render.build_context(conn, "2026-W33", watchlist)
-    assert "Quiet tech" not in [mover["name"] for mover in context["movers"]]
-    assert "Quiet tech" in [tech["name"] for tech in context["warming_up"]]
 
 
 def test_context_reports_source_health(conn, watchlist):
-    context = render.build_context(conn, "2026-W33", watchlist)
+    context = render.dashboard_context(conn, "2026-W33", watchlist)
     statuses = {source["name"]: source["status"] for source in context["sources"]}
     assert statuses == {"arxiv": "ok", "hn": "failed"}
 
 
-def test_an_absent_adoption_count_renders_as_a_dash_not_a_zero(conn, watchlist, tmp_path):
-    """EDGAR failing leaves no edgar_filers row, so adoption is None. Printing
-    0 adopters would be the fabricated decline the hole rule forbids."""
-    store.upsert_metrics(conn, dict(
-        tech_id="warehouse_robotics", week="2026-W33", momentum=-0.5, sai=-1.3,
-        lfi=-0.4, adoption=None, adoption_new=None, stage_idea=1.1,
-        stage_experiment=0.8, stage_investment=0.1, stage_deployment=-0.2,
-        stage_diffusion=0.0, position=2.1, lexicon_version=3))
-
-    context = render.build_context(conn, "2026-W33", watchlist)
-    absent = [row for row in context["movers"] if row["tech_id"] == "warehouse_robotics"]
-    assert absent and absent[0]["adoption"] is None
-
-    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
-    movers = html.split("This Week's Movers", 1)[1].split("<h2>", 1)[0]
-    # Both movers have a substance and a lab-to-field score, so the only cell
-    # that can hold a dash is the adopters count.
-    assert "Warehouse robotics" in movers
-    assert '<td class="num">—</td>' in movers
-    assert '<td class="num">0</td>' not in movers
-
-
-def test_render_writes_a_file_containing_every_block(conn, watchlist, tmp_path):
-    path = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "dashboard.html")
-    html = path.read_text()
-    for block in [
-        "Source health", "This Week's Movers", "Stage Board",
-        "Substance vs. Attention", "Lab &rarr; Field", "Build Map", "Rising Terms",
-    ]:
-        assert block in html
 
 
 def test_render_dashboard_without_out_path_writes_archive_and_latest(
@@ -145,20 +104,6 @@ def test_rendered_page_states_the_lexicon_version(conn, watchlist, tmp_path):
     path = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "dashboard.html")
     assert "lexicon v3" in path.read_text()
 
-
-def test_rendered_page_escapes_technology_names(conn, tmp_path):
-    hostile = Watchlist(version=1, technologies=(tech("x", "<script>alert(1)</script>"),))
-    connection = store.connect(":memory:")
-    store.init_schema(connection)
-    store.upsert_metrics(connection, dict(
-        tech_id="x", week="2026-W33", momentum=1.0, sai=0.0, lfi=0.0, adoption=0,
-        adoption_new=0, stage_idea=0.0, stage_experiment=0.0, stage_investment=0.0,
-        stage_deployment=0.0, stage_diffusion=0.0, position=3.0, lexicon_version=1))
-    path = render.render_dashboard(connection, "2026-W33", hostile, tmp_path / "d.html")
-    html = path.read_text()
-    assert "<script>alert(1)</script>" not in html
-    assert "&lt;script&gt;" in html
-    connection.close()
 
 
 def test_build_map_points_come_from_located_observations(conn, watchlist):
@@ -231,75 +176,8 @@ def test_build_map_points_bounds_radius_when_all_amounts_are_negative(conn, watc
         assert point.size <= render.MAP_MAX_RADIUS
 
 
-def test_dashboard_renders_the_build_map_block(conn, watchlist, tmp_path):
-    path = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html")
-    html = path.read_text()
-    assert "Build Map" in html
-    assert "Arrives with the USAspending collector" not in html
-    build_map_section = html.split("<h2>Build Map</h2>", 1)[1].split("<h2>", 1)[0]
-    assert "<svg" in build_map_section
 
 
-def test_unplaceable_awards_are_counted_rather_than_dropped(conn, watchlist, tmp_path):
-    """Spec §8 block 6. A week whose places would not resolve must not render
-    as a near-empty map indistinguishable from a quiet week."""
-    from observatory.matcher import Observation
-
-    store.upsert_observations(conn, [
-        Observation(source="usaspending", week="2026-W33", tech_id="autonomous_trucking",
-                    doc_id="p1", doc_date="2026-08-12", title="Placed award",
-                    url="u", entity="ACME", entity_id=None, amount=1_000_000.0,
-                    lat=34.27, lon=-111.66, matched_pattern="x", raw_ref=1),
-        Observation(source="usaspending", week="2026-W33", tech_id="autonomous_trucking",
-                    doc_id="p2", doc_date="2026-08-12", title="Foreign award",
-                    url="u", entity="ACME", entity_id=None, amount=2_000_000.0,
-                    lat=None, lon=None, matched_pattern="x", raw_ref=1),
-        # No amount at all: an arXiv paper is not a missing dot on the map.
-        Observation(source="arxiv", week="2026-W33", tech_id="autonomous_trucking",
-                    doc_id="p3", doc_date="2026-08-12", title="A paper", url="u",
-                    entity=None, entity_id=None, amount=None, lat=None, lon=None,
-                    matched_pattern="x", raw_ref=1),
-        # hn puts a story's points in `amount` and never sets coordinates. The
-        # map's candidates are defined by source, not by having an amount, so
-        # counting this as an award that could not be placed would fabricate a
-        # number in the very block that exists to stop the page fabricating.
-        Observation(source="hn", week="2026-W33", tech_id="autonomous_trucking",
-                    doc_id="p4", doc_date="2026-08-12", title="Show HN: a truck",
-                    url="u", entity=None, entity_id=None, amount=214.0,
-                    lat=None, lon=None, matched_pattern="x", raw_ref=1),
-    ])
-
-    assert render.unplaced_award_count(conn, "2026-W33") == 1
-    assert len(render.build_map_points(conn, "2026-W33")) == 1
-
-    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
-    build_map = html.split("<h2>Build Map</h2>", 1)[1].split("<h2>", 1)[0]
-    assert "Location unknown: 1 award" in build_map
-
-
-def test_the_build_map_caption_does_not_promise_a_news_layer(conn, watchlist, tmp_path):
-    """GDELT is deferred, so there is no news layer to describe."""
-    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
-    build_map = html.split("<h2>Build Map</h2>", 1)[1].split("<h2>", 1)[0]
-    assert "news-reported" not in build_map
-
-
-def test_substance_and_attention_name_the_signals_actually_in_play(conn, watchlist, tmp_path):
-    """With GDELT deferred, media_articles is always absent and "attention"
-    means Hacker News alone. The block has to say so."""
-    store.set_signal(conn, "autonomous_trucking", "2026-W33", "hn_points", 40.0)
-    store.set_signal(conn, "autonomous_trucking", "2026-W33", "edgar_filers", 3.0)
-
-    context = render.build_context(conn, "2026-W33", watchlist)
-    assert context["attention_signals"] == ["hn_points"]
-    assert context["substance_signals"] == ["edgar_filers"]
-
-    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
-    block = html.split("<h2>Substance vs. Attention</h2>", 1)[1].split("<h2>", 1)[0]
-    prose = " ".join(block.split())
-    assert "Substance this week is edgar_filers" in prose
-    assert "attention is hn_points" in prose
-    assert "media_articles" not in prose
 
 
 def test_evidence_page_lists_every_observation_with_its_pattern(conn, watchlist, tmp_path):
@@ -353,40 +231,6 @@ def test_evidence_page_has_no_external_resources(conn, watchlist, tmp_path):
     assert not re.findall(r'\b(?:src|href)\s*=\s*[\'"](?:https?:)?//[^\'"]*[\'"]', html)
 
 
-def test_dashboard_links_movers_to_its_own_weeks_evidence(conn, watchlist, tmp_path):
-    """`evidence.html` is overwritten every run, so an archived dashboard that
-    linked to it would send the reader to a different week's evidence."""
-    html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
-    assert "evidence-2026-W33.html#" in html
-    assert "evidence.html#" not in html
-
-
-def test_dashboard_links_all_resolve_to_evidence_anchors(conn, watchlist, tmp_path):
-    """The watchlist fixture has three technologies (autonomous_trucking,
-    warehouse_robotics, quiet_tech); only one gets an observation here, so the
-    dashboard links a mix of technologies with and without evidence. Every
-    evidence.html#<anchor> link the dashboard emits must resolve to a real id=
-    on the evidence page -- a dead link is worse than useless, since it looks
-    like it should work."""
-    from observatory.matcher import Observation
-
-    store.upsert_observations(conn, [
-        Observation(source="arxiv", week="2026-W33", tech_id="autonomous_trucking",
-                    doc_id="a1", doc_date="2026-08-12", title="T", url="u",
-                    entity=None, entity_id=None, amount=None, lat=None, lon=None,
-                    matched_pattern="x", raw_ref=1),
-    ])
-    dashboard_html = render.render_dashboard(
-        conn, "2026-W33", watchlist, tmp_path / "d.html"
-    ).read_text()
-    evidence_html = (tmp_path / "evidence-2026-W33.html").read_text()
-
-    # tech ids can contain digits (gs1_2d, private_5g_warehouse) -- [\w] not [a-z_]
-    links = set(re.findall(r'evidence-2026-W33\.html#([\w-]+)', dashboard_html))
-    anchors = set(re.findall(r'id="([\w-]+)"', evidence_html))
-
-    assert links, "expected the dashboard to link to evidence at all"
-    assert links <= anchors, f"dead links: {links - anchors}"
 
 
 def test_rising_terms_appear_in_the_context(conn, watchlist):
@@ -396,7 +240,7 @@ def test_rising_terms_appear_in_the_context(conn, watchlist):
         Candidate(term="dark factory", count=7, baseline=1.0, ratio=7.0,
                   examples=[("Dark factory retrofit in Ohio", "https://x.test/1")]),
     ])
-    context = render.build_context(conn, "2026-W33", watchlist)
+    context = render.dashboard_context(conn, "2026-W33", watchlist)
     assert context["rising_terms"][0]["term"] == "dark factory"
 
 
@@ -492,8 +336,57 @@ def test_rising_terms_survive_a_null_total(conn, watchlist, tmp_path):
     conn.execute("UPDATE candidate_terms SET total = NULL WHERE week = '2026-W33'")
     conn.commit()
 
-    context = render.build_context(conn, "2026-W33", watchlist)
+    context = render.dashboard_context(conn, "2026-W33", watchlist)
     assert context["rising_total"] == 1
 
     html = render.render_dashboard(conn, "2026-W33", watchlist, tmp_path / "d.html").read_text()
     assert "dark factory" in html
+
+
+# --- the weekly dashboard is a collection health view now -------------------
+#
+# A week is too small a window to interpret: two thirds of technology-weeks
+# hold nothing, and a trailing score let a technology with no documents at all
+# top "This Week's Movers". Everything interpretive moved to the quarterly
+# report. What is left is the question a week can actually answer -- did the
+# collectors run, and what arrived.
+
+
+def test_the_dashboard_no_longer_carries_the_analytical_blocks(conn):
+    from observatory import matcher
+    context = render.dashboard_context(conn, "2026-W35", matcher.load_watchlist(), set())
+    for gone in ("movers", "stage_board_svg", "substance_svg", "crossovers", "build_map_svg"):
+        assert gone not in context, f"{gone} belongs to the quarterly report now"
+
+
+def test_the_dashboard_still_answers_whether_the_collectors_ran(conn):
+    from observatory import matcher
+    context = render.dashboard_context(conn, "2026-W35", matcher.load_watchlist(), set())
+    assert "sources" in context
+    assert "arrivals" in context
+    assert "rising_terms" in context
+
+
+def test_arrivals_count_what_each_source_brought_this_week(conn):
+    from observatory import matcher
+    from observatory.matcher import Observation
+    store.upsert_observations(conn, [Observation(
+        source="arxiv", week="2026-W35", tech_id="a", doc_id="d1",
+        doc_date="2026-08-26", title="t", url="", entity=None, entity_id=None,
+        amount=None, lat=None, lon=None, matched_pattern="x", raw_ref=None)])
+    context = render.dashboard_context(conn, "2026-W35", matcher.load_watchlist(), set())
+    assert dict(context["arrivals"]).get("arxiv") == 1
+
+
+def test_the_dashboard_escapes_what_it_prints(conn, watchlist, tmp_path):
+    """The page carries source names and candidate terms, both of which come
+    from outside. Technology names left with the movers block."""
+    from observatory.discover import Candidate
+    store.upsert_candidates(conn, "2026-W33", [
+        Candidate(term="<script>alert(1)</script>", count=7, baseline=1.0,
+                  ratio=7.0, examples=[]),
+    ])
+    html = render.render_dashboard(conn, "2026-W33", watchlist,
+                                   tmp_path / "d.html").read_text()
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;" in html

@@ -47,96 +47,61 @@ def evidence_filename(week: str) -> str:
     return f"evidence-{week}.html"
 
 
-def build_context(conn, week: str, watchlist) -> dict:
-    names = {tech.id: tech.name for tech in watchlist.technologies}
-    families = {tech.id: tech.family for tech in watchlist.technologies}
-    rows = store.metrics_for_week(conn, week)
+RISING_LIMIT = 12
 
-    # Ranked by substance rather than by momentum, which was dropped: with the
-    # annual report the deliverable, nothing needs a weekly slope, and the
-    # slope was the metric that kept reporting noise as trend.
-    scored = [row for row in rows if row.get("sai") is not None]
-    warming = [
-        {"tech_id": row["tech_id"], "name": names.get(row["tech_id"], row["tech_id"])}
-        for row in rows if row.get("sai") is None
-    ]
-    scored.sort(key=lambda row: row["sai"], reverse=True)
 
-    movers = [
-        {
-            "tech_id": row["tech_id"],
-            "name": names.get(row["tech_id"], row["tech_id"]),
-            "family": families.get(row["tech_id"], ""),
-            "sai": row["sai"],
-            "lfi": row["lfi"],
-            "adoption": row["adoption"],
-        }
-        for row in scored[:MOVER_COUNT]
-    ]
+def _rising_terms(conn, week: str) -> tuple[list[dict], int]:
+    """The strongest candidates, and how many there were in all.
 
-    stage_points = [
-        charts.Point(
-            x=row["position"], y=row["sai"],
-            label=f"{names.get(row['tech_id'], row['tech_id'])} "
-                  f"(position {row['position']:.1f}, substance {row['sai']:+.2f})",
-            colour=FAMILY_COLOURS.get(families.get(row["tech_id"], ""), "#5b7fa6"),
-        )
-        for row in scored if row.get("position") is not None
-    ]
+    Both, because the page shows a capped list and silent truncation is this
+    project's oldest failure mode. A NULL total belongs to a row written before
+    the column existed; falling back to what is shown is honest -- it says the
+    list is whole, which is all that can be known about it.
+    """
+    rows = [dict(row) for row in store.candidates_for_week(conn, week)]
+    for row in rows:
+        row["examples"] = row.get("examples") or []
+    total = max((row.get("total") or 0) for row in rows) if rows else 0
+    return rows[:RISING_LIMIT], total or len(rows)
 
-    substance_points = [
-        charts.Point(
-            x=row["sai"], y=row["lfi"],
-            label=f"{names.get(row['tech_id'], row['tech_id'])} "
-                  f"(substance {row['sai']:+.2f}, lab-to-field {row['lfi']:+.2f})",
-            colour=FAMILY_COLOURS.get(families.get(row["tech_id"], ""), "#5b7fa6"),
-        )
-        for row in rows if row.get("sai") is not None and row.get("lfi") is not None
-    ]
 
-    crossovers = [
-        {
-            "name": names.get(row["tech_id"], row["tech_id"]),
-            "lfi": row["lfi"],
-            "spark": Markup(charts.sparkline(_lfi_history(conn, row["tech_id"], week))),
-        }
-        for row in rows if (row.get("lfi") or 0) > 0
-    ]
-    crossovers.sort(key=lambda row: row["lfi"], reverse=True)
+def dashboard_context(conn, week: str, watchlist, ok_sources=None) -> dict:
+    """The weekly page, which is a collection health view and nothing more.
 
-    rising_terms = store.candidates_for_week(conn, week)
-    if rising_terms:
-        stored_total = rising_terms[0]["total"]
-        # A legacy row written before the `total` column existed, or one a
-        # future backfill gap misses, carries NULL rather than a real count.
-        # Falling back to the row count -- what a reader can already see --
-        # is honest; letting NULL reach the template crashes the whole render.
-        rising_total = len(rising_terms) if stored_total is None else stored_total
-    else:
-        rising_total = 0
+    It used to carry movers, a stage board, substance against attention, lab to
+    field and a build map. All of that moved to the quarterly report, because a
+    week cannot support it: two thirds of technology-weeks hold no observations
+    and the median is zero, so a weekly ranking mostly reported which week a
+    collector happened to catch something.
 
+    It was also wrong in a way that showed. Ranking on a trailing z-score let a
+    technology with nothing at all in the week sit at the top of "This Week's
+    Movers" -- on 2026-W36, seven of the top eight had no documents in the week
+    they were named for, and the evidence page each linked to said so.
+
+    What a week can answer is whether the collectors ran and what arrived. That
+    is what is left.
+    """
+    arrivals = conn.execute(
+        "SELECT source, COUNT(*) AS n FROM observations WHERE week = ? "
+        "GROUP BY source ORDER BY n DESC", (week,),
+    ).fetchall()
+    retrieved = conn.execute(
+        "SELECT source, SUM(documents) AS n FROM corpus WHERE week = ? "
+        "GROUP BY source", (week,),
+    ).fetchall()
     return {
         "week": week,
-        "evidence_href": evidence_filename(week),
-        "generated_for": dt.date.today().isoformat(),
         "lexicon_version": watchlist.version,
         "sources": store.source_statuses(conn),
-        "movers": movers,
-        "stage_board_svg": Markup(
-            charts.scatter(stage_points, x_label="Pipeline position", y_label="Substance vs attention")
-        ),
-        "substance_svg": Markup(
-            charts.scatter(substance_points, x_label="Substance minus attention",
-                           y_label="Lab to field")
-        ),
-        "crossovers": crossovers,
-        "warming_up": sorted(warming, key=lambda tech: tech["name"]),
-        "build_map_svg": Markup(charts.build_map(build_map_points(conn, week))),
-        "map_unplaced": unplaced_award_count(conn, week),
-        "substance_signals": signals_in_play(conn, week, metrics.HARD_SIGNALS),
-        "attention_signals": signals_in_play(conn, week, metrics.SOFT_SIGNALS),
-        "rising_terms": rising_terms,
-        "rising_total": rising_total,
+        "arrivals": [(row["source"], row["n"]) for row in arrivals],
+        "retrieved": {row["source"]: row["n"] for row in retrieved},
+        "matched_total": sum(row["n"] for row in arrivals),
+        # The key the page and its tests have always used. Rising terms are a
+        # collection concern -- what the sweep is finding that the lexicon does
+        # not know -- so they stay on the weekly page rather than moving.
+        "rising_terms": (rising := _rising_terms(conn, week))[0],
+        "rising_total": rising[1],
     }
 
 
@@ -270,7 +235,7 @@ def render_dashboard(
     re-renders an earlier week it wrote into: only the run week refreshes the
     unversioned copies.
     """
-    context = build_context(conn, week, watchlist)
+    context = dashboard_context(conn, week, watchlist)
     html = _environment().get_template("dashboard.html.j2").render(**context)
     target = Path(out_path) if out_path else config.OUTPUT_DIR / f"dashboard-{week}.html"
     target.parent.mkdir(parents=True, exist_ok=True)

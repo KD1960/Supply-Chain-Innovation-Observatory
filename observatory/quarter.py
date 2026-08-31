@@ -594,6 +594,46 @@ def build_context(conn, name: str, watchlist) -> dict:
     }
 
 
+def evidence_context(conn, name: str, watchlist) -> dict:
+    """Every document behind a period's counts, by technology.
+
+    Only technologies with documents get a section. Giving every active
+    technology one put a wall of empty headings between the reader and the
+    evidence -- on 2026-Q3, nine technologies with documents and forty-two
+    sections.
+
+    The ones with nothing are named at the bottom rather than dropped. A
+    technology the system looked for and did not find is a finding, and it also
+    keeps an anchor, so a link from the report is never dead.
+    """
+    start, end = period_bounds(name)
+    rows = conn.execute(
+        "SELECT tech_id, source, doc_id, doc_date, title, url, entity, matched_pattern "
+        "FROM observations WHERE doc_date BETWEEN ? AND ? ORDER BY doc_date DESC",
+        (start, end),
+    ).fetchall()
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        grouped.setdefault(row["tech_id"], []).append(dict(row))
+    groups = [
+        {"tech_id": tech.id, "name": tech.name, "rows": grouped[tech.id]}
+        for tech in watchlist.active if grouped.get(tech.id)
+    ]
+    groups.sort(key=lambda group: -len(group["rows"]))
+    return {
+        "quarter": name,
+        "period_noun": "quarter" if "-Q" in name else "year",
+        "start": start,
+        "end": end,
+        "lexicon_version": watchlist.version,
+        "groups": groups,
+        "empty": [
+            {"tech_id": tech.id, "name": tech.name}
+            for tech in watchlist.active if not grouped.get(tech.id)
+        ],
+    }
+
+
 def render_quarter(conn, name: str, watchlist, out_dir: Path | None = None) -> Path:
     template = render._environment().get_template("quarter.html.j2")
     directory = Path(out_dir) if out_dir else config.OUTPUT_DIR
@@ -603,6 +643,9 @@ def render_quarter(conn, name: str, watchlist, out_dir: Path | None = None) -> P
     path.write_text(template.render(**context))
     # The charts again, on their own, for a slide or a paper. Inline SVG is
     # right for reading the report and useless for anything else.
+    evidence = render._environment().get_template("evidence.html.j2")
+    (directory / f"evidence-{name}.html").write_text(
+        evidence.render(**evidence_context(conn, name, watchlist)))
     export.write_charts(directory, name, {
         "substance-attention": context.get("substance_chart"),
         "stage-board": context.get("stage_board"),
