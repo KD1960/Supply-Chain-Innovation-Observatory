@@ -391,8 +391,8 @@ def test_every_collector_has_a_unique_name_and_a_rate_limit():
     names = [collector.name for collector in run.COLLECTORS]
     assert len(names) == len(set(names))
     assert set(names) == {
-        "arxiv", "hn", "openalex", "federalregister", "usaspending", "edgar",
-        "github",
+        "arxiv", "hn", "openalex", "nsf", "federalregister", "usaspending",
+        "edgar", "github",
     }
     for collector in run.COLLECTORS:
         assert collector.rate_limit_seconds > 0

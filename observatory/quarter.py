@@ -61,6 +61,13 @@ EVIDENCE_FAMILIES: dict[str, str] = {
     "abi_inform": "trade",
     "federalregister": "regulation",
     "usaspending": "money",
+    # Its own family, not "money". USAspending here is infrastructure being
+    # built -- ports, rail corridors, freight facilities -- and NSF is research
+    # being funded. Both are federal dollars and they sit at different stages,
+    # so one number would swamp the infrastructure signal under a corpus five
+    # times its size: 184 documents against roughly a thousand. Not "research"
+    # either: money committed to an idea is not a paper published about one.
+    "nsf": "research funding",
     "hn": "community",
 }
 
@@ -96,6 +103,7 @@ FAMILY_STAGE = {
     "code": "experiment",
     "patents": "experiment",
     "money": "investment",
+    "research funding": "idea",
     "regulation": "deployment",
     "trade": "deployment",
     "filings": "diffusion",

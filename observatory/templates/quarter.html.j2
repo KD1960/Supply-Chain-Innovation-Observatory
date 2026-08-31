@@ -127,7 +127,8 @@
   <p>Counts are documents matched, not mentions: a technology named twice in one
   filing counts once. The columns are kinds of evidence rather than databases:
   research covers preprints and journals together, and <em>other</em> gathers
-  trade press, regulation, federal awards and community discussion. The
+  trade press, regulation, federal awards, research funding and community
+  discussion. The
   concentration column names the kind that supplied most of the evidence, which
   is usually most of it.</p>
   {% if single_source_count %}
@@ -168,7 +169,8 @@
            gate already reasons in families -- arXiv and Scopus are one kind of
            evidence however many databases supply it. #}
         {% set other = (row.by_family.get('trade', 0) + row.by_family.get('regulation', 0)
-                        + row.by_family.get('money', 0) + row.by_family.get('community', 0)) %}
+                        + row.by_family.get('money', 0) + row.by_family.get('community', 0)
+                        + row.by_family.get('research funding', 0)) %}
         {% for fam in ('research', 'code', 'patents', 'filings') %}
         <td class="num{% if not row.by_family.get(fam) %} dim{% endif %}">{% if row.by_family.get(fam)
           %}{{ row.by_family[fam] }}{% if row.rates.get(fam) %} <span class="tag">{{ '%.2f'|format(row.rates[fam]) }}%</span>{% endif %}{% else %}0{% endif %}</td>

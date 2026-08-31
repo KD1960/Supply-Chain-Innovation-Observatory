@@ -738,3 +738,21 @@ def _dated(conn, tech_id, week, doc_date, doc_id):
         "('arxiv', ?, ?, ?, ?, ?, '', NULL, NULL, NULL, NULL, NULL, 'x', NULL)",
         (week, tech_id, doc_id, doc_date, doc_id))
     conn.commit()
+
+
+def test_research_funding_is_its_own_family():
+    """NSF funds ideas; USAspending here funds ports and rail corridors being
+    built. Both are federal dollars and they sit at different stages, so
+    counting them as one number would swamp the infrastructure signal under a
+    corpus five times its size -- 184 documents against roughly a thousand."""
+    assert quarter.EVIDENCE_FAMILIES["nsf"] == "research funding"
+    assert quarter.EVIDENCE_FAMILIES["usaspending"] == "money"
+    assert quarter.FAMILY_STAGE["research funding"] == "idea"
+    assert quarter.FAMILY_STAGE["money"] == "investment"
+
+
+def test_research_funding_is_not_folded_into_research():
+    """An NSF award is money committed, not a paper published. Folding it in
+    with arXiv and Scopus would count the funding of an idea and the publishing
+    of one as the same evidence."""
+    assert quarter.EVIDENCE_FAMILIES["nsf"] != quarter.EVIDENCE_FAMILIES["arxiv"]
