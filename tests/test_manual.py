@@ -571,3 +571,22 @@ def test_the_confirming_words_come_from_the_registry_not_the_code():
     from observatory import supplemental
     lens = supplemental.load().sources["lens"]
     assert lens.confirm, "a source declaring enabling classes must say what confirms them"
+
+
+def test_every_export_of_a_source_counts_towards_its_corpus(tmp_path):
+    """Twelve Scopus files shared one export date, and the corpus was keyed by
+    it. record_corpus replaces per key, so each file wiped the last: 2,607
+    records were recorded as 40. A denominator that small makes every rate for
+    that family roughly sixty times too large."""
+    from observatory import matcher, store
+    for n, ids in enumerate([range(1, 21), range(21, 41), range(41, 61)], start=1):
+        body = "".join(
+            f"TY  - JOUR\nTI  - Paper {i}\nAN  - {i}\nY1  - 2026/07/01/\nER  -\n"
+            for i in ids)
+        (tmp_path / f"scopus-{n}.ris").write_text(body)
+        (tmp_path / f"scopus-{n}.ris.meta.yaml").write_text(
+            f"source: scopus\nexported: 2026-08-29\nquery: q{n}\nrecords: {len(list(ids))}\n")
+    conn = store.connect(":memory:")
+    store.init_schema(conn)
+    manual.import_exports(conn, matcher.load_watchlist(), tmp_path)
+    assert store.corpus_between(conn, "2026-07-01", "2026-09-30") == {"scopus": 60}

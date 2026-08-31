@@ -181,6 +181,23 @@ def init_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+# The week key a hand-fetched source's corpus is filed under. Fixed, because an
+# export has no week: keying by the export date filed twelve Scopus files under
+# one key and let each wipe the last, and then fixing that left the old rows
+# beside the new ones, summing to 370 against an export of 185.
+MANUAL_KEY = "manual"
+
+
+def forget_manual_corpus(conn: sqlite3.Connection, source: str) -> None:
+    """Drop every corpus row for a hand-fetched source, whatever it was keyed by.
+
+    Called before recording, so a change in how the counting is keyed cannot
+    leave a stale row summing alongside the new one.
+    """
+    conn.execute("DELETE FROM corpus WHERE source = ?", (source,))
+    conn.commit()
+
+
 def record_corpus(conn: sqlite3.Connection, source: str, week: str,
                   counts) -> None:
     """Replace a week's retrieved counts for one source.

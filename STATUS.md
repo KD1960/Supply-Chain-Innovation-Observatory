@@ -23,7 +23,7 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **550 passing** |
+| Tests | **577 passing** |
 | Precision | **51%**, two coders (kappa 0.79) plus a full owner review, 91 judgeable rows |
 | Lexicon | version **9**, 50 active technologies, 7 families |
 | Observations | **2,130** across 54 weeks, 2025-W34 → 2026-W35 |
@@ -78,6 +78,33 @@ looks the way it does.
 - **Standing instruction from the owner:** plain correctness bugs inherited from
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
+
+## 4e. OpenAlex joins, and does not replace Scopus (2026-08-31)
+
+Built as a Scopus replacement and kept as a complement, because the
+measurement said so. Same twelve journals, 2026-Q3:
+
+| | retrieved | matched | rate |
+|---|---|---|---|
+| Scopus | 585 | **110** | 18.80% |
+| OpenAlex | 1,004 | 49 | 4.88% |
+
+OpenAlex retrieves nearly twice as much and matches less than half. The cause
+is abstract coverage: **99% of Scopus records carry one, 49% of OpenAlex
+records do**, and without an abstract the matcher sees a title. That is the
+same thing that held Lens patents at 1% until abstracts arrived. Scopus finds
+eleven technologies OpenAlex misses, among them warehouse robotics and port
+automation; OpenAlex finds two Scopus misses, digital product passport and
+smart labels.
+
+**Keep both.** OpenAlex is free, keyless, automated, gives a real publication
+date and is open data, so it costs nothing to run. Scopus costs twelve exports
+a quarter and buys recall the free source cannot.
+
+The error worth remembering: OpenAlex was recommended as a replacement after
+testing its *retrieval* — count, dates, ISSN filter, one sample abstract — and
+never its abstract coverage across the corpus, which is what decides whether
+the matcher can see anything at all.
 
 ## 4d. Rates, not ranks — and concentration labels a stage (2026-08-30)
 

@@ -30,6 +30,7 @@ or to a published report.
 
 from __future__ import annotations
 
+import collections
 import csv
 import datetime as dt
 import io
@@ -382,18 +383,18 @@ def import_exports(conn, watchlist, root: Path | None = None, session=None) -> i
         )
 
     written = 0
+    retrieved: dict[str, dict] = collections.defaultdict(dict)
     for meta, records in exports:
         source = str(meta["source"])
         placed = with_resolved_dates(records, dates)
-        # The export file is this source's retrieved corpus, and it is the
-        # denominator of its rates. Counted before matching, because the
-        # denominator is the corpus rather than the part of it that matched.
-        retrieved: dict[str, int] = {}
+        # The export files are this source's retrieved corpus, and it is the
+        # denominator of its rates. Accumulated across every file and written
+        # once at the end: keying by the export date wiped eleven of twelve
+        # Scopus files, because they shared one, and record_corpus replaces
+        # what it finds under a key.
         for record in placed:
             key = (record.get("date") or "")[:10] or None
-            retrieved[key] = retrieved.get(key, 0) + 1
-        store.record_corpus(conn, source, str(meta.get("exported", "manual")),
-                            retrieved.items())
+            retrieved[source][key] = retrieved[source].get(key, 0) + 1
         dropped = len(records) - len(placed)
         if dropped:
             # Silent truncation is this project's oldest failure mode, and a
@@ -433,4 +434,7 @@ def import_exports(conn, watchlist, root: Path | None = None, session=None) -> i
                 )
                 for tech_id, pattern in hits
             ])
+    for source, counts in retrieved.items():
+        store.forget_manual_corpus(conn, source)
+        store.record_corpus(conn, source, store.MANUAL_KEY, counts.items())
     return written

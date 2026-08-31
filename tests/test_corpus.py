@@ -97,3 +97,15 @@ def test_ingesting_a_week_records_what_it_retrieved(conn, tmp_path, monkeypatch)
     october = store.corpus_between(conn, "2026-10-01", "2026-12-31")
     assert september.get("arxiv") == 1
     assert october.get("arxiv") == 1
+
+
+def test_a_manual_source_holds_one_set_of_counts_not_one_per_run(conn):
+    """The first version keyed manual corpus rows by the export date. Fixing it
+    to a fixed key left the old rows in place, so lens read 370 against an
+    export of 185 -- both keys summing. A source's manual corpus is one thing
+    however the counting has changed underneath it."""
+    store.record_corpus(conn, "lens", "2026-08-28", [("2026-07-01", 185)])
+    store.record_corpus(conn, "lens", store.MANUAL_KEY, [("2026-07-01", 185)])
+    store.forget_manual_corpus(conn, "lens")
+    store.record_corpus(conn, "lens", store.MANUAL_KEY, [("2026-07-01", 185)])
+    assert store.corpus_between(conn, "2026-01-01", "2026-12-31") == {"lens": 185}
