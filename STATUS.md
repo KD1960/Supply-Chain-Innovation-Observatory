@@ -23,7 +23,7 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **577 passing** |
+| Tests | **592 passing** |
 | Precision | **51%**, two coders (kappa 0.79) plus a full owner review, 91 judgeable rows |
 | Lexicon | version **9**, 50 active technologies, 7 families |
 | Observations | **2,130** across 54 weeks, 2025-W34 → 2026-W35 |
@@ -78,6 +78,37 @@ looks the way it does.
 - **Standing instruction from the owner:** plain correctness bugs inherited from
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
+
+## 4f. NSF added, SBIR and CORDIS rejected (2026-08-31)
+
+Each was measured before any of it was built, and the measurements decided.
+
+**NSF: built.** 1,184 awards backfilled over a year, every one with a technical
+abstract of a few thousand characters, 49 matched. It is the research half of
+the investment stage -- USAspending sees ports and rail corridors being built
+and nothing upstream of them.
+
+Its volume is **seasonal and October and November 2025 are empty**, which was
+checked against the API rather than assumed to be a collector fault: querying
+October alone returns zero where September returns fourteen. NSF's fiscal year
+ends September 30th. A quarter holding an autumn is genuinely thinner here.
+
+`research funding` is its own family. Folded into `money` it would swamp the
+infrastructure signal under a corpus five times its size, 184 documents against
+roughly a thousand; folded into `research` it would count funding an idea and
+publishing one as the same evidence.
+
+**SBIR: rejected.** 500 awards in three months, **0 matched**. A federal
+contract description names the programme and the agency and never the
+technology — "THIS IS A SBIR III CONTRACT IN SUPPORT OF THE DOD". Patents had
+CPC codes to rescue them; these have no classification field. Its own API
+returns 403 to everything, browser user-agent included.
+
+**CORDIS: left alone.** It matches well — 24% of a 50-project sample, and it
+reaches inland ports. But its records are multi-year projects carrying dates
+like `1 {{month_06}} 2018`, and how to date a three-year programme is a
+question about what this corpus is for rather than a parsing problem. Worth
+returning to if EU coverage matters.
 
 ## 4e. OpenAlex joins, and does not replace Scopus (2026-08-31)
 

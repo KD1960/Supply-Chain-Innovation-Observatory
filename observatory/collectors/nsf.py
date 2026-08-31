@@ -12,6 +12,18 @@ work.
 
 Measured before building, on Jun-Aug 2026: 190 awards across the keywords
 below, 100% with abstracts, 20 matched.
+
+**NSF award volume is seasonal, and October and November 2025 are empty.** A
+year's backfill returned 1,184 awards spread very unevenly: 460 in August 2026,
+352 in July, and nothing at all in two autumn months. That was checked against
+the API directly rather than assumed to be a collector fault -- querying
+October 2025 on its own returns zero, where September returns fourteen and
+December two. NSF's fiscal year ends on September 30th and its award
+announcements cluster around cycle deadlines.
+
+This matters for reading a quarterly report: a quarter holding an autumn is
+genuinely thinner in this source, and that is the source's calendar rather than
+a change in the world.
 """
 
 from __future__ import annotations
