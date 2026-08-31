@@ -146,3 +146,126 @@ def _adoption(filers: float | None) -> int | None:
 def _exp(value: float) -> float:
     """Clamped exponential — softmax weights must not overflow on an outlier."""
     return math.exp(max(min(value, 20.0), -20.0))
+
+
+# --- quarterly ---------------------------------------------------------------
+#
+# Week to week is too noisy to interpret. Two thirds of technology-weeks hold
+# zero observations and the median is zero, so a weekly score mostly reported
+# which week a collector caught something. Worse, a trailing z-score let a
+# technology with nothing at all in the week sit at the top of "This Week's
+# Movers": on 2026-W36, seven of the top eight had no documents in the week
+# they were named for.
+#
+# Collection stays weekly and is untouched. Only the interpretation moves.
+
+TRAILING_QUARTERS = 4
+# Three of four quarters present. A spread computed from two numbers is not a
+# spread, and the first quarters of the corpus are partial by construction.
+MIN_HISTORY_QUARTERS = 3
+
+# Which source feeds which signal, at quarterly resolution. The weekly signals
+# were per-collector counts; these are per-family so a stage does not swing on
+# which of two research sources happened to be collected.
+QUARTERLY_SIGNALS: dict[str, tuple[str, ...]] = {
+    "research_papers": ("arxiv", "scopus", "openalex"),
+    "repos": ("github",),
+    "patents": ("lens", "patentsview"),
+    "filings": ("edgar",),
+    "trade_articles": ("abi_inform",),
+    "regulation_docs": ("federalregister",),
+    "federal_awards": ("usaspending",),
+    "research_grants": ("nsf",),
+    "community_posts": ("hn",),
+}
+
+QUARTERLY_STAGES: dict[str, tuple[str, ...]] = {
+    "idea": ("research_papers", "research_grants"),
+    "experiment": ("repos", "patents"),
+    "investment": ("federal_awards", "filings"),
+    "deployment": ("regulation_docs", "trade_articles"),
+    "diffusion": ("filings", "trade_articles"),
+}
+
+QUARTERLY_HARD = ("repos", "patents", "filings", "federal_awards", "regulation_docs")
+QUARTERLY_SOFT = ("community_posts", "trade_articles")
+
+
+def trailing_quarters(name: str, count: int = TRAILING_QUARTERS) -> list[str]:
+    from . import quarter as quarters
+    window = [name]
+    for _ in range(count - 1):
+        window.append(quarters.previous_quarter(window[-1]))
+    return list(reversed(window))
+
+
+def quarterly_signal(conn, tech_id: str, signal: str, quarters: list[str],
+                     collected: set[str] | None = None) -> list[float | None]:
+    """One signal's value in each quarter of the window.
+
+    A quarter nobody collected is absent rather than zero -- the project's
+    oldest rule. Folding a hole into a zero invents a decline.
+    """
+    from . import quarter as quarter_module
+    sources = QUARTERLY_SIGNALS.get(signal, ())
+    if not sources:
+        return [None] * len(quarters)
+    placeholders = ",".join("?" for _ in sources)
+    series: list[float | None] = []
+    for name in quarters:
+        if collected is not None and name not in collected:
+            series.append(None)
+            continue
+        start, end = quarter_module.period_bounds(name)
+        row = conn.execute(
+            f"SELECT COUNT(*) AS n FROM observations WHERE tech_id = ? "
+            f"AND source IN ({placeholders}) AND doc_date BETWEEN ? AND ?",
+            (tech_id, *sources, start, end),
+        ).fetchone()
+        series.append(float(row["n"]))
+    return series
+
+
+def zscore_quarters(series: list[float | None]) -> float | None:
+    return zscore(series, min_periods=MIN_HISTORY_QUARTERS)
+
+
+def compute_quarter(conn, name: str, watchlist) -> list[dict]:
+    """Every technology's standing in one quarter, over the trailing four.
+
+    A technology with no documents in the quarter is left unscored. A score is
+    a claim about a period, and a period a technology did not appear in is not
+    a period it can have a standing in -- which is exactly what the weekly
+    version got wrong.
+    """
+    from . import quarter as quarter_module
+    window = trailing_quarters(name)
+    start, end = quarter_module.period_bounds(name)
+    rows: list[dict] = []
+    for tech in watchlist.active:
+        present = conn.execute(
+            "SELECT COUNT(*) AS n FROM observations WHERE tech_id = ? "
+            "AND doc_date BETWEEN ? AND ?", (tech.id, start, end),
+        ).fetchone()["n"]
+        z_by_signal = {
+            signal: zscore_quarters(quarterly_signal(conn, tech.id, signal, window))
+            for signal in QUARTERLY_SIGNALS
+        }
+        stages = {
+            stage: mean_of_present([z_by_signal.get(s) for s in signals])
+            for stage, signals in QUARTERLY_STAGES.items()
+        }
+        hard = mean_of_present([z_by_signal.get(s) for s in QUARTERLY_HARD])
+        soft = mean_of_present([z_by_signal.get(s) for s in QUARTERLY_SOFT])
+        scored = present > 0
+        rows.append({
+            "tech_id": tech.id,
+            "quarter": name,
+            "documents": present,
+            "sai": (hard - soft) if scored and hard is not None and soft is not None else None,
+            "lfi": lab_to_field(stages) if scored else None,
+            "position": pipeline_position(stages) if scored else None,
+            "stages": stages if scored else {},
+            "lexicon_version": watchlist.version,
+        })
+    return rows
