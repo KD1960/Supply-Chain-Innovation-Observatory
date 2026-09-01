@@ -1,4 +1,10 @@
+from collections import Counter
+
+import pytest
+
 from observatory import discover
+from observatory.collectors.base import BaseCollector, Document
+from observatory.matcher import Technology, Watchlist
 
 
 def test_normalise_lowercases_and_splits_on_non_letters():
@@ -78,15 +84,6 @@ def test_a_phrase_repeated_within_one_document_counts_once():
 def test_stopwords_cover_the_obvious_connectives():
     for word in ("the", "a", "of", "for", "and", "in", "on", "with", "to"):
         assert word in discover.STOPWORDS
-
-
-import json
-from collections import Counter
-
-import pytest
-
-from observatory.collectors.base import BaseCollector, Document, RawPage
-from observatory.matcher import Technology, Watchlist
 
 
 class FakeCollector(BaseCollector):

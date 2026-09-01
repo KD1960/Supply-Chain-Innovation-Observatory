@@ -6,7 +6,6 @@ Python, where every rasteriser available -- cairosvg, rsvg-convert, inkscape --
 needs native libraries this project has so far done without.
 """
 
-import pytest
 
 from observatory import export
 

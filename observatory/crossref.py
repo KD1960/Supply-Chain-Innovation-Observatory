@@ -128,7 +128,8 @@ def resolve(dois, fetch=None, session=None, progress=None, fetch_one=None):
             # reaching http.fetch is exactly what broke this the first time.
             session = session or http.make_session()
             one = fetch_one or globals()["fetch_one"]
-            fetch = lambda doi: one(doi, session, limiter)
+            def fetch(doi):
+                return one(doi, session, limiter)
         found: dict[str, str | None] = {}
         streak = 0
         for index, doi in enumerate(wanted, start=1):

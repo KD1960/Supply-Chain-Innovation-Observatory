@@ -159,7 +159,9 @@ def _split_alternatives(body: str) -> list[str]:
     parts, depth, current = [], 0, ""
     for char in body:
         if char == "|" and depth == 0:
-            parts.append(current); current = ""; continue
+            parts.append(current)
+            current = ""
+            continue
         depth += (char == "(") - (char == ")")
         current += char
     parts.append(current)
@@ -497,9 +499,9 @@ def print_queries(period: str, watchlist, registry: Registry | None = None,
         print(f"  Save the export to: data/manual/{period}/{entry['filename']}")
         print(f"  Beside it write:    data/manual/{period}/{entry['filename']}.meta.yaml\n")
         print(f"      source: {entry['source']}")
-        print(f"      exported: <the date you ran it>")
-        print(f"      query: <paste the same string>")
-        print(f"      records: <the count the database reported>")
+        print("      exported: <the date you ran it>")
+        print("      query: <paste the same string>")
+        print("      records: <the count the database reported>")
         print()
     print("=" * 78)
     print("The record count matters. An export capped by the database looks exactly")
@@ -521,7 +523,7 @@ def _print_term_note(watchlist) -> None:
         print(f"  {len(phrases) - MAX_TERMS} were dropped by the cap.")
     if missing:
         print(f"  {len(missing)} technologies cannot be searched as a phrase at all,")
-        print(f"  because their patterns are proximity-based. They are absent from")
-        print(f"  the trade press slice entirely:")
+        print("  because their patterns are proximity-based. They are absent from")
+        print("  the trade press slice entirely:")
         print(f"      {', '.join(missing)}")
     print()

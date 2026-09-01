@@ -35,7 +35,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **641 passing** |
+| Tests | **643 passing** |
 | Lexicon | version **9**, 50 active technologies |
 | Observations | **2,455** |
 | Sources | 11, across 9 evidence families |
@@ -134,6 +134,9 @@ On 2026-09-01:
   the fix, the current template and lexicon v9 — the annual was built under v8.
   All seven reports were rebuilt and swept: each now either scores or says why
   it cannot. 2026-Q2 remains the only scored period.
+- **`ruff` runs in a pre-commit hook, in CI and in the suite**, and was
+  verified against the two defects the review said a linter would have caught.
+  Details in §5.
 - **Collection failures are durable.** `source_attempts` appends every attempt,
   a non-200 reaches `raw_fetch`, the run log carries `failed_sources` and
   `empty_sources`, and the weekly health strip reads the week it is about
@@ -231,10 +234,27 @@ its status, so a week where every source failed still counts. Tightening it
 would change which quarters score and which reports show numbers, so it is left
 for the owner rather than changed quietly.
 
-**No linter.** The process review found a shipped `NameError`, an assertion
-that could not fail (`challenge if False else [...]`, which parses as a
-conditional expression), and several guards built and never connected. `ruff`
-in a pre-commit hook catches all three shapes for nothing.
+**There is a linter now** (2026-09-01). `ruff`, pinned to its default rules
+(`E4, E7, E9, F`) in `pyproject.toml` rather than inherited, so a version bump
+cannot quietly change what the gate catches. Style rules are deliberately off:
+a hook that fires on line length is a hook people learn to bypass.
+
+It runs in three places. `hooks/pre-commit` is tracked in the repository rather
+than left in `.git/hooks`, which is not version-controlled and does not survive
+a clone — enable it in a fresh clone with `git config core.hooksPath hooks`.
+`.github/workflows/checks.yml` runs lint and tests on push and pull request,
+which is the half `--no-verify` cannot skip. And `tests/test_lint.py` runs the
+same check inside the suite, so the gate travels with the repository.
+
+**Verified by what it rejects, not by the fact that it ran.** Both defects the
+review cited were reconstructed and fed to it: the `_already_covered` call
+defined nowhere, and `challenge if False else [...]`. Both come back F821. A
+deliberate violation was then staged and committed for real, and the hook
+refused it.
+
+Cleaning the tree took 26 fixes. Two were more than cosmetic: a dead `scored`
+in `quarter.py` duplicating the filter one line above it, and import blocks
+stranded mid-file in two test files by later appends.
 
 **Not deferred, just absent:** PatentsView (awaiting a key, gets its own plan) and
 GDELT (plan 2A tasks 3 and 4; the implementation is written, it needs a clean
@@ -287,22 +307,19 @@ pinned model and published prompts. The weekly run must stay deterministic.
 
 In value order. The process review's risk register (`docs/`) is more detailed.
 
-1. **Add `ruff` in a pre-commit hook.** The review found a shipped `NameError`,
-   a test that could not fail, and several orphaned guards — all of which a
-   linter catches for nothing.
-2. **Decide whether a week of nothing but failures counts as collected.**
+1. **Decide whether a week of nothing but failures counts as collected.**
    `collected_quarters` counts any week holding a `source_runs` row, whatever
    its status. Changing it moves report scores, so it is an owner call — see §5.
-3. **Q4 supplemental exports**, first week of January. Three databases, roughly
+2. **Q4 supplemental exports**, first week of January. Three databases, roughly
    four hours: `--export-queries 2026-Q4 --split` prints the sheet. **Clear
    ProQuest's marked-items list between exports** — it accumulates, and the
    importer will refuse the files.
-4. **The first complete calendar year.** 2026 finishes at W53. It is the first
+3. **The first complete calendar year.** 2026 finishes at W53. It is the first
    annual report where neither year is truncated.
-5. **A human coder on the precision sheet.** `docs/audit/sample.md`. Both
+4. **A human coder on the precision sheet.** `docs/audit/sample.md`. Both
    existing coders were the same model, and the second moved the estimate down
    eight points by catching a leniency bias in the first.
-6. **PatentsView**, if the key arrives — it would replace the manual Lens export
+5. **PatentsView**, if the key arrives — it would replace the manual Lens export
    with an automated collector on the same CPC principle.
 
 ## 8. Owner decisions already made — do not relitigate

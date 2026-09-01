@@ -11,10 +11,32 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "ruff>=0.16"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 include = ["observatory*"]
+
+[tool.ruff]
+# Long enough for the existing code, which runs to 116 columns in places, and
+# short enough to stay readable. Not enforced -- E501 is deliberately out of
+# `select` below.
+line-length = 100
+
+[tool.ruff.lint]
+# Ruff's defaults, pinned rather than inherited so a version bump cannot
+# quietly change what the gate catches. This is the set that would have caught
+# every defect the process review found a linter would catch: the shipped
+# `NameError` in discover.py and the undefined `challenge` in test_quarter.py
+# (F821), the unused imports (F401), and any syntax error (E9).
+#
+# Style rules are left off on purpose. The point of this gate is correctness,
+# and a hook that fires on line length is a hook people learn to bypass.
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# The isolation design: a collector failing must not end the run, and the
+# broad `except Exception` in run.py is the mechanism, not an oversight.
+"observatory/run.py" = ["BLE001"]

@@ -15,10 +15,8 @@ from __future__ import annotations
 
 import collections
 import datetime as dt
-import json
 import re
 
-import yaml
 from pathlib import Path
 
 from markupsafe import Markup
@@ -175,7 +173,6 @@ def _summary(name: str, rows, counts, ran: int, total_weeks: int,
     # order would be a sentence that is simply not true.
     top = sorted((row for row in rows if row.get("sai") is not None),
                  key=lambda row: -row["sai"])[:3]
-    scored = [row for row in rows if row.get("sai") is not None]
     concentrated = [row for row in rows if row["single_source"]]
     silent = [row for row in rows if not row["total"]]
     families = collections.Counter()

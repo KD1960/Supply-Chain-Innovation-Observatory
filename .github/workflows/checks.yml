@@ -1,0 +1,27 @@
+# The repository was on GitHub with nothing running on it: no CI, no
+# pre-commit, no linter, no type checker. The pre-commit hook is the local
+# half of the fix and can be skipped with --no-verify; this is the half that
+# cannot.
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      # No network: every collector's fetch path is untested by design and the
+      # suite only ever exercises `parse`, against saved fixtures.
+      - name: Test
+        run: pytest -q

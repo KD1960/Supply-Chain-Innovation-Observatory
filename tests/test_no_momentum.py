@@ -3,7 +3,7 @@ deliverable, the only metric that needed a time series is gone, and it was the
 one that kept reporting noise as trend."""
 import pytest
 
-from observatory import config, metrics, render, store
+from observatory import config, metrics, store
 from observatory.matcher import Technology, Watchlist
 
 

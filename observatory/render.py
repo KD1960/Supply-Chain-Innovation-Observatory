@@ -6,13 +6,11 @@ view time. It has to open by double-click in five years and still work.
 
 from __future__ import annotations
 
-import datetime as dt
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from markupsafe import Markup
 
-from . import charts, config, metrics, store
+from . import charts, config, store
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 FAMILY_COLOURS = {

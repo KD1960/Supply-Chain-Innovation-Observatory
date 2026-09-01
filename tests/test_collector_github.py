@@ -1,6 +1,10 @@
 import json
 from pathlib import Path
 
+import pytest
+
+from observatory import http
+from observatory.collectors import github as github_module
 from observatory.collectors.github import GithubCollector
 
 FIXTURE = Path(__file__).parent / "fixtures" / "github_page.json"
@@ -146,11 +150,6 @@ def test_the_committed_fixture_contains_no_credential():
 
 
 # --- the page cap, and saying so ------------------------------------------
-
-import pytest
-
-from observatory import http
-from observatory.collectors import github as github_module
 
 
 def test_a_total_count_above_the_cap_produces_a_warning():

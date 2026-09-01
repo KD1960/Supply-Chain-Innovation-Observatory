@@ -1,0 +1,33 @@
+#!/bin/sh
+# Tracked in the repository rather than left in .git/hooks, which is not
+# version-controlled and does not survive a clone. Enabled with:
+#
+#     git config core.hooksPath hooks
+#
+# The check is `ruff check`, on the whole tree rather than on staged files:
+# an unused import becomes undefined only for the file that lost it, and a
+# staged-only check would pass the commit that broke its neighbour.
+#
+# The process review found a shipped `NameError`, an assertion that could not
+# fail because `challenge if False else [...]` parses as a conditional
+# expression, and several unused imports -- all three shapes cost nothing to
+# catch here.
+#
+# To commit past it once: git commit --no-verify
+set -e
+
+PYTHON="${OBSERVATORY_PYTHON:-/Library/Frameworks/Python.framework/Versions/3.13/bin/python3}"
+
+if ! "$PYTHON" -m ruff --version >/dev/null 2>&1; then
+    echo "pre-commit: ruff is not installed for $PYTHON" >&2
+    echo "            $PYTHON -m pip install ruff" >&2
+    echo "            (or commit with --no-verify)" >&2
+    exit 1
+fi
+
+"$PYTHON" -m ruff check . || {
+    echo "" >&2
+    echo "pre-commit: ruff found problems; commit refused." >&2
+    echo "            fix them, or run: $PYTHON -m ruff check . --fix" >&2
+    exit 1
+}

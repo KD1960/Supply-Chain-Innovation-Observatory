@@ -79,7 +79,6 @@ def test_ingesting_a_week_records_what_it_retrieved(conn, tmp_path, monkeypatch)
     """Every document the parser saw, matched or not. The denominator is the
     corpus, not the part of it that happened to match."""
     from observatory import config, matcher, run
-    from observatory.collectors import base
     monkeypatch.setattr(config, "RAW_DIR", tmp_path)
     raw = tmp_path / "2026-W40" / "arxiv"
     raw.mkdir(parents=True)
