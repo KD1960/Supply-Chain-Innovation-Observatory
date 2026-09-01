@@ -25,13 +25,38 @@ FORMS = ("10-K", "10-Q", "8-K", "S-1")
 QUERY_TERMS = (
     "autonomous trucking",
     "warehouse robotics",
-    "supply chain risk intelligence",
     "digital freight matching",
     "cold chain monitoring",
     "nearshoring supply chain",
     "warehouse management system",
-    "enterprise resource planning supply chain",
 )
+
+# Removed 2026-09-01 after measuring them live, and recorded rather than
+# deleted so the next person does not re-add them and re-measure zero. The
+# same shape as USAspending's named exclusions.
+#
+# Both were caught in a bind with no move inside it. `parse` sets a document's
+# text to the query term itself -- filing bodies are megabytes and are never
+# fetched -- so the context gate only ever sees the term, and a term that does
+# not carry a domain word fails the gate for every filing it will ever
+# retrieve. Phrasing a term to carry one makes it long, and EDGAR matches
+# phrases exactly. Broad enough to retrieve, and nothing survives the gate;
+# gated, and nothing is retrieved.
+#
+# Reversing this needs the SIC container filter or the filing bodies, not a
+# better phrase: every phrase was tried. See docs/edgar-depth-2026-09-01.md.
+EXCLUDED_TERMS = {
+    "supply chain risk intelligence": (
+        "zero observations in the life of the project. `risk intelligence` "
+        "retrieves 7 filings a quarter and fails the gate; `supplier risk "
+        "platform` passes the gate and retrieves none"
+    ),
+    "enterprise resource planning supply chain": (
+        "zero observations in the life of the project. `enterprise resource "
+        "planning` retrieves 537 filings a quarter and produces 0 "
+        "observations; every gated phrasing retrieves none"
+    ),
+}
 
 
 class EdgarCollector(BaseCollector):

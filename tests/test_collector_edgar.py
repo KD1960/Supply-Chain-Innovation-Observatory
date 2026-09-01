@@ -126,12 +126,10 @@ def test_an_empty_body_raises_rather_than_parsing_to_nothing():
 INTENDED_TECHNOLOGY = {
     "autonomous trucking": "autonomous_trucking",
     "warehouse robotics": "warehouse_robotics",
-    "supply chain risk intelligence": "risk_intelligence",
     "digital freight matching": "digital_freight",
     "cold chain monitoring": "cold_chain_iot",
     "nearshoring supply chain": "nearshoring_analytics",
     "warehouse management system": "wms",
-    "enterprise resource planning supply chain": "erp",
 }
 
 
@@ -143,3 +141,54 @@ def test_every_query_term_matches_its_intended_technology():
     for term, tech_id in INTENDED_TECHNOLOGY.items():
         matched = {matched_id for matched_id, _ in watchlist.match(term)}
         assert matched == {tech_id}, f"{term!r} now matches {matched or 'nothing'}"
+
+
+# --- terms that could never match -------------------------------------------
+#
+# `parse` sets a document's text to the query term itself -- filing bodies are
+# megabytes and are never fetched -- so the context gate only ever sees the
+# term. A term therefore passes or fails the gate identically for every filing
+# it will ever retrieve, which makes the gate a whitelist of query strings.
+#
+# Two terms were phrased to carry a domain word so they would pass that gate,
+# and were consequently too long for an API that matches phrases exactly.
+# `supply chain risk intelligence` and `enterprise resource planning supply
+# chain` returned zero observations in the life of the project. Measured
+# 2026-09-01: every replacement either gets hits and fails the gate, or passes
+# the gate and gets nothing. See docs/edgar-depth-2026-09-01.md.
+
+
+def test_every_query_term_can_survive_the_gate():
+    """The half of the bind that is checkable without the network.
+
+    This does NOT catch the two removed terms -- they pass the gate; being
+    phrased to pass it is what made them too long to retrieve anything, and
+    only a live query shows that. It catches the opposite mistake: adding a
+    broad term like `digital twin` or `enterprise resource planning`, which
+    retrieves hundreds of filings and produces nothing, because the gate sees
+    only the term and finds no domain word in it."""
+    from observatory import matcher
+    from observatory.collectors.base import Document
+    from observatory.collectors.edgar import QUERY_TERMS
+
+    watchlist = matcher.load_watchlist("watchlist.yaml")
+    barren = []
+    for term in QUERY_TERMS:
+        document = Document(doc_id="probe", date="2026-05-01", title="ACME CORP",
+                            text=term, url="u", entity="ACME CORP", entity_id="1")
+        if not matcher.observations_for_document(watchlist, document, "edgar",
+                                                 "2026-W20", None):
+            barren.append(term)
+    assert not barren, f"terms that can never produce an observation: {barren}"
+
+
+def test_the_excluded_terms_record_why_they_are_gone():
+    """The USAspending shape: eleven named exclusions say why each source is not
+    queried, so the next person does not re-add them and re-measure zero."""
+    from observatory.collectors import edgar
+
+    assert "supply chain risk intelligence" in edgar.EXCLUDED_TERMS
+    assert "enterprise resource planning supply chain" in edgar.EXCLUDED_TERMS
+    for term, reason in edgar.EXCLUDED_TERMS.items():
+        assert term not in edgar.QUERY_TERMS
+        assert len(reason) > 40, f"{term} needs a real reason, not {reason!r}"

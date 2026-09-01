@@ -35,7 +35,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **643 passing** |
+| Tests | **656 passing** |
 | Lexicon | version **9**, 50 active technologies |
 | Observations | **2,455** |
 | Sources | 11, across 9 evidence families |
@@ -134,6 +134,11 @@ On 2026-09-01:
   the fix, the current template and lexicon v9 — the annual was built under v8.
   All seven reports were rebuilt and swept: each now either scores or says why
   it cannot. 2026-Q2 remains the only scored period.
+- **EDGAR measured and two barren terms removed.** See §5 and
+  `docs/edgar-depth-2026-09-01.md`.
+- **The quarterly report has a masthead** — the W. P. Carey / NASPO lockup
+  embedded as a data URI, disclosure tabs for the theory, the table and each
+  figure, and a credit line. `observatory/assets/` holds the lockup.
 - **`ruff` runs in a pre-commit hook, in CI and in the suite**, and was
   verified against the two defects the review said a linter would have caught.
   Details in §5.
@@ -183,6 +188,43 @@ for the first time.
 year. Investment remains the thinnest stage, and whether federal infrastructure
 money should count as domain evidence without technology resolution is an open
 question for the owner.
+
+**Diffusion is the thinnest stage, and EDGAR is not the main reason.**
+Measured 2026-09-01, `docs/edgar-depth-2026-09-01.md`. Diffusion is fed by two
+signals: filings (EDGAR) and trade press (ABI/INFORM). In 2026-Q2 that is 35
+documents and **1**. ABI/INFORM holds **9 documents in the whole database**,
+because it is a hand-made quarterly export — half the diffusion signal is a
+manual process that has produced nine rows.
+
+EDGAR could give roughly **4–5x more**, not the 36x raw hit counts suggest:
+thirty candidate terms returned 1,273 hits over a quarter and only 96 would
+become observations. The mechanism matters. `EdgarCollector.parse` sets a
+document's text to *the query term itself*, because filing bodies are megabytes
+and are never fetched — so **the context gate only ever sees the term**, and a
+term passes or fails it identically for every filing it will ever retrieve. On
+EDGAR the gate is a whitelist of query strings, not a document-level gate.
+
+Two terms were removed as a result: `supply chain risk intelligence` and
+`enterprise resource planning supply chain`, zero observations each in the life
+of the project. Both were phrased to carry a domain word so they would pass the
+gate, which made them too long for an API that matches phrases exactly — the
+USAspending failure in a second collector. Every replacement was measured and
+each one either retrieves and fails the gate, or passes the gate and retrieves
+nothing. `EXCLUDED_TERMS` records both with reasons.
+
+**Latent, not fixed: EDGAR caps a page at 100 and the collector neither
+paginates nor checks the total.** `enterprise resource planning` reports 537
+hits and returns 100. No current term exceeds 100 so it has never bitten, but
+it is silent truncation waiting for a wider term, and a total-versus-returned
+check must go in before any term is widened.
+
+**Financial news was asked about and is the wrong instrument.** Yahoo Finance
+and Finviz prohibit automated access; CNBC and MarketWatch RSS are free and
+legal but cannot backfill and roll silently; Finnhub company-news is the only
+one that fits, being keyed, free and date-rangeable. But all four are
+*attention*, not diffusion, and the report's central metric is substance minus
+attention — adding them would push technologies down that axis while feeling
+like added evidence.
 
 **GitHub measures the wrong population.** Of 735 matched repositories, 78% have
 exactly one star and the largest has 118. I sampled 60 repos first seen in
