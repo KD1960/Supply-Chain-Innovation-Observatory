@@ -82,9 +82,12 @@ def test_export_queries_returns_one_entry_per_source():
 
 
 def test_export_queries_states_the_period_each_query_covers():
+    # 2026-04-01, not the 2026-03-30 this asserted before: the sheet asks for
+    # the window the report counts. See the window test at the foot of this file.
     for entry in supplemental.export_queries("2026-Q2", _watchlist()):
         assert entry["period"] == "2026-Q2"
-        assert entry["start"] == "2026-03-30"
+        assert entry["start"] == "2026-04-01"
+        assert entry["end"] == "2026-06-30"
 
 
 def test_the_query_template_lives_in_config_not_code():
@@ -586,3 +589,29 @@ def test_even_batching_still_respects_the_limit():
     for entry in supplemental.export_queries("2026-Q2", _watchlist(), split=True):
         if entry["source"] == "abi_inform":
             assert entry["query"].count(" OR ") + 1 <= limit + 1
+
+
+# --- the window the sheet asks for is the window the report counts -----------
+
+
+def test_the_export_window_matches_the_report_window():
+    """They disagreed by three days at every quarter edge.
+
+    `supplemental.period_bounds` derived its dates from ISO weeks, and its
+    docstring justified that: the weeks were what the pipeline filed documents
+    into. That stopped being true when reporting moved to calendar quarters and
+    each document began being placed by its own date. The reasoning stayed and
+    the code with it, so `--export-queries 2026-Q3` asked a person to export
+    2026-06-29 to 2026-09-27 while the 2026-Q3 report counted 2026-07-01 to
+    2026-09-30 -- two days paid for and never counted at the front, and three
+    days counted but never exported at the back.
+    """
+    from observatory import quarter as quarter_module
+
+    for period in ("2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4", "2027-Q1", "2026"):
+        assert supplemental.period_bounds(period) == quarter_module.period_bounds(period), period
+
+
+def test_a_quarter_ends_on_the_last_day_of_its_last_month():
+    assert supplemental.period_bounds("2026-Q3") == ("2026-07-01", "2026-09-30")
+    assert supplemental.period_bounds("2026-Q4") == ("2026-10-01", "2026-12-31")

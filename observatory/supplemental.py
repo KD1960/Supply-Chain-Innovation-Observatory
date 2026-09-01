@@ -363,17 +363,22 @@ def render(template: str, values: dict[str, str], period: str) -> str:
 
 
 def period_bounds(period: str) -> tuple[str, str]:
-    """The calendar dates a period covers, taken from its ISO weeks.
+    """The dates a period covers -- the same ones the report counts.
 
-    The weeks are the authority, not the calendar quarter, because that is what
-    the rest of the pipeline files documents into. A quarter's first Monday can
-    fall in the previous month, and an export cut to calendar month boundaries
-    would miss the days between.
+    This is deliberately `quarter.period_bounds` and not a second opinion. It
+    used to derive its dates from ISO weeks, and the reasoning was sound at the
+    time: the weeks were what the pipeline filed documents into, so an export
+    cut to month boundaries would have missed the days between.
+
+    Reporting then moved to calendar quarters selected by each document's own
+    date, and this was not moved with it. The two disagreed by three days at
+    every quarter edge, so `--export-queries 2026-Q3` asked a person to export
+    2026-06-29 to 2026-09-27 while the 2026-Q3 report counted 2026-07-01 to
+    2026-09-30: two days of hand-made export paid for and never counted, and
+    three days counted with nothing in them. Asking for a window the report
+    does not read is the same error as reading a window nobody exported.
     """
-    weeks = quarter.weeks_in_period(period)
-    start, _ = config.week_bounds(weeks[0])
-    _, end = config.week_bounds(weeks[-1])
-    return start.isoformat(), end.isoformat()
+    return quarter.period_bounds(period)
 
 
 def build_query(source_id: str, period: str, watchlist, registry: Registry | None = None) -> str:

@@ -35,7 +35,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **662 passing** |
+| Tests | **664 passing** |
 | Lexicon | version **9**, 50 active technologies |
 | Observations | **2,455** |
 | Sources | 11, across 9 evidence families |
@@ -215,8 +215,32 @@ what arrived against what the sheet asked for, and `--import-manual` prints the
 absences before ingesting anything. It is never fatal: the rows that did arrive
 are real, and refusing them would trade an undercount for nothing.
 
-**The remedy is a person at ProQuest**, not code. Sixteen ABI/INFORM exports
-and one Scopus export would close 2026-Q3, and the check now names them.
+**Corrected by the owner 2026-09-01, and it matters.** Supply Chain Dive's
+fifth batch *was* run and returned nothing — its own sidecar always said so;
+a stale note in batch 1's sidecar claimed otherwise and has been fixed. And
+**all five Journal of Commerce batches were run, and all five were empty**.
+They are absent from disk, so the check reports them as never run: a genuine
+empty needs a zero-record file and a sidecar, or it cannot be told from a hole.
+
+**Journal of Commerce returning nothing across ~66 terms in a quarter is
+probably a title that does not resolve**, not a quiet quarter — `sources.yaml`
+already records DC Velocity, FreightWaves and Material Handling & Logistics
+failing the same way under `PUB.EXACT`. Two diagnostic searches settle it and
+are in `docs/exports-2026-Q3-remaining.md`.
+
+**Still genuinely never run:** Modern Materials Handling (5), Supply Chain
+Management Review (5), and `scopus-14784092` — the Journal of Purchasing and
+Supply Management. Eleven queries, in that doc, ready to paste.
+
+**The export window was three days short and is fixed.**
+`supplemental.period_bounds` derived its dates from ISO weeks, which was right
+when the pipeline filed documents by week; reporting moved to calendar quarters
+and this did not move with it. `--export-queries 2026-Q3` asked for 2026-06-29
+to 2026-09-27 while the report counted 2026-07-01 to 2026-09-30 — two days
+hand-exported and never counted, three days counted with nothing in them. It is
+now literally `quarter.period_bounds`, with a test that they cannot diverge
+again. **Every export already on disk used the old window**, so 2026-Q3's
+existing files are missing 28–30 September.
 
 EDGAR could give roughly **4–5x more**, not the 36x raw hit counts suggest:
 thirty candidate terms returned 1,273 hits over a quarter and only 96 would
