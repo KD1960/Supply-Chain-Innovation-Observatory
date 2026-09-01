@@ -1,0 +1,124 @@
+"""An export that was never run has to be as loud as one that failed.
+
+`read_exports` raises rather than skipping, because "a silently ignored export
+is a silently missing quarter" -- but it can only refuse the files it can see.
+Nothing compared what came back against what was asked for, so a quarter where
+most of the sheet was never run imported cleanly and reported its fraction as
+though it were the whole.
+
+2026-Q3 is the case that prompted this. The sheet asks for **20** ABI/INFORM
+exports -- four publications by five term batches -- and **four** were ever run,
+all of them Supply Chain Dive. Modern Materials Handling, Supply Chain
+Management Review and the Journal of Commerce were never exported at all. Trade
+press holds 9 observations from 30 retrieved documents, which is not a thin
+source: it is a fifth of a source. Its match rate, 30%, is the second best of
+any source in the project.
+"""
+
+
+from observatory import matcher, supplemental
+from observatory.matcher import Technology, Watchlist
+
+
+def _watchlist():
+    return Watchlist(version=1, context=("supply chain",), technologies=(Technology(
+        id="a", name="A", family="f", include=("widget",), exclude=(),
+        status="active", added_week="2020-W01", patterns_changed_week="2020-W01"),))
+
+
+def test_missing_exports_names_every_file_the_sheet_asked_for(tmp_path):
+    watchlist = _watchlist()
+    expected = supplemental.export_queries("2026-Q3", watchlist, split=True)
+    assert expected, "the sheet asks for nothing; the fixture is wrong"
+
+    missing = supplemental.missing_exports("2026-Q3", watchlist, root=tmp_path)
+    assert len(missing) == len(expected)
+    assert {row["filename"] for row in missing} == {row["filename"] for row in expected}
+
+
+def test_a_file_that_arrived_is_not_reported_missing(tmp_path):
+    watchlist = _watchlist()
+    expected = supplemental.export_queries("2026-Q3", watchlist, split=True)
+    landed = expected[0]["filename"]
+    directory = tmp_path / "2026-Q3"
+    directory.mkdir(parents=True)
+    (directory / landed).write_text("")
+
+    missing = {row["filename"] for row in
+               supplemental.missing_exports("2026-Q3", watchlist, root=tmp_path)}
+    assert landed not in missing
+    assert len(missing) == len(expected) - 1
+
+
+def test_the_real_2026_q3_quarter_is_mostly_missing():
+    """The finding itself, pinned against the live export directory.
+
+    This will change when the quarter is completed, and that is the point: it
+    is a statement about the data on disk, and it should fail the day someone
+    runs the other sixteen.
+    """
+    watchlist = matcher.load_watchlist("watchlist.yaml")
+    missing = supplemental.missing_exports("2026-Q3", watchlist)
+    abi = [row for row in missing if row["source"] == "abi_inform"]
+    assert len(abi) >= 15, (
+        "2026-Q3 ABI/INFORM looks more complete than it was; "
+        f"missing now {len(abi)}"
+    )
+    # Three publications never exported at all, not merely under-exported.
+    never = {"ModernMaterialsHandling", "SupplyChainManagementReview",
+             "JournalofCommerce"}
+    for publication in never:
+        assert any(publication in row["filename"] for row in abi), publication
+
+
+def test_import_says_what_never_arrived(tmp_path, capsys):
+    """Said out loud on the run that ingests them, not left in a file nobody
+    opens. Silent truncation is this project's oldest failure mode, and an
+    export nobody ran is the same shape."""
+    from observatory import store
+
+    conn = store.connect(":memory:")
+    store.init_schema(conn)
+    try:
+        (tmp_path / "2026-Q3").mkdir(parents=True)
+        manual_import = __import__("observatory.manual", fromlist=["manual"])
+        manual_import.import_exports(conn, _watchlist(), root=tmp_path,
+                                     period="2026-Q3")
+        printed = capsys.readouterr().out
+        assert "never arrived" in printed
+        assert "abi_inform" in printed
+    finally:
+        conn.close()
+
+
+def test_a_source_that_arrived_under_its_own_name_is_not_reported_missing(tmp_path):
+    """Lens exports as `lens-export-supplychaininnovation.csv`, because that is
+    what the database hands you. Matching on the generated filename reported a
+    file sitting on disk as never having arrived -- a false positive, which in a
+    report about absence is the worst possible kind."""
+    watchlist = _watchlist()
+    directory = tmp_path / "2026-Q3"
+    directory.mkdir(parents=True)
+    (directory / "lens-export-whatever-the-site-called-it.csv").write_text("")
+    (directory / "lens-export-whatever-the-site-called-it.csv.meta.yaml").write_text(
+        "source: lens\nexported: 2026-08-29\nquery: x\nrecords: 1\n")
+
+    missing = supplemental.missing_exports("2026-Q3", watchlist, root=tmp_path)
+    assert not [row for row in missing if row["source"] == "lens"]
+
+
+def test_a_split_source_is_still_checked_piece_by_piece(tmp_path):
+    """The other half. One Scopus journal arriving must not vouch for the other
+    eleven, or the check would be satisfied by any single file."""
+    watchlist = _watchlist()
+    directory = tmp_path / "2026-Q3"
+    directory.mkdir(parents=True)
+    expected = [e for e in supplemental.export_queries("2026-Q3", watchlist, split=True)
+                if e["source"] == "scopus"]
+    (directory / expected[0]["filename"]).write_text("")
+    (directory / f"{expected[0]['filename']}.meta.yaml").write_text(
+        "source: scopus\nexported: 2026-08-29\nquery: x\nrecords: 1\n")
+
+    missing = [row for row in supplemental.missing_exports("2026-Q3", watchlist, root=tmp_path)
+               if row["source"] == "scopus"]
+    assert len(missing) == len(expected) - 1

@@ -463,6 +463,83 @@ def export_queries(period: str, watchlist, registry: Registry | None = None,
     return entries
 
 
+def missing_exports(period: str, watchlist, registry: Registry | None = None,
+                    root=None, only: str | None = None) -> list[dict]:
+    """The exports the sheet asked for that never came back.
+
+    `read_exports` refuses a file it cannot understand, because "a silently
+    ignored export is a silently missing quarter" -- but it can only judge the
+    files it can see. Nothing compared what arrived against what was asked for,
+    so a quarter where most of the sheet was never run imported cleanly and
+    reported its fraction as if it were the whole. 2026-Q3 asked for twenty
+    ABI/INFORM exports and four were run.
+
+    Split mode is what the sheet prints and what the filenames on disk use, so
+    it is what this checks. A source whose unsplit file is present is treated
+    as complete rather than as twenty absences.
+    """
+    from pathlib import Path
+
+    directory = (Path(root) if root else config.MANUAL_DIR) / period
+    whole = {entry["source"]: entry["filename"]
+             for entry in export_queries(period, watchlist, registry, only=only)}
+    satisfied = {source for source, filename in whole.items()
+                 if (directory / filename).exists()}
+    # Sources that arrived under a name of their own. A source split into
+    # pieces -- Scopus by ISSN, ABI/INFORM by publication and term batch -- has
+    # to be checked piece by piece or a single file would vouch for all twelve.
+    # A source with no pieces has nothing to check but its presence, and the
+    # exporter names that file whatever the database handed them:
+    # `lens-export-supplychaininnovation.csv`, not `lens.csv`. Matching those
+    # by filename reported an export that was sitting on disk as missing.
+    present_sources = {str(meta.get("source")) for meta in _sidecars(directory)}
+    return [
+        entry
+        for entry in export_queries(period, watchlist, registry, only=only, split=True)
+        if entry["source"] not in satisfied
+        and not (entry["piece"] == "" and entry["source"] in present_sources)
+        and not (directory / entry["filename"]).exists()
+    ]
+
+
+def _sidecars(directory) -> list[dict]:
+    """Every sidecar in one period directory, for what it declares about its
+    own file. Unreadable ones are skipped: `read_exports` is what refuses
+    those, and this function exists to report absence, not to police format."""
+    import yaml
+
+    found = []
+    if not directory.exists():
+        return found
+    for path in sorted(directory.glob("*.meta.yaml")):
+        try:
+            loaded = yaml.safe_load(path.read_text())
+        except Exception:
+            continue
+        if isinstance(loaded, dict):
+            found.append(loaded)
+    return found
+
+
+def describe_missing(missing: list[dict]) -> list[str]:
+    """One line per source, counted, with the filenames under it.
+
+    Counted per source because "sixteen missing" is a number somebody acts on
+    and a list of sixteen paths is one they skim.
+    """
+    import collections
+
+    grouped: dict[str, list[str]] = collections.defaultdict(list)
+    for entry in missing:
+        grouped[entry["source"]].append(entry["filename"])
+    lines = []
+    for source in sorted(grouped):
+        names = sorted(grouped[source])
+        lines.append(f"  {source}: {len(names)} export(s) never arrived")
+        lines.extend(f"    - {name}" for name in names)
+    return lines
+
+
 def print_queries(period: str, watchlist, registry: Registry | None = None,
                   only: str | None = None, split: bool = False) -> None:
     """The sheet a person works from.

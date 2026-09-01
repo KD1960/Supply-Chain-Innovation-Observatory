@@ -35,7 +35,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **656 passing** |
+| Tests | **662 passing** |
 | Lexicon | version **9**, 50 active technologies |
 | Observations | **2,455** |
 | Sources | 11, across 9 evidence families |
@@ -134,6 +134,8 @@ On 2026-09-01:
   the fix, the current template and lexicon v9 — the annual was built under v8.
   All seven reports were rebuilt and swept: each now either scores or says why
   it cannot. 2026-Q2 remains the only scored period.
+- **Sixteen of twenty trade-press exports were never run**, which is why
+  diffusion looked thin. `--import-manual` now says what never arrived. See §5.
 - **EDGAR measured and two barren terms removed.** See §5 and
   `docs/edgar-depth-2026-09-01.md`.
 - **The quarterly report has a masthead** — the W. P. Carey / NASPO lockup
@@ -192,9 +194,29 @@ question for the owner.
 **Diffusion is the thinnest stage, and EDGAR is not the main reason.**
 Measured 2026-09-01, `docs/edgar-depth-2026-09-01.md`. Diffusion is fed by two
 signals: filings (EDGAR) and trade press (ABI/INFORM). In 2026-Q2 that is 35
-documents and **1**. ABI/INFORM holds **9 documents in the whole database**,
-because it is a hand-made quarterly export — half the diffusion signal is a
-manual process that has produced nine rows.
+documents and **1**. ABI/INFORM holds **9 documents in the whole database** —
+and the reason is not that trade press is thin. **Sixteen of the twenty exports
+the sheet asked for were never run** (2026-09-01).
+
+`--export-queries 2026-Q3 --split` asks for twenty ABI/INFORM files: four
+publications by five term batches. Four exist, all of them Supply Chain Dive.
+**Modern Materials Handling, Supply Chain Management Review and the Journal of
+Commerce were never exported at all**, and Supply Chain Dive's fifth batch was
+skipped — its sidecar says so. Trade press is not a thin source; it is a fifth
+of a source, and its 30% match rate is the second best in the project.
+
+One Scopus journal is missing too: **`scopus-14784092.ris`, the Journal of
+Purchasing and Supply Management**. Eleven of twelve arrived.
+
+**Nothing noticed.** `read_exports` refuses a file it cannot parse, on the
+principle that a silently ignored export is a silently missing quarter — but it
+can only judge the files it can see. `supplemental.missing_exports` now compares
+what arrived against what the sheet asked for, and `--import-manual` prints the
+absences before ingesting anything. It is never fatal: the rows that did arrive
+are real, and refusing them would trade an undercount for nothing.
+
+**The remedy is a person at ProQuest**, not code. Sixteen ABI/INFORM exports
+and one Scopus export would close 2026-Q3, and the check now names them.
 
 EDGAR could give roughly **4–5x more**, not the 36x raw hit counts suggest:
 thirty candidate terms returned 1,273 hits over a quarter and only 96 would

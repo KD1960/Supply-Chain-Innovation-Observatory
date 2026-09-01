@@ -291,6 +291,38 @@ def classification_evidence(source: str, record: dict) -> list[str]:
     return found
 
 
+def _report_missing(watchlist, directory: Path, period: str | None) -> None:
+    """Say what the sheet asked for and never got, before ingesting the rest.
+
+    An export nobody ran is the same shape as a silently truncated one: the
+    quarter imports cleanly and reports a fraction as though it were the whole.
+    2026-Q3 asked for twenty ABI/INFORM exports and four were run, and nothing
+    in the pipeline noticed -- trade press read as a thin source rather than as
+    a fifth of a source.
+
+    Reported for every period that has a directory, because a directory means
+    somebody started that quarter. Never fatal: the rows that did arrive are
+    still real, and refusing them would trade an undercount for nothing.
+    """
+    from . import supplemental
+
+    if period is not None:
+        periods = [period]
+    else:
+        periods = sorted(child.name for child in directory.iterdir()
+                         if child.is_dir()) if directory.exists() else []
+    for name in periods:
+        try:
+            missing = supplemental.missing_exports(name, watchlist, root=directory)
+        except Exception as error:  # a period the registry cannot parse is not fatal
+            print(f"  could not check {name} for missing exports: {error}")
+            continue
+        if missing:
+            print(f"  {name}: exports that never arrived")
+            for line in supplemental.describe_missing(missing):
+                print(line)
+
+
 def read_exports(root: Path) -> list[tuple[dict, list[dict]]]:
     """Every export under `root`, paired with its sidecar. Raises rather than
     skipping: a silently ignored export is a silently missing quarter."""
@@ -365,9 +397,12 @@ def _refuse_overlapping(found) -> None:
             )
 
 
-def import_exports(conn, watchlist, root: Path | None = None, session=None) -> int:
+def import_exports(conn, watchlist, root: Path | None = None, session=None,
+                   period: str | None = None) -> int:
     """Match every export under `root` and write the hits as observations."""
-    exports = read_exports(Path(root) if root else config.MANUAL_DIR)
+    directory = Path(root) if root else config.MANUAL_DIR
+    _report_missing(watchlist, directory, period)
+    exports = read_exports(directory)
 
     # One resolver pass across every export, before any of them is matched. A
     # bibliographic record that carries only a year cannot be placed in a week,
