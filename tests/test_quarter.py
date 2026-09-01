@@ -205,11 +205,15 @@ def test_previous_period_of_a_year_is_the_year_before():
 
 
 def test_totals_cover_the_whole_year(conn):
-    observe(conn, "a", "2026-W02", "arxiv", "q1")
-    observe(conn, "a", "2026-W20", "arxiv", "q2")
-    observe(conn, "a", "2026-W40", "arxiv", "q4")
-    observe(conn, "a", "2025-W40", "arxiv", "lastyear")
-    assert quarter.totals(conn, "2026")["a"]["total"] == 3
+    """A finished year, so the assertion is about the year boundary and not
+    about today. It used to place a document in 2026-W40 and expect it counted,
+    which only held while reports counted dates that had not happened -- it
+    would have started failing in October by itself."""
+    observe(conn, "a", "2025-W02", "arxiv", "q1")
+    observe(conn, "a", "2025-W20", "arxiv", "q2")
+    observe(conn, "a", "2025-W40", "arxiv", "q4")
+    observe(conn, "a", "2024-W40", "arxiv", "lastyear")
+    assert quarter.totals(conn, "2025")["a"]["total"] == 3
 
 
 def test_an_annual_report_is_partial_until_every_week_has_run(conn):
@@ -700,11 +704,16 @@ def test_the_previous_period_is_still_the_one_before():
 
 def test_totals_select_documents_by_their_own_date(conn):
     """A document dated September 30th belongs to Q3 even though its ISO week
-    runs into October."""
-    _dated(conn, "a", "2026-W40", "2026-09-30", "in Q3")
-    _dated(conn, "a", "2026-W40", "2026-10-02", "in Q4")
-    assert quarter.totals(conn, "2026-Q3")["a"]["total"] == 1
-    assert quarter.totals(conn, "2026-Q4")["a"]["total"] == 1
+    runs into October.
+
+    Dated in a finished year for the same reason as the test above: the point
+    is the quarter boundary, and 2026-Q4 has not begun, so counting anything in
+    it would be the error `counting_bounds` exists to stop.
+    """
+    _dated(conn, "a", "2025-W40", "2025-09-30", "in Q3")
+    _dated(conn, "a", "2025-W40", "2025-10-02", "in Q4")
+    assert quarter.totals(conn, "2025-Q3")["a"]["total"] == 1
+    assert quarter.totals(conn, "2025-Q4")["a"]["total"] == 1
 
 
 def _dated(conn, tech_id, week, doc_date, doc_id):

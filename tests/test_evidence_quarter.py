@@ -58,9 +58,13 @@ def test_sections_are_ordered_by_how_much_evidence_they_carry(conn):
 
 
 def test_documents_are_selected_by_their_own_date(conn):
-    _observe(conn, "a", "2026-09-30")
-    _observe(conn, "a", "2026-10-02")
-    context = quarter.evidence_context(conn, "2026-Q3", _watchlist())
+    """Dated in a finished quarter, so the assertion is about the quarter
+    boundary rather than about today. The dates were 2026-09-30 and
+    2026-10-02, both of which are now ahead of the clock, and a report counts
+    what has happened."""
+    _observe(conn, "a", "2025-09-30")
+    _observe(conn, "a", "2025-10-02")
+    context = quarter.evidence_context(conn, "2025-Q3", _watchlist())
     assert len(context["groups"][0]["rows"]) == 1
 
 

@@ -29,6 +29,21 @@ QUERY_TERMS = (
     "cold chain monitoring",
     "nearshoring supply chain",
     "warehouse management system",
+    # Added 2026-09-01. Every one was measured live over 2026-Q2 before it was
+    # added, and the number beside it is the filings it retrieved in that
+    # quarter -- see docs/edgar-depth-2026-09-01.md. Terms with a measured
+    # yield of zero were left out, which is the standard the two removed
+    # exclusions below failed.
+    "last mile delivery",              # 66
+    "critical minerals supply chain",  # 10
+    "micro-fulfillment",               # 7
+    "electric truck",                  # 5
+    "shore power",                     # 2
+    "positive train control",          # 2
+    "digital product passport",        # 2
+    "delivery drone",                  # 1
+    "sales and operations planning",   # 1
+    "freight marketplace",             # 1
 )
 
 # Removed 2026-09-01 after measuring them live, and recorded rather than

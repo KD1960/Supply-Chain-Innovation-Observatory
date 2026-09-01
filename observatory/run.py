@@ -279,6 +279,18 @@ def run_week(
     )
 
 
+def weeks_to_render(conn) -> list[str]:
+    """Every week holding an observation, that has actually happened.
+
+    Scopus issue dates run months ahead of publication, so the store holds
+    2026-W40, W44 and W49. Rendering them produced dashboards for weeks that
+    did not exist, and because the loop runs ascending, the last one drawn took
+    `latest.html`. A page about a week is a claim that the week occurred.
+    """
+    return sorted(week for week in store.new_observation_counts(conn, 0)
+                  if week <= config.current_week())
+
+
 def _score_and_render(
     conn, week: str, watchlist, ok_sources: set[str], observations: int, collectors,
     out_path: Path | None = None, latest: bool = True,
@@ -460,13 +472,19 @@ def main(argv=None) -> int:
         if args.import_manual:
             written = manual.import_exports(conn, watchlist)
             print(f"manual: {written} observations")
-            for week in sorted(store.new_observation_counts(conn, 0)):
+            for week in weeks_to_render(conn):
                 _score_and_render(conn, week, watchlist,
                                   scoring_sources(conn, week, collectors), 0, collectors)
             return 0
         period = args.annual or args.quarter
         if period:
-            path = quarter.render_quarter(conn, period, watchlist)
+            try:
+                path = quarter.render_quarter(conn, period, watchlist)
+            except quarter.PeriodNotStarted as error:
+                # A message, not a traceback. Asking for next quarter's report
+                # is an ordinary mistake, and the answer is a sentence.
+                print(f"refusing: {error}", file=sys.stderr)
+                return 1
             print(f"{period}: {path}")
             return 0
         if args.backfill is not None:

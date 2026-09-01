@@ -323,6 +323,30 @@ def weeks_in_year(year: str) -> list[str]:
     return [f"{year}-W{week:02d}" for week in range(1, last + 1)]
 
 
+class PeriodNotStarted(ValueError):
+    """Asked for a report on a period that has not begun."""
+
+
+def counting_bounds(name: str) -> tuple[str, str]:
+    """The dates a report should count, which stop at today.
+
+    `period_bounds` names the whole period and must keep doing so -- it is what
+    the export sheet asks a human for, and clamping it would ask for a short
+    window. This is the reporting half.
+
+    Scopus issue dates run ahead of publication, so `PUBYEAR = 2026` returns
+    records dated to December and the store holds 62 documents that have not
+    happened. Counting them put those rows into the 2026 annual total. The
+    document's own date still decides its period -- a December paper belongs to
+    Q4 -- it simply cannot be counted before December.
+    """
+    start, end = period_bounds(name)
+    today = dt.date.today().isoformat()
+    if start > today:
+        raise PeriodNotStarted(f"{name} begins {start}, which has not happened yet")
+    return start, min(end, today)
+
+
 def period_bounds(name: str) -> tuple[str, str]:
     """The calendar dates a period covers.
 
@@ -364,7 +388,7 @@ def totals(conn, name: str) -> dict[str, dict]:
     # Selected by the document's own date, which is the rule the rest of the
     # pipeline already follows. A paper dated September 30th belongs to Q3
     # whether or not its ISO week runs into October.
-    start, end = period_bounds(name)
+    start, end = counting_bounds(name)
     rows = conn.execute(
         "SELECT tech_id, source, COUNT(*) AS n FROM observations "
         "WHERE doc_date BETWEEN ? AND ? GROUP BY tech_id, source",
@@ -454,7 +478,7 @@ def locations(conn, name: str) -> list[dict]:
     map under it is not a map. The places and the dollars are what the block
     was ever for, and a table says them without pretending to cartography.
     """
-    start, end = period_bounds(name)
+    start, end = counting_bounds(name)
     rows = conn.execute(
         "SELECT title, amount, lat, lon, url, tech_id FROM observations "
         "WHERE doc_date BETWEEN ? AND ? AND lat IS NOT NULL",
@@ -495,7 +519,7 @@ def retrieved_by_family(conn, name: str) -> dict[str, int]:
     have to walk fifty thousand raw files, and so the denominator agrees with
     the numerator: both are placed by the document's own date.
     """
-    start, end = period_bounds(name)
+    start, end = counting_bounds(name)
     families: collections.Counter = collections.Counter()
     for source, count in store.corpus_between(conn, start, end).items():
         family = EVIDENCE_FAMILIES.get(source)
@@ -721,7 +745,7 @@ def evidence_context(conn, name: str, watchlist) -> dict:
     technology the system looked for and did not find is a finding, and it also
     keeps an anchor, so a link from the report is never dead.
     """
-    start, end = period_bounds(name)
+    start, end = counting_bounds(name)
     rows = conn.execute(
         "SELECT tech_id, source, doc_id, doc_date, title, url, entity, matched_pattern "
         "FROM observations WHERE doc_date BETWEEN ? AND ? ORDER BY doc_date DESC",

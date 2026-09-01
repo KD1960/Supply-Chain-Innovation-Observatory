@@ -130,6 +130,16 @@ INTENDED_TECHNOLOGY = {
     "cold chain monitoring": "cold_chain_iot",
     "nearshoring supply chain": "nearshoring_analytics",
     "warehouse management system": "wms",
+    "last mile delivery": "last_mile_delivery",
+    "critical minerals supply chain": "minerals_traceability",
+    "micro-fulfillment": "microfulfillment",
+    "electric truck": "electric_trucks",
+    "shore power": "port_electrification",
+    "positive train control": "positive_train_control",
+    "digital product passport": "digital_product_passport",
+    "delivery drone": "delivery_drones",
+    "sales and operations planning": "sop_planning",
+    "freight marketplace": "digital_freight",
 }
 
 

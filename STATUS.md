@@ -35,7 +35,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **670 passing** |
+| Tests | **677 passing** |
 | Lexicon | version **9**, 50 active technologies |
 | Observations | **2,462** |
 | Sources | 11, across 9 evidence families |
@@ -280,6 +280,18 @@ USAspending failure in a second collector. Every replacement was measured and
 each one either retrieves and fails the gate, or passes the gate and retrieves
 nothing. `EXCLUDED_TERMS` records both with reasons.
 
+**Ten measured terms were added 2026-09-01**, taking EDGAR from six to
+sixteen. Each was measured live over 2026-Q2 before being added and the yield
+is recorded beside it in the collector; terms measuring zero were left out,
+which is the standard the two exclusions failed. Verified live on 2026-W20:
+**12 documents and 9 filers became 51 and 42**, across eleven technologies
+rather than six — the 4–5x the measurement predicted.
+
+**The new terms are forward-only until a backfill.** Weeks already collected
+were fetched with the old six, so their EDGAR rows are unchanged. Closing that
+means re-fetching every week — `--backfill 52` — which is a large operation and
+would move published numbers, so it is the owner's call rather than a tidy-up.
+
 **Latent, not fixed: EDGAR caps a page at 100 and the collector neither
 paginates nor checks the total.** `enterprise resource planning` reports 537
 hits and returns 100. No current term exceeds 100 so it has never bitten, but
@@ -365,6 +377,20 @@ refused it.
 Cleaning the tree took 26 fixes. Two were more than cosmetic: a dead `scored`
 in `quarter.py` duplicating the filter one line above it, and import blocks
 stranded mid-file in two test files by later appends.
+
+**Reports for periods that have not happened are refused** (2026-09-01).
+Scopus issue dates run months ahead, so the store holds 62 observations dated
+October to December 2026 and 2,911 corpus documents in weeks that have not
+occurred. `quarter.counting_bounds` stops a period's counting at today, so the
+2026 annual total falls from 1,896 to **1,841** and counts what has happened;
+`quarter.period_bounds` is untouched, because it is what the export sheet asks
+a human for and clamping it would ask for a short window. A period that has not
+begun raises `PeriodNotStarted` — `--quarter 2026-Q4` now prints a sentence and
+exits 1. `run.weeks_to_render` filters weeks that have not happened, and
+`dashboard-2026-W40`, `W44` and `W49` are deleted.
+
+The document's own date still decides its period. A December paper belongs to
+Q4; it just cannot be counted before December.
 
 **Not deferred, just absent:** PatentsView (awaiting a key, gets its own plan) and
 GDELT (plan 2A tasks 3 and 4; the implementation is written, it needs a clean
