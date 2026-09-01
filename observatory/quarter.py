@@ -418,9 +418,13 @@ def weeks_run(conn, name: str) -> int:
     """
     weeks = weeks_in_period(name)
     placeholders = ",".join("?" for _ in weeks)
+    # Only weeks something was actually collected in -- see
+    # `metrics.collected_quarters` for the ruling this implements.
+    statuses = ",".join("?" for _ in store.COLLECTED_STATUSES)
     row = conn.execute(
-        f"SELECT COUNT(DISTINCT week) AS n FROM source_runs WHERE week IN ({placeholders})",
-        weeks,
+        f"SELECT COUNT(DISTINCT week) AS n FROM source_runs "
+        f"WHERE week IN ({placeholders}) AND status IN ({statuses})",
+        (*weeks, *store.COLLECTED_STATUSES),
     ).fetchone()
     return row["n"] if row else 0
 

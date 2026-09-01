@@ -206,3 +206,49 @@ def test_a_period_still_filling_up_is_not_scored(conn):
     assert rows["a"]["documents"] == 3, "the count is an observation and stands"
     assert rows["a"]["sai"] is None, "the score is an inference and does not"
     assert rows["a"]["partial"] is True
+
+
+# --- a week nobody collected anything in ------------------------------------
+#
+# Owner's ruling, 2026-09-01: a week where every source failed is a week that is
+# simply missing, unless some of it can be backfilled. One source succeeding is
+# enough to make the week collected -- partial data is data, and the source
+# that failed leaves a hole rather than a zero, which the signals already
+# handle.
+#
+# `weeks_run` and `collected_quarters` both counted a week as run if any
+# `source_runs` row existed for it, whatever the row said. A week of nothing
+# but failures therefore counted as collected, which is the same error as
+# folding an absence into a zero, one level up.
+
+
+def test_a_week_where_every_source_failed_is_not_collected(conn):
+    from observatory import quarter as quarters
+    weeks = quarters.weeks_in_quarter("2026-Q2")
+    for week in weeks:
+        conn.execute("INSERT INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    # One week of the quarter fails outright, on every source it tried.
+    conn.execute("UPDATE source_runs SET status = 'failed' WHERE week = ?", (weeks[4],))
+    conn.execute("INSERT INTO source_runs (source, week, status) "
+                 "VALUES ('github', ?, 'failed')", (weeks[4],))
+    conn.commit()
+    assert "2026-Q2" not in metrics.collected_quarters(conn, ["2026-Q2"])
+    assert quarters.weeks_run(conn, "2026-Q2") == len(weeks) - 1
+
+
+def test_one_source_surviving_is_enough(conn):
+    """The backfill half of the ruling. A week with one source in it is a week
+    that can be topped up; a week with nothing in it cannot."""
+    from observatory import quarter as quarters
+    weeks = quarters.weeks_in_quarter("2026-Q2")
+    for week in weeks:
+        conn.execute("INSERT INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    conn.execute("UPDATE source_runs SET status = 'failed' WHERE week = ?", (weeks[4],))
+    conn.execute("INSERT INTO source_runs (source, week, status) "
+                 "VALUES ('github', ?, 'empty')", (weeks[4],))
+    conn.commit()
+    # `empty` is collected: it means we looked and saw nothing.
+    assert "2026-Q2" in metrics.collected_quarters(conn, ["2026-Q2"])
+    assert quarters.weeks_run(conn, "2026-Q2") == len(weeks)

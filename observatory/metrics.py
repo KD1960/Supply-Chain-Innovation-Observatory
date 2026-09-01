@@ -219,9 +219,18 @@ def collected_quarters(conn, names: list[str]) -> set[str]:
     for name in names:
         weeks = _quarters().weeks_in_quarter(name) if "-Q" in name else _quarters().weeks_in_year(name)
         placeholders = ",".join("?" for _ in weeks)
+        # A week counts as run when at least one source collected in it.
+        # Owner's ruling 2026-09-01: a week where every source failed is
+        # missing, not run -- unless part of it can be backfilled, and one
+        # surviving source is what makes that possible. Counting any row at all
+        # made a week of nothing but failures look collected, which is folding
+        # an absence into a zero one level up from where that rule usually
+        # bites. `empty` counts: we looked and saw nothing.
+        statuses = ",".join("?" for _ in store.COLLECTED_STATUSES)
         row = conn.execute(
-            f"SELECT COUNT(DISTINCT week) AS n FROM source_runs WHERE week IN ({placeholders})",
-            weeks,
+            f"SELECT COUNT(DISTINCT week) AS n FROM source_runs "
+            f"WHERE week IN ({placeholders}) AND status IN ({statuses})",
+            (*weeks, *store.COLLECTED_STATUSES),
         ).fetchone()
         if row and row["n"] >= len(weeks):
             collected.add(name)
