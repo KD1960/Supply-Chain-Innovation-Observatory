@@ -134,6 +134,19 @@ On 2026-09-01:
   the fix, the current template and lexicon v9 — the annual was built under v8.
   All seven reports were rebuilt and swept: each now either scores or says why
   it cannot. 2026-Q2 remains the only scored period.
+- **`data/` is backed up**, which the review listed as risk 2, Critical.
+  `/Volumes/BUBBA/SC-Innovation-Observatory-backup/2026-09-01/` holds the 36
+  licensed exports loose, plus a 109M archive of the whole 915M directory, a
+  SHA-256 manifest and a README with the restore command. Verified rather than
+  assumed: 3,437 files in against 3,437 out, the database's checksum identical
+  in all three places, and all 36 exports extracted and diffed byte-for-byte
+  against the source. `.env` is deliberately excluded. Time Machine also covers
+  the project — it is not excluded and ran 2026-08-31 — but its snapshots
+  cannot be read without Full Disk Access, so that was never verified from
+  here and this copy does not depend on it.
+
+  **It is a snapshot and goes stale from the next Monday run.** Remake it after
+  each quarter's export cycle, which is when the irreplaceable part changes.
 
 ## 5. What is broken or missing
 
