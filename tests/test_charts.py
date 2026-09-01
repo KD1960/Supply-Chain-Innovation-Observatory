@@ -210,3 +210,43 @@ def test_nothing_is_dropped_when_there_is_room():
               for n in range(5)]
     _, dropped = charts.scatter_with_report(points, labels=True)
     assert dropped == 0
+
+
+# --- numbered dots and a legend ---------------------------------------------
+#
+# Printed labels never stopped colliding: fourteen technologies cluster, and
+# nudging them apart moved a label away from the dot it belonged to. A number
+# beside a dot cannot overlap anything, and the legend carries the name and the
+# figures with room to read them.
+
+
+def test_numbered_points_carry_a_number_not_a_name():
+    svg = charts.scatter([charts.Point(x=1, y=2, size=5, label="Warehouse robotics",
+                                       colour="#000")], numbered=True)
+    assert ">1</text>" in svg
+    import re
+    assert "Warehouse robotics" not in re.findall(r"<text[^>]*>([^<]+)</text>", svg)
+
+
+def test_the_name_is_still_in_the_hover_title():
+    """The browser shows it on hover, which is what the chart is read in."""
+    svg = charts.scatter([charts.Point(x=1, y=2, size=5, label="Warehouse robotics",
+                                       colour="#000")], numbered=True)
+    assert "<title>Warehouse robotics</title>" in svg
+
+
+def test_numbers_run_in_the_order_the_points_are_given():
+    points = [charts.Point(x=n, y=n, size=5, label=f"t{n}", colour="#000")
+              for n in range(3)]
+    svg = charts.scatter(points, numbered=True)
+    import re
+    assert re.findall(r">(\d+)</text>", svg) == ["1", "2", "3"]
+
+
+def test_numbering_and_printed_labels_are_alternatives():
+    """The PDF has no hover, so it keeps printed labels; the page has hover, so
+    it takes numbers. Doing both would put two things beside every dot."""
+    svg = charts.scatter([charts.Point(x=1, y=2, size=5, label="Long name here",
+                                       colour="#000")], numbered=True, labels=True)
+    import re
+    assert "Long name here" not in re.findall(r"<text[^>]*>([^<]+)</text>", svg)

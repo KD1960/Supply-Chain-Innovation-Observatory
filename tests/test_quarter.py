@@ -830,3 +830,23 @@ def test_a_chart_says_how_many_labels_would_not_fit(conn):
     context = quarter.build_context(conn, "2026-Q2", watchlist)
     assert "labels_dropped" in context
     assert isinstance(context["labels_dropped"], dict)
+
+
+def test_the_charts_carry_a_legend_keyed_to_their_numbers(conn):
+    """A number on a dot is meaningless without the key, and the key is what
+    lets the chart be read on paper as well as on the page."""
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    legend = context["stage_legend"]
+    assert legend
+    assert [row["n"] for row in legend] == list(range(1, len(legend) + 1))
+    for row in legend:
+        assert row["name"] and row["documents"] is not None
+
+
+def test_the_legend_matches_the_points_it_keys(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert len(context["stage_legend"]) == len(context["stage_points"])
+    assert [row["name"] for row in context["stage_legend"]] == \
+challenge if False else [point.label.split(" — ")[0] for point in context["stage_points"]]

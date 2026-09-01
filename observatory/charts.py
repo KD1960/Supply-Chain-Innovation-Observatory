@@ -47,6 +47,7 @@ def scatter(
     y_label: str = "",
     diagonal: bool = False,
     labels: bool = False,
+    numbered: bool = False,
     above: str = "",
     below: str = "",
 ) -> str:
@@ -74,7 +75,7 @@ def scatter(
         ys = [point.y for point in points]
         x_low, x_high = min(xs), max(xs)
         y_low, y_high = min(ys), max(ys)
-        for point in points:
+        for index, point in enumerate(points):
             cx = _scale(point.x, x_low, x_high, PADDING, width - PADDING)
             cy = _scale(point.y, y_low, y_high, height - PADDING, PADDING)
             parts.append(
@@ -82,6 +83,17 @@ def scatter(
                 f'fill="{escape(point.colour, quote=True)}" fill-opacity="0.75">'
                 f"<title>{escape(point.label, quote=True)}</title></circle>"
             )
+            if numbered:
+                # A number cannot collide with anything, and the legend below
+                # the chart carries the name with room to read it. The full
+                # label stays in the hover title, which is what the page is
+                # read in.
+                parts.append(
+                    f'<text x="{cx:.1f}" y="{cy + 3.5:.1f}" text-anchor="middle" '
+                    f'font-family="{FONT}" font-size="9" font-weight="600" '
+                    f'fill="#ffffff">{index + 1}</text>'
+                )
+                continue
             if not labels:
                 continue
             # Nudge away from labels already placed, and give up rather than

@@ -41,3 +41,19 @@ def test_a_chart_that_will_not_convert_still_leaves_its_svg(tmp_path):
     vector file is still there and the run carries on."""
     written = export.write_charts(tmp_path, "2026-Q3", {"broken": "<svg>not valid"})
     assert any(path.suffix == ".svg" for path in written)
+
+
+def test_the_exported_chart_keeps_its_labels(tmp_path):
+    """The page numbers its dots and puts the names on hover and in a key. A
+    PDF has neither, so the file written for a slide or a paper carries the
+    printed labels instead."""
+    from observatory import charts
+    points = [charts.Point(x=1, y=2, size=5, label="Warehouse robotics", colour="#000")]
+    page = charts.scatter(points, numbered=True)
+    printable = charts.scatter(points, labels=True)
+    export.write_charts(tmp_path, "2026-Q3", {"board": printable})
+    import re
+    written = (tmp_path / "charts" / "2026-Q3-board.svg").read_text()
+    drawn = re.findall(r"<text[^>]*>([^<]+)</text>", written)
+    assert "Warehouse robotics" in drawn
+    assert "Warehouse robotics" not in re.findall(r"<text[^>]*>([^<]+)</text>", page)

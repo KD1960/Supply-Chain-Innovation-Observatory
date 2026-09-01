@@ -23,7 +23,7 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **616 passing** |
+| Tests | **623 passing** |
 | Precision | **51%**, two coders (kappa 0.79) plus a full owner review, 91 judgeable rows |
 | Lexicon | version **9**, 50 active technologies, 7 families |
 | Observations | **2,130** across 54 weeks, 2025-W34 → 2026-W35 |
@@ -96,11 +96,14 @@ The executive summary is bullets rather than prose, on the same reasoning: a
 summary exists to be scanned, and a paragraph is read start to finish or not at
 all.
 
-Chart labels no longer overprint. Points cluster, and two labels at the same
-height read as one; labels are now nudged apart and dropped rather than
-overlapped, with the diagonal's own captions reserved first. **How many were
-dropped is printed under the chart** — a chart missing three labels looks
-exactly like one that has them all.
+**Chart labels were the wrong answer to begin with.** Nudging them apart moved
+a label away from the dot it belonged to, and dropping the ones that would not
+fit thinned the chart. On the page the dots are numbered instead: a number
+cannot collide, the name is on hover, and a key beneath carries the name,
+document count, stage and concentration with room to read them.
+
+The exported SVG and PDF keep printed labels, because a file has neither hover
+nor a key beneath it. Same points, two renderings, chosen by medium.
 
 ## 4g. Interpretation moved to the quarter (2026-08-31)
 

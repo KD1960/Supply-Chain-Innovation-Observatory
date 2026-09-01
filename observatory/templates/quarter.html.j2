@@ -79,6 +79,10 @@
   ul.lede{font-size:16px;line-height:1.6;color:var(--ink);margin:14px 0 0;
           padding-left:20px}
   ul.lede li{margin:0 0 9px}
+  .panel svg circle{transition:fill-opacity .12s ease}
+  .panel svg circle:hover{fill-opacity:1;stroke:var(--ink);stroke-width:1.5}
+  table.legend td,table.legend th{padding-top:4px;padding-bottom:4px}
+  table.legend .num{width:1%}
   .names li{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--rule);
             background:var(--surface);padding:4px 8px;border-radius:2px}
   footer{margin:60px 0 0;padding:20px 0 0;border-top:1px solid var(--rule);
@@ -205,14 +209,30 @@
   is not hype, and nine hundred of them would drown the distinction.</p>
   <p>The dashed line is where the two are equal. <strong>Above it, more is
   being built than said</strong>; below it, more is being said than built.</p>
-  {% if labels_dropped.get('substance and attention') %}
-  <p class="source">{{ labels_dropped['substance and attention'] }} labels are not
-  drawn: their points sit too close together to letter without overprinting. The
-  dots are all there.</p>
-  {% endif %}
+  <p>Dots are numbered rather than lettered: fourteen technologies cluster, and
+  a label nudged clear of its neighbour ends up beside the wrong dot. Hover a dot
+  for its name and figures; the key below carries the same, and is what makes the
+  chart readable on paper.</p>
 </section>
 <div class="panel">
   {{ substance_chart }}
+</div>
+
+<div class="panel">
+  <table class="legend">
+    <thead><tr><th class="num">#</th><th class="name">Technology</th>
+      <th class="num">Docs</th><th class="tag">Stage</th>
+      <th class="tag">Concentration</th></tr></thead>
+    <tbody>
+      {% for row in substance_legend %}
+      <tr><td class="num">{{ row.n }}</td>
+        <td class="name"><a href="evidence-{{ quarter }}.html#{{ row.id }}">{{ row.name }}</a></td>
+        <td class="num">{{ row.documents }}</td>
+        <td class="tag">{{ row.stage }}</td>
+        <td class="tag">{{ row.concentration }}% {{ row.top_family }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% endif %}
 
@@ -228,14 +248,27 @@
   score is a claim about a period, and a period a technology did not appear in
   is not one it can have a standing in. Scores are computed over the trailing
   four {{ period_noun }}s.</p>
-  {% if labels_dropped.get('stage board') %}
-  <p class="source">{{ labels_dropped['stage board'] }} labels are not drawn:
-  their points sit too close together to letter without overprinting. The dots
-  are all there.</p>
-  {% endif %}
+  <p>Hover a dot for its name and figures; the key below carries the same.</p>
 </section>
 <div class="panel">
   {{ stage_board }}
+</div>
+
+<div class="panel">
+  <table class="legend">
+    <thead><tr><th class="num">#</th><th class="name">Technology</th>
+      <th class="num">Docs</th><th class="tag">Stage</th>
+      <th class="tag">Concentration</th></tr></thead>
+    <tbody>
+      {% for row in stage_legend %}
+      <tr><td class="num">{{ row.n }}</td>
+        <td class="name"><a href="evidence-{{ quarter }}.html#{{ row.id }}">{{ row.name }}</a></td>
+        <td class="num">{{ row.documents }}</td>
+        <td class="tag">{{ row.stage }}</td>
+        <td class="tag">{{ row.concentration }}% {{ row.top_family }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% endif %}
 

@@ -128,13 +128,18 @@ STAGE_FAMILIES: dict[str, tuple[str, ...]] = {
 }
 
 
-def _chart(dropped: dict, name: str, points, **kwargs) -> str:
-    """A chart, and a note of how many labels would not fit.
+def _chart(dropped: dict, printable: dict, name: str, points, **kwargs) -> str:
+    """The chart for the page, and quietly the one for the file.
 
-    Silent thinning is this project's oldest failure mode: a chart missing
-    three of its labels looks exactly like one that has them all.
+    They differ. The page numbers its dots, puts the name on hover and keys it
+    with a table underneath; a PDF has none of those, so the exported copy
+    carries printed labels and reports how many would not fit -- a chart
+    missing three labels looks exactly like one that has them all.
     """
-    svg, missed = charts.scatter_with_report(points, **kwargs)
+    svg = charts.scatter(points, **kwargs)
+    for_file, missed = charts.scatter_with_report(
+        points, **{**kwargs, "numbered": False, "labels": True})
+    printable[name] = for_file
     if missed:
         dropped[name] = missed
     return svg
@@ -552,6 +557,22 @@ def build_context(conn, name: str, watchlist) -> dict:
     scored = sorted((row for row in rows if row.get("sai") is not None),
                     key=lambda row: -row["total"])[:BOARD_LIMIT]
     labels_dropped: dict[str, int] = {}
+    printable: dict[str, str] = {}
+
+    def legend(entries):
+        """The key a numbered chart is unreadable without.
+
+        Carries the figures as well as the name, so the table answers the
+        questions the chart raises without a reader going back to the main
+        listing.
+        """
+        return [
+            {"n": index, "id": row["id"], "name": row["name"],
+             "documents": row["total"], "stage": row.get("stage", ""),
+             "sai": row.get("sai"), "position": row.get("position"),
+             "concentration": row["concentration"], "top_family": row["top_family"]}
+            for index, row in enumerate(entries, start=1)
+        ]
     stage_points = [
         charts.Point(x=row["position"], y=row["sai"],
                      size=4 + min(10, row["total"] ** 0.5),
@@ -564,9 +585,9 @@ def build_context(conn, name: str, watchlist) -> dict:
         "quarter": name,
         "stage_points": stage_points,
         "stage_board": Markup(_chart(
-            labels_dropped, "stage board", stage_points,
+            labels_dropped, printable, "stage board", stage_points,
             x_label="pipeline position (idea \u2192 diffusion)",
-            y_label="substance minus attention", labels=True,
+            y_label="substance minus attention", numbered=True,
         )) if stage_points else None,
         "summary": _summary(name, rows, counts, ran, len(weeks)),
         "appendix_technologies": [
@@ -594,18 +615,21 @@ def build_context(conn, name: str, watchlist) -> dict:
             (row for row in rows if substance(row) or attention(row)),
             key=lambda row: -row["total"])[:BOARD_LIMIT]),
         "substance_chart": Markup(_chart(
-            labels_dropped, "substance and attention",
+            labels_dropped, printable, "substance and attention",
             [charts.Point(x=attention(row), y=substance(row),
                           size=4 + min(10, row["total"] ** 0.5),
                           label=f"{row['name']} — {substance(row)} building, "
                                 f"{attention(row)} talking",
                           colour="#A85B12")
              for row in sub],
-            x_label="attention", y_label="substance", diagonal=True, labels=True,
+            x_label="attention", y_label="substance", diagonal=True, numbered=True,
             above="above: more built than said",
             below="below: more said than built",
         )),
         "labels_dropped": labels_dropped,
+        "printable_charts": printable,
+        "stage_legend": legend(scored),
+        "substance_legend": legend(sub),
         "family_floor": FAMILY_FLOOR,
         "previous": previous_period(name),
         "weeks": weeks,
@@ -680,9 +704,11 @@ def render_quarter(conn, name: str, watchlist, out_dir: Path | None = None) -> P
     evidence = render._environment().get_template("evidence.html.j2")
     (directory / f"evidence-{name}.html").write_text(
         evidence.render(**evidence_context(conn, name, watchlist)))
+    # The printable variants, not what the page shows. The page numbers its
+    # dots, puts the name on hover and keys it with a table underneath; a file
+    # has none of those, so the exported copy carries printed labels.
     export.write_charts(directory, name, {
-        "substance-attention": context.get("substance_chart"),
-        "stage-board": context.get("stage_board"),
-
+        "substance-attention": context["printable_charts"].get("substance and attention"),
+        "stage-board": context["printable_charts"].get("stage board"),
     })
     return path
