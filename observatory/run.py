@@ -404,6 +404,8 @@ def main(argv=None) -> int:
                         help="write the annual report for a calendar year, e.g. 2026")
     parser.add_argument("--import-manual", action="store_true",
                         help="ingest licensed exports from data/manual, then rescore")
+    parser.add_argument("--write-status", action="store_true",
+                        help="rewrite STATUS section 2 from the database, then exit")
     parser.add_argument("--export-queries", default=None, metavar="YYYY-Qn",
                         help="print the queries a human pastes into Scopus, Lens "
                              "and ABI/INFORM for a period, then exit")
@@ -445,6 +447,14 @@ def main(argv=None) -> int:
     conn = store.connect()
     store.init_schema(conn)
     try:
+        # Before anything that fetches or renders: this reads counts and
+        # rewrites four rows of one markdown file.
+        if args.write_status:
+            from . import status
+            changed = status.write(conn, watchlist, status.count_tests())
+            print(f"STATUS: {', '.join(changed)} updated" if changed
+                  else "STATUS: already current")
+            return 0
         # Before anything that could open a session: the quarterly report is a
         # lens on stored rows, so it must never fetch.
         if args.import_manual:

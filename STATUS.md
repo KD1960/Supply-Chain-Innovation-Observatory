@@ -35,7 +35,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **665 passing** |
+| Tests | **668 passing** |
 | Lexicon | version **9**, 50 active technologies |
 | Observations | **2,462** |
 | Sources | 11, across 9 evidence families |
@@ -49,8 +49,15 @@ changed into the other — see §4.
 and a score compares a period against periods that are complete. Counts are
 shown; inferences are not. 2026-Q2 is the most recent fully scored period.
 
+**The table above is generated.** `python -m observatory.run --write-status`
+rewrites its four counted rows from the database, and `tests/test_status_table.py`
+fails when they drift. Do not hand-edit them. The other rows -- precision, the
+deliverable, the weekly page, the repository -- are claims rather than counts
+and are still written by hand.
+
 ## 3. How to run it
 
+    python -m observatory.run --write-status         # regenerate section 2 from the database
     python -m observatory.run                        # the weekly run; this is what cron does
     python -m observatory.run --quarter 2026-Q4      # the deliverable
     python -m observatory.run --annual 2026
