@@ -39,7 +39,7 @@ changed into the other — see §4.
 | Lexicon | version **9**, 50 active technologies |
 | Observations | **2,462** |
 | Sources | 11, across 9 evidence families |
-| By source | github 820, arxiv 569, scopus 434, openalex 253, edgar 129, hn 74, lens 64, nsf 49, usaspending 33, federalregister 21, abi_inform 9 |
+| By source | github 820, arxiv 569, scopus 434, openalex 253, edgar 129, hn 74, lens 64, nsf 49, usaspending 33, federalregister 21, abi_inform 16 |
 | Precision | **51%**, two coders (kappa 0.79) plus a full owner review |
 | Deliverable | `output/report-<period>.html`, with evidence pages and standalone SVG/PDF charts |
 | Weekly page | collection health only — did the collectors run, what arrived, rising terms |
