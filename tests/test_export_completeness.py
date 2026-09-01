@@ -50,25 +50,37 @@ def test_a_file_that_arrived_is_not_reported_missing(tmp_path):
     assert len(missing) == len(expected) - 1
 
 
-def test_the_real_2026_q3_quarter_is_mostly_missing():
-    """The finding itself, pinned against the live export directory.
+# A test that read the real export directory used to sit here, asserting that
+# most of 2026-Q3 was missing. It was passing for the wrong reason: `conftest`
+# points `config.MANUAL_DIR` at an empty temporary directory for every test, on
+# purpose and for good reasons it states, so the test saw nothing on disk and
+# would have reported every export missing whatever the truth was. It could not
+# have failed while the isolation held.
+#
+# The finding it claimed to pin was real -- verified by running
+# `missing_exports` against the live directory by hand -- but a test is not
+# where that belongs. What is worth asserting in a test is the behaviour of the
+# check, which the fixtures above do, and the configuration it reads, which is
+# below.
 
-    This will change when the quarter is completed, and that is the point: it
-    is a statement about the data on disk, and it should fail the day someone
-    runs the other sixteen.
+
+def test_journal_of_commerce_is_not_asked_for():
+    """Removed 2026-09-01 on measurement, and this pins the reason.
+
+    It is not the DC Velocity case of a title that does not resolve:
+    `PUB.EXACT("Journal of Commerce")` returns 133,243 records and 4,487 of
+    them fall in 2020-2026. ABI/INFORM's holding stops at 2022-12-31, and this
+    corpus begins 2024-W12 -- more than a year after the coverage ends, so the
+    publication could never have contributed a single document. Five term
+    batches were exported against it and all five were correctly empty.
+
+    Re-adding it needs ABI/INFORM to resume coverage, not a better query.
     """
     watchlist = matcher.load_watchlist("watchlist.yaml")
-    missing = supplemental.missing_exports("2026-Q3", watchlist)
-    abi = [row for row in missing if row["source"] == "abi_inform"]
-    assert len(abi) >= 15, (
-        "2026-Q3 ABI/INFORM looks more complete than it was; "
-        f"missing now {len(abi)}"
-    )
-    # Three publications never exported at all, not merely under-exported.
-    never = {"ModernMaterialsHandling", "SupplyChainManagementReview",
-             "JournalofCommerce"}
-    for publication in never:
-        assert any(publication in row["filename"] for row in abi), publication
+    asked = supplemental.export_queries("2026-Q3", watchlist, split=True)
+    assert not [row for row in asked if "JournalofCommerce" in row["filename"]]
+    assert not [row for row in asked
+                if "Journal of Commerce" in row["query"]]
 
 
 def test_import_says_what_never_arrived(tmp_path, capsys):

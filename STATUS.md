@@ -236,16 +236,16 @@ matched to 78 and 16**; in 2026-Q3 it is now 15 observations, ahead of EDGAR's
 added 41 documents to the corpus and matched none of them, which is a real
 zero and is recorded as one.
 
-**Journal of Commerce is still open, and the first guess was wrong.**
-`PUB.EXACT("Journal of Commerce")` returns **133,243** records, so the title
-resolves and resolves hugely — it is not the DC Velocity case. `PUB(...)`
-returns 193,099 including academic variants such as the Hitotsubashi Journal of
-Commerce & Management, which is exactly why `PUB.EXACT` is used. Five batches
-over roughly sixty-six terms in one quarter returned nothing against a
-publication holding 133,243 records, so **the open question is whether
-ProQuest's coverage of it reaches 2026 at all** — a large historical archive
-with no recent issues would produce precisely this. One query settles it:
-`PUB.EXACT("Journal of Commerce") AND pd(2020-01-01-2026-12-31)`.
+**Journal of Commerce is retired, on measurement, and both first guesses were
+wrong.** `PUB.EXACT` returns **133,243** records, so the title resolves — not
+the DC Velocity case. 4,487 of those fall in 2020–2026, so coverage reaches
+recent years either. **ABI/INFORM's holding stops at 2022-12-31.** The
+publication is alive at joc.com; the aggregator stopped indexing it. Since this
+corpus begins 2024-W12, it could never have contributed a single document, and
+the five empty exports run against it were correct. Recorded in `sources.yaml`
+beside the three not-indexed titles, with the query that would reverse it.
+
+**2026-Q3's exports are now complete** — nothing outstanding for any source.
 
 **The export window was three days short and is fixed.**
 `supplemental.period_bounds` derived its dates from ISO weeks, which was right

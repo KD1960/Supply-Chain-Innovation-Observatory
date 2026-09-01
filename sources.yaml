@@ -91,11 +91,24 @@ lists:
     # Material Handling & Logistics were checked under PUB.EXACT and return
     # nothing; asking anyway lengthens the query and leaves a reader thinking
     # they were covered.
+    #
+    # Journal of Commerce removed 2026-09-01, and it failed differently -- it
+    # resolves fine and is not empty. PUB.EXACT returns 133,243 records and
+    # 4,487 of them fall in 2020-2026, so two plausible diagnoses (the title
+    # does not resolve; coverage does not reach the present) were both wrong.
+    # ABI/INFORM's holding simply stops at 2022-12-31. The publication is alive
+    # at joc.com; the aggregator stopped indexing it.
+    #
+    # It could never have contributed: this corpus begins 2024-W12, more than a
+    # year after the coverage ends. Five term batches were exported against it
+    # for 2026-Q3 and all five came back empty, which was correct.
+    #
+    # Reverse this if ABI/INFORM resumes coverage -- check with
+    # `PUB.EXACT("Journal of Commerce") AND pd(2024-01-01-2027-12-31)`.
     items:
       - "Supply Chain Dive"
       - "Modern Materials Handling"
       - "Supply Chain Management Review"
-      - "Journal of Commerce"
 
 sources:
   lens:
