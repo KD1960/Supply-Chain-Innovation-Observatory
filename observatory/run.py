@@ -283,6 +283,14 @@ def _score_and_render(
     conn, week: str, watchlist, ok_sources: set[str], observations: int, collectors,
     out_path: Path | None = None, latest: bool = True,
 ) -> Path:
+    # A page called `latest` is a claim about now, and a week after this one
+    # cannot be it. `--import-manual` re-renders every week holding an
+    # observation, ascending, and the last one rendered takes the file; Scopus
+    # issue dates run months ahead, so an import in September pointed
+    # latest.html at 2026-W49. Whatever order the loop runs in, the claim has
+    # to stay true.
+    if latest and week > config.current_week():
+        latest = False
     signals = normalize.compute_signals(conn, week, watchlist, ok_sources)
     scored = score_week(conn, week, watchlist)
     rising = discover.detect_rising(week, collectors, watchlist)

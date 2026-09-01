@@ -35,9 +35,9 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **664 passing** |
+| Tests | **665 passing** |
 | Lexicon | version **9**, 50 active technologies |
-| Observations | **2,455** |
+| Observations | **2,462** |
 | Sources | 11, across 9 evidence families |
 | By source | github 820, arxiv 569, scopus 434, openalex 253, edgar 129, hn 74, lens 64, nsf 49, usaspending 33, federalregister 21, abi_inform 9 |
 | Precision | **51%**, two coders (kappa 0.79) plus a full owner review |
@@ -228,9 +228,24 @@ already records DC Velocity, FreightWaves and Material Handling & Logistics
 failing the same way under `PUB.EXACT`. Two diagnostic searches settle it and
 are in `docs/exports-2026-Q3-remaining.md`.
 
-**Still genuinely never run:** Modern Materials Handling (5), Supply Chain
-Management Review (5), and `scopus-14784092` — the Journal of Purchasing and
-Supply Management. Eleven queries, in that doc, ready to paste.
+**Those eleven were run on 2026-09-01 and are in.** Modern Materials Handling
+returned 36 records, Supply Chain Management Review 12, and the Journal of
+Purchasing and Supply Management 41. Trade press went from **30 retrieved and 9
+matched to 78 and 16**; in 2026-Q3 it is now 15 observations, ahead of EDGAR's
+13, where it had been the smallest source in the project. The Scopus journal
+added 41 documents to the corpus and matched none of them, which is a real
+zero and is recorded as one.
+
+**Journal of Commerce is still open, and the first guess was wrong.**
+`PUB.EXACT("Journal of Commerce")` returns **133,243** records, so the title
+resolves and resolves hugely — it is not the DC Velocity case. `PUB(...)`
+returns 193,099 including academic variants such as the Hitotsubashi Journal of
+Commerce & Management, which is exactly why `PUB.EXACT` is used. Five batches
+over roughly sixty-six terms in one quarter returned nothing against a
+publication holding 133,243 records, so **the open question is whether
+ProQuest's coverage of it reaches 2026 at all** — a large historical archive
+with no recent issues would produce precisely this. One query settles it:
+`PUB.EXACT("Journal of Commerce") AND pd(2020-01-01-2026-12-31)`.
 
 **The export window was three days short and is fixed.**
 `supplemental.period_bounds` derived its dates from ISO weeks, which was right

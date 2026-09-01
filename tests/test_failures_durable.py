@@ -211,3 +211,36 @@ def test_a_real_run_writes_its_failures_to_the_log(tmp_path, monkeypatch, conn):
     entry = json.loads((tmp_path / "run_log.jsonl").read_text().strip().split("\n")[-1])
     assert entry["failed_sources"] == ["arxiv"]
     assert entry["empty_sources"] == ["nsf"]
+
+
+# --- latest.html is about now ------------------------------------------------
+
+
+def test_a_future_week_never_takes_latest_html(conn, tmp_path, monkeypatch):
+    """Risk 4 of the process review, watched happening.
+
+    `--import-manual` re-renders every week holding an observation, ascending,
+    and `_score_and_render` defaults `latest=True`, so whichever week is
+    rendered last takes `latest.html`. Scopus exports carry issue dates months
+    ahead -- `PUBYEAR = 2026` returns things dated to December -- so the store
+    holds weeks that have not happened, and an import in September left
+    `output/latest.html` showing 2026-W49. STATUS §4g records the broken weekly
+    ranking being "spotted by the owner on 2026-W49" without anyone asking why
+    a W49 dashboard existed.
+
+    A page called `latest` is a claim about now. A week after this one cannot
+    be it, whatever order the loop happened to render in.
+    """
+    monkeypatch.setattr(config, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(config, "current_week", lambda: "2026-W36")
+
+    # No `out_path`: `latest.html` is only written when the dashboard goes to
+    # its default location, so passing one would make this pass for the wrong
+    # reason.
+    run._score_and_render(conn, "2026-W49", _watchlist(), set(), 0, [])
+    assert not (tmp_path / "latest.html").exists(), (
+        "a week that has not happened took latest.html"
+    )
+
+    run._score_and_render(conn, "2026-W36", _watchlist(), set(), 0, [])
+    assert (tmp_path / "latest.html").exists()
