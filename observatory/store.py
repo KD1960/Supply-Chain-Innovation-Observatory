@@ -32,6 +32,26 @@ CREATE TABLE IF NOT EXISTS source_runs (
     PRIMARY KEY (source, week)
 );
 
+-- Every attempt, appended and never updated. `source_runs` is keyed on
+-- (source, week) and upserts, which is right for the question it answers --
+-- how did this week end up, which is what resumability reads -- and fatal for
+-- the other one. A week that failed and was refetched had its failure
+-- overwritten by the success, so the table held 427 rows, all `ok`, and could
+-- not have held anything else. STATUS then reported "none has ever failed" as
+-- evidence of reliability, which was a claim the schema made incapable of
+-- being false.
+--
+-- No primary key on purpose: two attempts at the same source and week are two
+-- rows, which is the whole point.
+CREATE TABLE IF NOT EXISTS source_attempts (
+    id INTEGER PRIMARY KEY,
+    source TEXT NOT NULL,
+    week TEXT NOT NULL,
+    status TEXT NOT NULL,
+    note TEXT,
+    attempted_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS raw_fetch (
     id INTEGER PRIMARY KEY,
     source TEXT NOT NULL,
@@ -255,7 +275,10 @@ def clear_derived(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def record_raw(conn, source: str, week: str, url: str, http_status: int, path: str) -> int:
+def record_raw(conn, source: str, week: str, url: str, http_status: int | None,
+               path: str | None) -> int:
+    """One fetch attempt. `path` is None when nothing was written, which is
+    what a non-200 looks like -- the row exists to say the attempt happened."""
     cursor = conn.execute(
         "INSERT INTO raw_fetch (source, week, url, http_status, fetched_at, path) "
         "VALUES (?, ?, ?, ?, datetime('now'), ?)",
@@ -343,11 +366,74 @@ def set_source_status(conn, name: str, week: str, status: str, note: str = "") -
         "note = excluded.note, updated_at = excluded.updated_at",
         (name, week, status, note),
     )
+    # The durable half. Every status write appends here, so the record of an
+    # attempt outlives the retry that replaced it.
+    conn.execute(
+        "INSERT INTO source_attempts (source, week, status, note, attempted_at) "
+        "VALUES (?, ?, ?, ?, datetime('now'))",
+        (name, week, status, note),
+    )
     conn.commit()
+
+
+def source_attempts(conn, week: str | None = None, source: str | None = None) -> list[dict]:
+    """Every attempt, oldest first. The failure log this project lacked.
+
+    Ordered by id rather than by `attempted_at`: the timestamps come from
+    `datetime('now')` at one-second resolution, and a fetch and its retry
+    inside the same second would otherwise come back in an arbitrary order.
+    """
+    clauses, params = [], []
+    if week is not None:
+        clauses.append("week = ?")
+        params.append(week)
+    if source is not None:
+        clauses.append("source = ?")
+        params.append(source)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    return [dict(row) for row in conn.execute(
+        f"SELECT * FROM source_attempts {where} ORDER BY id", params)]
+
+
+def sources_by_status(conn, week: str) -> dict[str, set[str]]:
+    """This week's sources grouped by how they went.
+
+    Read back out of `source_runs` rather than threaded through the call
+    chain, so the run log and the table cannot come to disagree.
+    """
+    grouped: dict[str, set[str]] = {}
+    for row in conn.execute(
+            "SELECT source, status FROM source_runs WHERE week = ?", (week,)):
+        grouped.setdefault(row["status"], set()).add(row["source"])
+    return grouped
+
+
+def source_runs_for_week(conn, week: str) -> list[dict]:
+    """How each source went in one week, shaped like a `sources` row.
+
+    The health strip asked `sources`, which holds only the latest state, so
+    re-rendering an archived week stamped today's status onto a page headed
+    with an old one. `source_runs` was created for exactly this and went
+    unused.
+    """
+    return [
+        {"name": row["source"], "status": row["status"], "note": row["note"],
+         "last_run_week": row["week"], "updated_at": row["updated_at"]}
+        for row in conn.execute(
+            "SELECT * FROM source_runs WHERE week = ? ORDER BY source", (week,))
+    ]
 
 
 def source_statuses(conn) -> list[dict]:
     return [dict(row) for row in conn.execute("SELECT * FROM sources ORDER BY name")]
+
+
+# `empty` means we looked and saw nothing, which is a completed run. Only
+# `failed` means we did not look, and that distinction is the whole reason
+# these tables exist -- treating an empty week as uncollected would refetch it
+# forever and turn a real zero into a hole, which is the error this project
+# names first in its rules.
+COLLECTED_STATUSES = ("ok", "empty")
 
 
 def ok_sources_for_runs(conn, run_weeks: Iterable[str]) -> set[str]:
@@ -356,10 +442,11 @@ def ok_sources_for_runs(conn, run_weeks: Iterable[str]) -> set[str]:
     if not weeks:
         return set()
     placeholders = ",".join("?" * len(weeks))
+    statuses = ",".join("?" * len(COLLECTED_STATUSES))
     rows = conn.execute(
         f"SELECT DISTINCT source FROM source_runs "
-        f"WHERE status = 'ok' AND week IN ({placeholders})",
-        weeks,
+        f"WHERE status IN ({statuses}) AND week IN ({placeholders})",
+        (*COLLECTED_STATUSES, *weeks),
     ).fetchall()
     return {row["source"] for row in rows}
 

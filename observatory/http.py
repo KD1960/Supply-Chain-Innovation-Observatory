@@ -16,7 +16,18 @@ RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
 
 
 class HttpError(RuntimeError):
-    pass
+    """Carries the status so the caller can log the attempt.
+
+    `raw_fetch` is described as a log of fetch attempts and held 200 on all
+    3,114 rows, because the only insert sat downstream of this raise. The
+    status has to survive the raise for the row to be writable. It is None for
+    a network error, where there was no response to have a status.
+    """
+
+    def __init__(self, message: str, url: str | None = None, status: int | None = None):
+        super().__init__(message)
+        self.url = url
+        self.status = status
 
 
 @dataclass(frozen=True)
@@ -123,13 +134,19 @@ def _with_retries(
                 content_type=raw.headers.get("Content-Type", ""),
             )
         if raw.status_code not in RETRYABLE_STATUSES:
-            raise HttpError(f"{url} failed with status {raw.status_code}")
+            raise HttpError(f"{url} failed with status {raw.status_code}",
+                            url=url, status=raw.status_code)
         if attempt == retries:
             break
         sleep_fn(_backoff_seconds(raw, attempt, limiter))
     if last_exception is not None:
-        raise HttpError(f"{url} failed with network error: {last_exception}") from last_exception
-    raise HttpError(f"{url} still failing with status {last_status} after {retries} retries")
+        raise HttpError(f"{url} failed with network error: {last_exception}",
+                        url=url) from last_exception
+    # Only the failure that surfaced is logged, not each retry: recording every
+    # attempt would need a database handle inside the HTTP layer, which is
+    # deliberately kept out of it.
+    raise HttpError(f"{url} still failing with status {last_status} after {retries} retries",
+                    url=url, status=last_status)
 
 
 def _backoff_seconds(raw: Any, attempt: int, limiter: RateLimiter | None = None) -> float:

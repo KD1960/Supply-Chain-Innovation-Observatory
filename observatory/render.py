@@ -93,7 +93,10 @@ def dashboard_context(conn, week: str, watchlist, ok_sources=None) -> dict:
     return {
         "week": week,
         "lexicon_version": watchlist.version,
-        "sources": store.source_statuses(conn),
+        # This week's runs, not the latest state. `source_runs` was created
+        # for exactly this and the strip queried `sources` instead, so every
+        # re-rendered archive week was stamped with today's status.
+        "sources": store.source_runs_for_week(conn, week) or store.source_statuses(conn),
         "arrivals": [(row["source"], row["n"]) for row in arrivals],
         "retrieved": {row["source"]: row["n"] for row in retrieved},
         "matched_total": sum(row["n"] for row in arrivals),

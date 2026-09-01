@@ -35,7 +35,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **630 passing** |
+| Tests | **641 passing** |
 | Lexicon | version **9**, 50 active technologies |
 | Observations | **2,455** |
 | Sources | 11, across 9 evidence families |
@@ -134,6 +134,12 @@ On 2026-09-01:
   the fix, the current template and lexicon v9 — the annual was built under v8.
   All seven reports were rebuilt and swept: each now either scores or says why
   it cannot. 2026-Q2 remains the only scored period.
+- **Collection failures are durable.** `source_attempts` appends every attempt,
+  a non-200 reaches `raw_fetch`, the run log carries `failed_sources` and
+  `empty_sources`, and the weekly health strip reads the week it is about
+  instead of the latest state — so a re-rendered 2025-W35 now shows the five
+  collectors that existed then, each stamped W35, not today's eleven. Full
+  detail in §5.
 - **`data/` is backed up**, which the review listed as risk 2, Critical.
   `/Volumes/BUBBA/SC-Innovation-Observatory-backup/2026-09-01/` holds the 36
   licensed exports loose, plus a 109M archive of the whole 915M directory, a
@@ -196,12 +202,34 @@ over 80% of their evidence from a single source — ERP 95% GitHub, vehicle rout
 92% arXiv, blockchain 99% GitHub, rail intermodal 100% Federal Register. No
 technology is evenly present across research, code and filings.
 
-**No durable record of a collection failure.** `source_runs` upserts on
-`(source, week)`, so a retry overwrites the failure it retried. This document
-claimed for weeks that "318 source runs, none has ever failed" — a claim the
-schema made incapable of being false. Until a failure log exists, treat
-collection health on the weekly page as *the last attempt succeeded*, not *every
-attempt has*.
+**Collection failures are durable now** (2026-09-01). `source_runs` upserts on
+`(source, week)`, so a retry overwrote the failure it retried; the table held
+427 rows, all `ok`, and could not have held anything else. This document
+reported that as reliability — "318 source runs, none has ever failed" — which
+was a claim the schema made incapable of being false.
+
+`source_attempts` is the fix: append-only, no primary key, one row per attempt.
+`source_runs` keeps its upsert and its meaning, *how did this week end up*,
+which is what resumability reads. Three statuses now — `ok`, `failed`, and
+`empty` for a source that ran and returned nothing.
+
+**`empty` still counts as collected**, deliberately. A real zero and a broken
+API are identical in one response, and NSF's seasonal gap is a real zero, so an
+empty week is surfaced on the weekly page and in the run log and left for a
+human. Nothing folds it into a hole automatically. `store.COLLECTED_STATUSES`
+is the one place that decides this.
+
+`raw_fetch` now gets a row on a non-200, with a NULL path — it had 200 on all
+3,114 rows because the only insert sat downstream of the raise. One caveat
+written into `http.py`: only the failure that surfaces is logged, not each
+retry, because logging every attempt would need a database handle inside the
+HTTP layer.
+
+**Still true and not fixed:** `collected_quarters` (`metrics.py`, `quarter.py`)
+counts a week as collected if *any* `source_runs` row exists for it, whatever
+its status, so a week where every source failed still counts. Tightening it
+would change which quarters score and which reports show numbers, so it is left
+for the owner rather than changed quietly.
 
 **No linter.** The process review found a shipped `NameError`, an assertion
 that could not fail (`challenge if False else [...]`, which parses as a
@@ -262,9 +290,9 @@ In value order. The process review's risk register (`docs/`) is more detailed.
 1. **Add `ruff` in a pre-commit hook.** The review found a shipped `NameError`,
    a test that could not fail, and several orphaned guards — all of which a
    linter catches for nothing.
-2. **Make source failures durable.** `source_runs` upserts on `(source, week)`,
-   so a retry erases the failure it retried. STATUS long claimed "no source run
-   has ever failed", which is a claim that could not have been false.
+2. **Decide whether a week of nothing but failures counts as collected.**
+   `collected_quarters` counts any week holding a `source_runs` row, whatever
+   its status. Changing it moves report scores, so it is an owner call — see §5.
 3. **Q4 supplemental exports**, first week of January. Three databases, roughly
    four hours: `--export-queries 2026-Q4 --split` prints the sheet. **Clear
    ProQuest's marked-items list between exports** — it accumulates, and the

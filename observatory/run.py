@@ -42,13 +42,33 @@ def fetch_week(conn, week: str, collectors, session) -> set[str]:
     succeeded: set[str] = set()
     for collector in collectors:
         try:
+            pages = 0
             for index, page in enumerate(collector.fetch_raw(session, week)):
                 path = base.write_raw(collector.name, week, index, page)
                 store.record_raw(conn, collector.name, week, page.url, page.status, str(path))
-            store.set_source_status(conn, collector.name, week, "ok", "")
+                pages += 1
+            # A run that yielded nothing at all. Recorded as its own status
+            # rather than as ok, because an API that quietly starts returning
+            # nothing is indistinguishable from a technology nobody is working
+            # on, and four collectors warn about the opposite condition while
+            # nothing checked this floor.
+            store.set_source_status(
+                conn, collector.name, week,
+                "ok" if pages else "empty",
+                "" if pages else "fetch returned no pages")
+            # `empty` still counts as collected. A real zero and a broken API
+            # look identical in one response and NSF's seasonal gap is a real
+            # zero, so this is surfaced for a human and never folded into a
+            # hole automatically.
             succeeded.add(collector.name)
         except Exception as error:  # one bad source must not end the run
             store.set_source_status(conn, collector.name, week, "failed", str(error))
+            # The attempt reaches raw_fetch even though no body was written,
+            # with the status if the error carried one and NULL if there was no
+            # response to have one.
+            store.record_raw(conn, collector.name, week,
+                             getattr(error, "url", None) or f"{collector.name}:{week}",
+                             getattr(error, "status", None), None)
             print(f"  ! {collector.name} failed: {error}", file=sys.stderr)
     return succeeded
 
@@ -152,7 +172,15 @@ def ingest_week(conn, week: str, watchlist, collectors, ok_sources: set[str]) ->
     still_ok = set(ok_sources)
     for collector in collectors:
         try:
-            inserted += _ingest_source(conn, week, watchlist, collector)
+            found = _ingest_source(conn, week, watchlist, collector)
+            inserted += found
+            # The other shape of nothing: pages arrived and parsed to an empty
+            # corpus. Recorded, not acted on -- see fetch_week.
+            if collector.name in ok_sources:
+                store.set_source_status(
+                    conn, collector.name, week,
+                    "ok" if found else "empty",
+                    "" if found else "parsed no documents")
         except Exception as error:  # one bad parse must not end the run
             store.set_source_status(conn, collector.name, week, "failed", str(error))
             still_ok.discard(collector.name)
@@ -261,12 +289,22 @@ def _score_and_render(
     store.upsert_candidates(conn, week, rising.candidates, rising.total)
     path = render.render_dashboard(conn, week, watchlist, out_path, latest=latest)
 
-    _append_run_log(week, ok_sources, observations, signals, scored, rising, path)
+    by_status = store.sources_by_status(conn, week)
+    failed = by_status.get("failed", set())
+    empty = by_status.get("empty", set())
+    _append_run_log(week, ok_sources, observations, signals, scored, rising, path,
+                    failed_sources=failed, empty_sources=empty)
     print(
         f"{week}: {observations} new observations, {signals} signals, "
         f"{scored} scored, {len(rising.candidates)} of {rising.total} rising "
         f"candidates -> {path}"
     )
+    # Said out loud on the run that produced it, not left to whoever later
+    # reads the log. Silence is what let "no source run has ever failed" stand.
+    if failed:
+        print(f"  ! failed: {', '.join(sorted(failed))}", file=sys.stderr)
+    if empty:
+        print(f"  ~ returned nothing: {', '.join(sorted(empty))}", file=sys.stderr)
     return path
 
 
@@ -321,12 +359,18 @@ def rebuild(conn, watchlist, collectors=COLLECTORS) -> list[Path]:
     ]
 
 
-def _append_run_log(week, ok_sources, observations, signals, scored, rising, path) -> None:
+def _append_run_log(week, ok_sources, observations, signals, scored, rising, path,
+                    failed_sources=(), empty_sources=()) -> None:
+    """One line per run. It carried `ok_sources` and nothing else across 1,823
+    lines -- not one failure field -- so a week whose first line read `["hn"]`
+    and whose later lines read three sources could not say what had failed."""
     config.RUN_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with config.RUN_LOG_PATH.open("a") as handle:
         handle.write(json.dumps({
             "week": week,
             "ok_sources": sorted(ok_sources),
+            "failed_sources": sorted(failed_sources),
+            "empty_sources": sorted(empty_sources),
             "new_observations": observations,
             "signals_written": signals,
             "technologies_scored": scored,
