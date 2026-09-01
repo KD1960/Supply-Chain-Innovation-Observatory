@@ -76,7 +76,9 @@
   .note{background:var(--sunk);border-left:3px solid var(--fall);padding:14px 18px;
         margin:18px 0 0;font-size:14.5px}
   .names{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0;list-style:none}
-  .lede{font-size:17px;line-height:1.65;color:var(--ink)}
+  ul.lede{font-size:16px;line-height:1.6;color:var(--ink);margin:14px 0 0;
+          padding-left:20px}
+  ul.lede li{margin:0 0 9px}
   .names li{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--rule);
             background:var(--surface);padding:4px 8px;border-radius:2px}
   footer{margin:60px 0 0;padding:20px 0 0;border-top:1px solid var(--rule);
@@ -111,7 +113,9 @@
 
 <section>
   <h2>In summary</h2>
-  <p class="lede">{{ summary }}</p>
+  <ul class="lede">
+    {% for point in summary %}<li>{{ point }}</li>{% endfor %}
+  </ul>
 </section>
 
 <section>
@@ -201,6 +205,11 @@
   is not hype, and nine hundred of them would drown the distinction.</p>
   <p>The dashed line is where the two are equal. <strong>Above it, more is
   being built than said</strong>; below it, more is being said than built.</p>
+  {% if labels_dropped.get('substance and attention') %}
+  <p class="source">{{ labels_dropped['substance and attention'] }} labels are not
+  drawn: their points sit too close together to letter without overprinting. The
+  dots are all there.</p>
+  {% endif %}
 </section>
 <div class="panel">
   {{ substance_chart }}
@@ -219,25 +228,49 @@
   score is a claim about a period, and a period a technology did not appear in
   is not one it can have a standing in. Scores are computed over the trailing
   four {{ period_noun }}s.</p>
+  {% if labels_dropped.get('stage board') %}
+  <p class="source">{{ labels_dropped['stage board'] }} labels are not drawn:
+  their points sit too close together to letter without overprinting. The dots
+  are all there.</p>
+  {% endif %}
 </section>
 <div class="panel">
   {{ stage_board }}
 </div>
 {% endif %}
 
-{% if map_points %}
+{% if locations %}
 <section>
-  <h2>Build Map</h2>
-  <p class="source">{{ map_points|length }} located federal awards this {{ period_noun }}</p>
-  <p>Every award with a place of performance, sized by the square root of its
-  obligated dollars so a hundred-million-dollar award is ten times a
-  million-dollar one rather than a hundred. An award whose dollars were not
-  reported still gets a dot &mdash; it is a place where capacity is being built.
-  The frame is the continental United States; Alaska and Hawaii are drawn
-  clamped to the edge rather than dropped.</p>
+  <h2>Where the money went</h2>
+  <p class="source">{{ locations|length }} states with federal awards this {{ period_noun }}</p>
+  <p>Places rather than a map. An earlier version plotted these as dots on a
+  blank frame with no coastline, which is a scatter chart wearing a map's name;
+  what the block is for is which places are gaining capability and what was
+  funded there.</p>
 </section>
 <div class="panel">
-  {{ build_map }}
+  <table>
+    <thead><tr><th class="name">State</th><th class="num">Awards</th>
+      <th class="num">Obligated</th><th class="name">Awards and technologies</th></tr></thead>
+    <tbody>
+      {% for place in locations %}
+      <tr>
+        <td class="name">{{ place.state }}</td>
+        <td class="num">{{ place.awards }}</td>
+        <td class="num">${{ '{:,.1f}'.format(place.dollars / 1000000) }}M</td>
+        <td class="name" style="width:auto">
+          {% for award in place.awards_list[:4] %}
+            {% if award.url %}<a href="{{ award.url }}">{{ award.title[:96] }}</a>{% else %}{{ award.title[:96] }}{% endif %}
+            <span class="tag">{{ award.tech_id }}</span><br>
+          {% endfor %}
+          {% if place.awards_list|length > 4 %}
+            <span class="tag">and {{ place.awards_list|length - 4 }} more</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% endif %}
 

@@ -23,7 +23,7 @@ the spec's decisions have since been reversed on evidence, and §6 lists them.
 
 | | |
 |---|---|
-| Tests | **615 passing** |
+| Tests | **616 passing** |
 | Precision | **51%**, two coders (kappa 0.79) plus a full owner review, 91 judgeable rows |
 | Lexicon | version **9**, 50 active technologies, 7 families |
 | Observations | **2,130** across 54 weeks, 2025-W34 → 2026-W35 |
@@ -79,6 +79,28 @@ looks the way it does.
 - **Standing instruction from the owner:** plain correctness bugs inherited from
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
+
+## 4h. The map was not a map (2026-08-31)
+
+`build_map` drew dots on a blank rectangle with no coastline — its own
+docstring said as much, calling it "a US map without a coastline". A scatter
+chart with nothing under it is not a map, and it was answering the block's
+question by implication rather than by saying anything.
+
+Replaced by a table of states: awards, obligated dollars, and the awards
+themselves with the technology each was counted under. Twenty-four states on
+2026-Q3, covering USAspending infrastructure grants and NSF research awards
+together, both of which carry a place of performance.
+
+The executive summary is bullets rather than prose, on the same reasoning: a
+summary exists to be scanned, and a paragraph is read start to finish or not at
+all.
+
+Chart labels no longer overprint. Points cluster, and two labels at the same
+height read as one; labels are now nudged apart and dropped rather than
+overlapped, with the diagonal's own captions reserved first. **How many were
+dropped is printed under the chart** — a chart missing three labels looks
+exactly like one that has them all.
 
 ## 4g. Interpretation moved to the quarter (2026-08-31)
 

@@ -179,3 +179,34 @@ def test_the_diagonal_has_no_captions_unless_given():
     svg = charts.scatter([charts.Point(x=1, y=2, size=4, label="a", colour="#000")],
                          diagonal=True)
     assert "stroke-dasharray" in svg
+
+
+# --- labels that do not sit on top of each other ----------------------------
+
+def test_labels_that_would_collide_are_moved_apart():
+    """Fourteen points on a chart put several at nearly the same height, and
+    two labels at the same y overprint into something unreadable."""
+    points = [charts.Point(x=1, y=1 + n * 0.001, size=4, label=f"technology {n}",
+                           colour="#000") for n in range(6)]
+    svg = charts.scatter(points, labels=True)
+    import re
+    ys = [float(y) for y in re.findall(r'<text x="[^"]+" y="([\d.]+)"', svg)]
+    ys.sort()
+    assert all(b - a >= charts.LABEL_GAP - 0.01 for a, b in zip(ys, ys[1:])), ys
+
+
+def test_a_label_that_cannot_be_placed_is_dropped_and_counted():
+    """Better a dot with no label than two labels on top of each other. The
+    caller is told how many, so a thinned chart never passes as a full one."""
+    points = [charts.Point(x=1, y=1, size=4, label=f"t{n}", colour="#000")
+              for n in range(40)]
+    svg, dropped = charts.scatter_with_report(points, labels=True)
+    assert dropped > 0
+    assert svg.count("<circle") == 40
+
+
+def test_nothing_is_dropped_when_there_is_room():
+    points = [charts.Point(x=n, y=n, size=4, label=f"t{n}", colour="#000")
+              for n in range(5)]
+    _, dropped = charts.scatter_with_report(points, labels=True)
+    assert dropped == 0

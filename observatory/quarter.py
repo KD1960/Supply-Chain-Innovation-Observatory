@@ -128,6 +128,18 @@ STAGE_FAMILIES: dict[str, tuple[str, ...]] = {
 }
 
 
+def _chart(dropped: dict, name: str, points, **kwargs) -> str:
+    """A chart, and a note of how many labels would not fit.
+
+    Silent thinning is this project's oldest failure mode: a chart missing
+    three of its labels looks exactly like one that has them all.
+    """
+    svg, missed = charts.scatter_with_report(points, **kwargs)
+    if missed:
+        dropped[name] = missed
+    return svg
+
+
 def _describe(tech) -> str:
     """A one-line description, from the technology's own patterns.
 
@@ -144,8 +156,12 @@ def _describe(tech) -> str:
     return "matches " + "; ".join(phrases) if phrases else "no patterns"
 
 
-def _summary(name: str, rows, counts, ran: int, total_weeks: int) -> str:
-    """The quarter in prose, for a reader who reads nothing else."""
+def _summary(name: str, rows, counts, ran: int, total_weeks: int) -> list[str]:
+    """The quarter as points, for a reader who reads nothing else.
+
+    A list rather than a paragraph: prose is read start to finish or not at
+    all, and a summary exists to be scanned.
+    """
     documents = sum(row["total"] for row in rows)
     # Sorted by the thing the sentence claims to rank by. `rows` arrives
     # ordered by document count, and saying "ranked by substance" over that
@@ -210,7 +226,7 @@ def _summary(name: str, rows, counts, ran: int, total_weeks: int) -> str:
         "the same figure a quarter earlier. Small corpora move by whole "
         "percentage points on a single document."
     )
-    return " ".join(part for part in parts if part)
+    return [part for part in parts if part]
 
 
 def family_rates(row, retrieved: dict[str, int]) -> dict[str, float]:
@@ -404,30 +420,46 @@ def attention(row) -> int:
     return sum((row["by_family"] or {}).get(f, 0) for f in ATTENTION_FAMILIES)
 
 
-def map_points(conn, name: str) -> list:
-    """Every located award in the period, as a dot.
+def locations(conn, name: str) -> list[dict]:
+    """Where federal money went in the period, by state, with its evidence.
 
-    An award whose dollars were not reported still gets a dot: it is a place
-    where capacity is being built, and dropping it would quietly shrink the
-    map. Size is the square root of the money, so a hundred-million-dollar
-    award is ten times a million-dollar one rather than a hundred.
+    A table rather than a map. `build_map` drew dots on a blank rectangle with
+    no coastline -- its own docstring admitted as much -- and a scatter with no
+    map under it is not a map. The places and the dollars are what the block
+    was ever for, and a table says them without pretending to cartography.
     """
-    weeks = weeks_in_period(name)
-    placeholders = ",".join("?" for _ in weeks)
+    start, end = period_bounds(name)
     rows = conn.execute(
-        f"SELECT title, amount, lat, lon FROM observations "
-        f"WHERE week IN ({placeholders}) AND lat IS NOT NULL AND lon IS NOT NULL",
-        weeks,
+        "SELECT title, amount, lat, lon, url, tech_id FROM observations "
+        "WHERE doc_date BETWEEN ? AND ? AND lat IS NOT NULL",
+        (start, end),
     ).fetchall()
-    points = []
+    from . import geo
+    by_state: dict[str, dict] = {}
     for row in rows:
-        millions = (row["amount"] or 0) / 1e6
-        size = 3 + min(14, (millions ** 0.5))
-        money = f" — ${millions:.1f}M" if row["amount"] else ""
-        points.append(charts.Point(
-            x=row["lon"], y=row["lat"], size=size,
-            label=f"{row['title'] or 'award'}{money}", colour="#A85B12"))
-    return points
+        # Nearest centroid rather than an exact match. The coordinates were
+        # written from a centroid, but rounding and any future source that
+        # geocodes more precisely would both miss an equality test.
+        state = min(
+            geo.STATE_CENTROIDS,
+            key=lambda code: (geo.STATE_CENTROIDS[code][0] - row["lat"]) ** 2
+            + (geo.STATE_CENTROIDS[code][1] - row["lon"]) ** 2,
+        )
+        entry = by_state.setdefault(state, {
+            "state": state, "awards": 0, "dollars": 0.0, "awards_list": [],
+            "technologies": set(),
+        })
+        entry["awards"] += 1
+        entry["dollars"] += row["amount"] or 0
+        entry["technologies"].add(row["tech_id"])
+        entry["awards_list"].append({
+            "title": row["title"], "amount": row["amount"], "url": row["url"],
+            "tech_id": row["tech_id"],
+        })
+    for entry in by_state.values():
+        entry["technologies"] = sorted(entry["technologies"])
+        entry["awards_list"].sort(key=lambda award: -(award["amount"] or 0))
+    return sorted(by_state.values(), key=lambda entry: -entry["dollars"])
 
 
 def retrieved_by_family(conn, name: str) -> dict[str, int]:
@@ -519,6 +551,7 @@ def build_context(conn, name: str, watchlist) -> dict:
     movers.sort(key=lambda item: -item["shift"])
     scored = sorted((row for row in rows if row.get("sai") is not None),
                     key=lambda row: -row["total"])[:BOARD_LIMIT]
+    labels_dropped: dict[str, int] = {}
     stage_points = [
         charts.Point(x=row["position"], y=row["sai"],
                      size=4 + min(10, row["total"] ** 0.5),
@@ -530,8 +563,9 @@ def build_context(conn, name: str, watchlist) -> dict:
     return {
         "quarter": name,
         "stage_points": stage_points,
-        "stage_board": Markup(charts.scatter(
-            stage_points, x_label="pipeline position (idea \u2192 diffusion)",
+        "stage_board": Markup(_chart(
+            labels_dropped, "stage board", stage_points,
+            x_label="pipeline position (idea \u2192 diffusion)",
             y_label="substance minus attention", labels=True,
         )) if stage_points else None,
         "summary": _summary(name, rows, counts, ran, len(weeks)),
@@ -551,17 +585,16 @@ def build_context(conn, name: str, watchlist) -> dict:
             row["total"] for row in rows if row["single_source"]
         ),
         "single_source_share": SINGLE_SOURCE_SHARE,
-        "map_points": (points := map_points(conn, name)),
-        # Markup, because the environment autoescapes: without it the SVG
-        # arrives in the page as text and the block renders empty.
-        # None rather than an empty frame. A map with no points reads as a
-        # place where nothing is being built, when it means a source returned
-        # nothing; the template leaves the whole block out.
-        "build_map": Markup(charts.build_map(points)) if points else None,
+        # A table of places, not a map. build_map drew dots on a blank
+        # rectangle with no coastline, and a scatter with nothing under it is
+        # not a map -- the places and the dollars were what the block was ever
+        # for.
+        "locations": locations(conn, name),
         "substance_rows": (sub := sorted(
             (row for row in rows if substance(row) or attention(row)),
             key=lambda row: -row["total"])[:BOARD_LIMIT]),
-        "substance_chart": Markup(charts.scatter(
+        "substance_chart": Markup(_chart(
+            labels_dropped, "substance and attention",
             [charts.Point(x=attention(row), y=substance(row),
                           size=4 + min(10, row["total"] ** 0.5),
                           label=f"{row['name']} — {substance(row)} building, "
@@ -572,6 +605,7 @@ def build_context(conn, name: str, watchlist) -> dict:
             above="above: more built than said",
             below="below: more said than built",
         )),
+        "labels_dropped": labels_dropped,
         "family_floor": FAMILY_FLOOR,
         "previous": previous_period(name),
         "weeks": weeks,
@@ -649,6 +683,6 @@ def render_quarter(conn, name: str, watchlist, out_dir: Path | None = None) -> P
     export.write_charts(directory, name, {
         "substance-attention": context.get("substance_chart"),
         "stage-board": context.get("stage_board"),
-        "build-map": context.get("build_map"),
+
     })
     return path

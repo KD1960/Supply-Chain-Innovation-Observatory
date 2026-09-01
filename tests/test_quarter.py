@@ -538,44 +538,17 @@ def test_the_concentration_shown_is_the_one_the_gate_used(conn):
 
 
 
-# --- Build Map --------------------------------------------------------------
+# --- Where the money went ---------------------------------------------------
 #
-# In the design spec since the beginning and never plotted a point, because
-# USAspending returned nothing usable for a year. It has 33 geocoded awards
-# now, which is the whole reason that collector was fixed.
+# A table, not a map. The map drew dots on a blank rectangle with no coastline
+# -- its own docstring said so -- and a scatter with nothing under it is not a
+# map. The places, the dollars and the awards behind them are what the block
+# was ever for.
 
 
-def test_the_build_map_takes_its_points_from_located_observations(conn):
-    _locate(conn, "a", "2026-W14", 33.4, -112.0, 5_000_000, "Phoenix award")
-    _locate(conn, "a", "2026-W15", 47.6, -122.3, 1_000_000, "Seattle award")
-    points = quarter.map_points(conn, "2026-Q2")
-    assert len(points) == 2
-    assert {round(p.y, 1) for p in points} == {33.4, 47.6}
 
 
-def test_a_bigger_award_gets_a_bigger_dot(conn):
-    _locate(conn, "a", "2026-W14", 33.4, -112.0, 100_000_000, "large")
-    _locate(conn, "a", "2026-W15", 47.6, -122.3, 100_000, "small")
-    points = {p.label.split(" ")[0]: p for p in quarter.map_points(conn, "2026-Q2")}
-    assert points["large"].size > points["small"].size
 
-
-def test_an_award_with_no_amount_still_gets_a_dot(conn):
-    """A grant whose dollars were not reported is still a place where capacity
-    is being built. Dropping it would silently shrink the map."""
-    _locate(conn, "a", "2026-W14", 33.4, -112.0, None, "unpriced")
-    assert len(quarter.map_points(conn, "2026-Q2")) == 1
-
-
-def test_observations_outside_the_period_are_not_plotted(conn):
-    _locate(conn, "a", "2026-W02", 33.4, -112.0, 1000, "last quarter")
-    assert quarter.map_points(conn, "2026-Q2") == []
-
-
-def test_the_map_label_names_the_technology_and_the_money(conn):
-    _locate(conn, "a", "2026-W14", 33.4, -112.0, 2_500_000, "Port project")
-    label = quarter.map_points(conn, "2026-Q2")[0].label
-    assert "Port project" in label and "2.5" in label
 
 
 # --- Substance vs Attention -------------------------------------------------
@@ -774,41 +747,6 @@ def test_the_stage_board_keeps_the_technologies_with_the_most_evidence(conn):
         assert any("solo" in n or "broad" in n for n in names)
 
 
-def test_the_build_map_is_absent_when_nothing_is_located(conn):
-    """A map of no points is a picture of nothing, and printing an empty frame
-    reads as a place where capacity is not being built rather than as a source
-    that returned nothing."""
-    watchlist = _seed_two_quarters(conn)
-    context = quarter.build_context(conn, "2026-Q2", watchlist)
-    assert context["map_points"] == []
-    assert context["build_map"] is None
-
-
-def test_the_build_map_appears_when_something_is_located(conn):
-    _locate(conn, "solo", "2026-W20", 33.4, -112.0, 5_000_000, "Phoenix")
-    watchlist = _seed_two_quarters(conn)
-    context = quarter.build_context(conn, "2026-Q2", watchlist)
-    assert context["build_map"] is not None
-
-
-def test_the_summary_is_prose_of_about_the_right_length(conn):
-    """A reader who opens the report and reads nothing else should still come
-    away with the quarter."""
-    watchlist = _seed_two_quarters(conn)
-    context = quarter.build_context(conn, "2026-Q2", watchlist)
-    # The fixture holds two technologies; a real quarter holds forty and the
-    # summary grows with what there is to say. The upper bound is what matters
-    # here -- the owner asked for 250 to 300 words on a real report, and this
-    # guards against prose that runs away.
-    words = len(context["summary"].split())
-    assert 90 <= words <= 360, words
-
-
-def test_the_summary_names_the_quarter_and_its_size(conn):
-    watchlist = _seed_two_quarters(conn)
-    context = quarter.build_context(conn, "2026-Q2", watchlist)
-    assert "2026-Q2" in context["summary"]
-    assert str(context["documents"]) in context["summary"]
 
 
 def test_the_appendix_describes_every_tracked_technology(conn):
@@ -827,3 +765,68 @@ def test_the_appendix_maps_every_stage_to_its_sources(conn):
     assert stages == {"idea", "experiment", "investment", "deployment", "diffusion"}
     for row in context["appendix_stages"]:
         assert row["sources"], f"{row['stage']} lists no sources"
+
+
+def test_the_summary_is_a_list_of_points(conn):
+    """Prose in a summary is read as prose -- start to finish or not at all.
+    Bullets can be scanned, which is what a summary is for."""
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert isinstance(context["summary"], list)
+    assert all(isinstance(point, str) and point for point in context["summary"])
+    assert 4 <= len(context["summary"]) <= 10
+
+
+def test_the_summary_still_names_the_quarter_and_its_size(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    joined = " ".join(context["summary"])
+    assert "2026-Q2" in joined
+    assert str(context["documents"]) in joined
+
+
+def test_locations_are_a_table_rather_than_a_map(conn):
+    """The map drew dots on a blank rectangle with no coastline. A scatter with
+    no map under it is not a map, and a table of places says the same thing
+    without pretending to be cartography."""
+    _locate(conn, "solo", "2026-W20", 33.4, -112.0, 5_000_000, "Phoenix port work")
+    _locate(conn, "solo", "2026-W21", 33.4, -112.0, 1_000_000, "Second Arizona award")
+    _locate(conn, "solo", "2026-W22", 47.6, -122.3, 2_000_000, "Seattle award")
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert "build_map" not in context
+    places = {row["state"]: row for row in context["locations"]}
+    assert places["AZ"]["awards"] == 2
+    assert places["AZ"]["dollars"] == 6_000_000
+    assert places["WA"]["awards"] == 1
+
+
+def test_locations_are_ordered_by_money(conn):
+    _locate(conn, "solo", "2026-W20", 33.4, -112.0, 1_000_000, "small")
+    _locate(conn, "solo", "2026-W21", 47.6, -122.3, 9_000_000, "large")
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert [row["state"] for row in context["locations"]] == ["WA", "AZ"]
+
+
+def test_each_location_carries_its_evidence(conn):
+    _locate(conn, "solo", "2026-W20", 33.4, -112.0, 5_000_000, "Phoenix port work")
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    row = context["locations"][0]
+    assert "Phoenix port work" in [award["title"] for award in row["awards_list"]]
+
+
+def test_no_locations_means_no_block(conn):
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert context["locations"] == []
+
+
+def test_a_chart_says_how_many_labels_would_not_fit(conn):
+    """Silent thinning is this project's oldest failure mode. A chart missing
+    three of its labels looks exactly like a chart that has them all."""
+    watchlist = _seed_two_quarters(conn)
+    context = quarter.build_context(conn, "2026-Q2", watchlist)
+    assert "labels_dropped" in context
+    assert isinstance(context["labels_dropped"], dict)

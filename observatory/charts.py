@@ -18,6 +18,10 @@ FONT = "ui-sans-serif,-apple-system,Helvetica,Arial,sans-serif"
 # Long enough for "Warehouse management systems", short enough that fifteen of
 # them do not collide.
 LABEL_LIMIT = 28
+# The least vertical space between two labels before they read as one. Points
+# cluster: fourteen technologies routinely put several at nearly the same
+# height, and two labels at the same y overprint into nothing.
+LABEL_GAP = 12.0
 
 
 @dataclass(frozen=True)
@@ -56,6 +60,15 @@ def scatter(
         f'<line x1="{PADDING}" y1="{PADDING}" x2="{PADDING}" '
         f'y2="{height - PADDING}" stroke="{AXIS_COLOUR}" />'
     )
+    # The diagonal's captions sit at fixed heights. Reserving them before any
+    # point label is placed is what stops a label landing on top of one -- they
+    # are the same size and colour, and overlap the same way.
+    placed: list[float] = []
+    if diagonal and above:
+        placed.append(PADDING + 14)
+    if diagonal and below:
+        placed.append(height - PADDING - 8)
+    dropped = 0
     if points:
         xs = [point.x for point in points]
         ys = [point.y for point in points]
@@ -71,6 +84,21 @@ def scatter(
             )
             if not labels:
                 continue
+            # Nudge away from labels already placed, and give up rather than
+            # overprint. A dot with no label is readable; two labels on top of
+            # each other are not, and the caller is told the count.
+            slot = cy + 3.5
+            for attempt in range(6):
+                if all(abs(slot - taken) >= LABEL_GAP for taken in placed):
+                    break
+                slot += LABEL_GAP if attempt % 2 else -LABEL_GAP * (attempt + 1)
+            else:
+                dropped += 1
+                continue
+            if not all(abs(slot - taken) >= LABEL_GAP for taken in placed):
+                dropped += 1
+                continue
+            placed.append(slot)
             # Printed beside the dot rather than left in a hover title: a title
             # is invisible in a PDF and on paper, and these charts are exported
             # to both. Callers pass a short list -- ten or fifteen points --
@@ -81,7 +109,7 @@ def scatter(
             anchor = "end" if cx > width / 2 else "start"
             dx = -(point.size + 4) if anchor == "end" else point.size + 4
             parts.append(
-                f'<text x="{cx + dx:.1f}" y="{cy + 3.5:.1f}" text-anchor="{anchor}" '
+                f'<text x="{cx + dx:.1f}" y="{slot:.1f}" text-anchor="{anchor}" '
                 f'font-family="{FONT}" font-size="10" fill="{TEXT_COLOUR}">'
                 f"{escape(text)}</text>"
             )
@@ -119,6 +147,17 @@ def scatter(
                 f'fill="{AXIS_COLOUR}">{escape(below)}</text>')
     parts.append("</svg>")
     return "".join(parts)
+
+
+def scatter_with_report(points, **kwargs) -> tuple[str, int]:
+    """`scatter`, plus how many labels would not fit.
+
+    Silent thinning is this project's oldest failure mode, and a chart missing
+    a third of its labels looks exactly like a chart that has them all.
+    """
+    svg = scatter(points, **kwargs)
+    drawn = svg.count('font-size="10"')
+    return svg, (len(points) - drawn if kwargs.get("labels") else 0)
 
 
 def build_map(points: list[Point], width: int = 720, height: int = 420) -> str:
