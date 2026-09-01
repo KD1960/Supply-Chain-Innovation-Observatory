@@ -13,8 +13,10 @@ weekly run already wrote.
 
 from __future__ import annotations
 
+import base64
 import collections
 import datetime as dt
+import functools
 import re
 
 from pathlib import Path
@@ -498,6 +500,27 @@ def retrieved_by_family(conn, name: str) -> dict[str, int]:
     return dict(families)
 
 
+ASSET_DIR = Path(__file__).resolve().parent / "assets"
+
+
+@functools.lru_cache(maxsize=1)
+def brand_logo() -> str:
+    """The W. P. Carey / NASPO lockup as a data URI.
+
+    Embedded rather than linked. A report is one file that gets emailed and
+    opened out of a download folder, and a linked image would be a broken box
+    everywhere but the machine that made it -- the same reason the charts are
+    inline SVG. Cached because it is the same 45K on every render.
+    """
+    return "data:image/png;base64," + base64.b64encode(
+        (ASSET_DIR / "naspo-logo.png").read_bytes()).decode("ascii")
+
+
+def period_display(name: str) -> str:
+    """`2026-Q2` is a filename. `2026 Q2` is a title."""
+    return name.replace("-Q", " Q")
+
+
 def build_context(conn, name: str, watchlist) -> dict:
     counts = totals(conn, name)
     weeks = weeks_in_period(name)
@@ -607,6 +630,8 @@ def build_context(conn, name: str, watchlist) -> dict:
 
     return {
         "quarter": name,
+        "period_display": period_display(name),
+        "brand_logo": brand_logo(),
         "stage_points": stage_points,
         "stage_board": Markup(_chart(
             labels_dropped, printable, "stage board", stage_points,

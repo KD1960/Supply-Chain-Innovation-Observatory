@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Supply Chain Innovation Observatory &middot; {{ quarter }}</title>
+<title>Supply Chain Innovation Observatory &middot; {{ 'Quarterly' if '-Q' in quarter else 'Annual' }} Report &middot; {{ period_display }}</title>
 <style>
   :root{
     --ground:#F6F7F9; --surface:#FFFFFF; --sunk:#EDEFF3;
@@ -90,13 +90,95 @@
   footer ul{margin:0;padding-left:18px} footer li{margin:0 0 6px}
   code{font-family:var(--mono);font-size:.88em;background:var(--sunk);padding:1px 4px;
        border-radius:2px;color:var(--ink)}
+  /* The lockup is supplied as artwork on white. On a dark ground it would sit
+     in a white box, so it gets its own plate rather than a filter, which would
+     wash the maroon. */
+  .brand{margin:0 0 22px}
+  .brand img{display:block;height:58px;width:auto;max-width:100%}
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]) .brand img{background:#FFFFFF;padding:8px 10px;
+      border-radius:3px}
+  }
+  :root[data-theme="dark"] .brand img{background:#FFFFFF;padding:8px 10px;border-radius:3px}
+  details.explain{margin:0 0 18px;border:1px solid var(--rule);border-radius:3px;
+                  background:var(--surface)}
+  details.explain>summary{cursor:pointer;padding:10px 14px;font-family:var(--display);
+    font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
+  details.explain>summary:hover{background:var(--sunk)}
+  details.explain[open]>summary{border-bottom:1px solid var(--rule)}
+  .explain-body{padding:4px 14px 14px}
+  .explain-body p:first-child{margin-top:10px}
+  .explain-body ul{margin:10px 0 0;padding-left:18px}
+  .explain-body li{margin:0 0 6px}
+  .credit{margin:26px 0 0;padding-top:18px;border-top:1px solid var(--rule);
+          font-size:13.5px;color:var(--body)}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
-  <div class="eyebrow">Supply Chain Innovation Observatory &middot; {{ period_label }}</div>
-  <h1>{{ quarter }}</h1>
+  <div class="brand">
+    <img src="{{ brand_logo }}"
+         alt="W. P. Carey School of Business, Arizona State University &mdash; NASPO Department of Supply Chain Management">
+  </div>
+  <div class="eyebrow">Produced by the Center for Supply Chain Innovation, Technology, &amp; Infrastructure</div>
+  <h1>Supply Chain Innovation Observatory &middot;
+      {{ 'Quarterly Report' if '-Q' in quarter else 'Annual Report' }} &middot;
+      {{ period_display }}</h1>
+
+  <details class="explain">
+    <summary>How to read this document</summary>
+    <div class="explain-body">
+      <p>This report tracks supply chain technologies moving from <strong>idea</strong>
+      to <strong>experimentation</strong>, <strong>investment</strong>,
+      <strong>deployment</strong> and <strong>diffusion</strong> &mdash; built
+      entirely from public data. Nothing here is a survey or an opinion: every
+      number is a count of documents that a stored pattern matched, and every
+      count can be traced back to the document that produced it.</p>
+
+      <p>Collection runs weekly so that each query stays inside its source's
+      result cap. Reporting is {{ period_noun }}ly, because two thirds of
+      technology-weeks hold nothing at all and a weekly ranking mostly reports
+      which week a collector caught something.</p>
+
+      <p><strong>What is in it:</strong></p>
+      <ul>
+        <li><a href="#summary">In summary</a> &mdash; the {{ period_noun }} in a
+        few lines, for a reader who reads nothing else.</li>
+        <li><a href="#what-held">What the {{ period_noun }} held</a> &mdash; the
+        main table: every technology, its documents by kind of evidence, and how
+        concentrated that evidence is in one kind.</li>
+        {% if substance_rows %}
+        <li><a href="#substance">Substance and attention</a> &mdash; what is
+        being built against what is being talked about.</li>
+        {% endif %}
+        {% if stage_board or partial or short_history %}
+        <li><a href="#stage-board">Stage Board</a> &mdash; where each technology
+        sits in the pipeline, from idea through to diffusion.</li>
+        {% endif %}
+        {% if locations %}
+        <li><a href="#money">Where the money went</a> &mdash; federal awards,
+        and where they were spent.</li>
+        {% endif %}
+        {% if risers %}
+        <li><a href="#moved">What moved</a> &mdash; changes against the previous
+        {{ period_noun }}, where the comparison is sound enough to report.</li>
+        {% elif not partial %}
+        <li><a href="#moved-none">Nothing to compare against</a> &mdash; why no
+        movement is reported this {{ period_noun }}.</li>
+        {% endif %}
+        <li><a href="#appendix-a">Appendices</a> &mdash; every tracked
+        technology, and which sources feed which stage.</li>
+      </ul>
+
+      <p><strong>What it will not do.</strong> A score is withheld whenever the
+      period or its comparison window is incomplete, and share movement is
+      withheld for a technology drawing almost all its evidence from a single
+      source &mdash; because that measures the source's coverage, not the
+      technology. Where something is withheld the report says so and says why.</p>
+    </div>
+  </details>
+
   <div class="facts">
     <div class="fact"><b>{{ documents }}</b><span>documents matched</span></div>
     <div class="fact"><b>{{ rows|length }}</b><span>technologies seen</span></div>
@@ -115,36 +197,41 @@
 </section>
 {% endif %}
 
-<section>
+<section id="summary">
   <h2>In summary</h2>
   <ul class="lede">
     {% for point in summary %}<li>{{ point }}</li>{% endfor %}
   </ul>
 </section>
 
-<section>
+<section id="what-held">
   <h2>What the {{ period_noun }} held</h2>
   <p class="source">{{ weeks[0] }} to {{ weeks[-1] }} &middot; lexicon version {{ lexicon_version }}</p>
-  <p>Each family column gives the document count and, beside it, that count as
-  a <strong>percentage of the family's whole supply-chain corpus</strong> for
-  the {{ period_noun }}. 100% would mean every document that family retrieved
-  mentioned the technology; nothing comes close, and those are the true
-  magnitudes. A rate can also be compared across {{ period_noun }}s, which a
-  rank cannot: if every technology doubles, every rank stays where it was.</p>
-  <p><strong>Read the small corpora with care.</strong> Filings and trade press
-  are searched by phrase rather than swept, so their corpora are small &mdash;
-  a single document moves them by percentage points, where research and code
-  hold thousands.</p>
-  <p><strong>Stage</strong> names the family supplying most of the evidence.
-  A technology concentrated in one family is not a fault: it is a technology at
-  that stage, and the concentration column says how strongly.</p>
-  <p>Counts are documents matched, not mentions: a technology named twice in one
-  filing counts once. The columns are kinds of evidence rather than databases:
-  research covers preprints and journals together, and <em>other</em> gathers
-  trade press, regulation, federal awards, research funding and community
-  discussion. The
-  concentration column names the kind that supplied most of the evidence, which
-  is usually most of it.</p>
+  <details class="explain">
+    <summary>Table explanation</summary>
+    <div class="explain-body">
+    <p>Each family column gives the document count and, beside it, that count as
+    a <strong>percentage of the family's whole supply-chain corpus</strong> for
+    the {{ period_noun }}. 100% would mean every document that family retrieved
+    mentioned the technology; nothing comes close, and those are the true
+    magnitudes. A rate can also be compared across {{ period_noun }}s, which a
+    rank cannot: if every technology doubles, every rank stays where it was.</p>
+    <p><strong>Read the small corpora with care.</strong> Filings and trade press
+    are searched by phrase rather than swept, so their corpora are small &mdash;
+    a single document moves them by percentage points, where research and code
+    hold thousands.</p>
+    <p><strong>Stage</strong> names the family supplying most of the evidence.
+    A technology concentrated in one family is not a fault: it is a technology at
+    that stage, and the concentration column says how strongly.</p>
+    <p>Counts are documents matched, not mentions: a technology named twice in one
+    filing counts once. The columns are kinds of evidence rather than databases:
+    research covers preprints and journals together, and <em>other</em> gathers
+    trade press, regulation, federal awards, research funding and community
+    discussion. The
+    concentration column names the kind that supplied most of the evidence, which
+    is usually most of it.</p>
+    </div>
+  </details>
   {% if single_source_count %}
   <p class="note"><strong>{{ single_source_count }} of {{ rows|length }}
   technologies</strong> &mdash; holding {{ single_source_documents }} of
@@ -200,19 +287,24 @@
 </div>
 
 {% if substance_rows %}
-<section>
+<section id="substance">
   <h2>Substance and attention</h2>
   <p class="source">Documents that are building against documents that are talking</p>
-  <p>Horizontal is attention &mdash; trade press and community discussion.
-  Vertical is substance &mdash; code, patents, filings, federal awards and
-  regulation. Research sits in neither: a preprint is not a built thing and it
-  is not hype, and nine hundred of them would drown the distinction.</p>
-  <p>The dashed line is where the two are equal. <strong>Above it, more is
-  being built than said</strong>; below it, more is being said than built.</p>
-  <p>Dots are numbered rather than lettered: fourteen technologies cluster, and
-  a label nudged clear of its neighbour ends up beside the wrong dot. Hover a dot
-  for its name and figures; the key below carries the same, and is what makes the
-  chart readable on paper.</p>
+  <details class="explain">
+    <summary>Figure explanation</summary>
+    <div class="explain-body">
+      <p>Horizontal is attention &mdash; trade press and community discussion.
+      Vertical is substance &mdash; code, patents, filings, federal awards and
+      regulation. Research sits in neither: a preprint is not a built thing and it
+      is not hype, and nine hundred of them would drown the distinction.</p>
+      <p>The dashed line is where the two are equal. <strong>Above it, more is
+      being built than said</strong>; below it, more is being said than built.</p>
+      <p>Dots are numbered rather than lettered: fourteen technologies cluster, and
+      a label nudged clear of its neighbour ends up beside the wrong dot. Hover a dot
+      for its name and figures; the key below carries the same, and is what makes the
+      chart readable on paper.</p>
+    </div>
+  </details>
 </section>
 <div class="panel">
   {{ substance_chart }}
@@ -237,7 +329,7 @@
 {% endif %}
 
 {% if not stage_board and partial %}
-<section>
+<section id="stage-board">
   <h2>Stage Board</h2>
   <p>Withheld. This {{ period_noun }} has run {{ weeks_run }} of its
   {{ weeks_total }} weeks, and a score compares a period against periods that
@@ -246,7 +338,7 @@
   scores are inferences.</p>
 </section>
 {% elif not stage_board and short_history %}
-<section>
+<section id="stage-board">
   <h2>Stage Board</h2>
   <p>Withheld. This {{ period_noun }} is complete, but a score is computed over
   the trailing {{ window_total }} quarters and only {{ window_collected }} of
@@ -257,18 +349,23 @@
 </section>
 {% endif %}
 {% if stage_board %}
-<section>
+<section id="stage-board">
   <h2>Stage Board</h2>
   <p class="source">The {{ stage_points|length }} technologies with the most evidence this {{ period_noun }}</p>
-  <p>Horizontal is where a technology sits in the pipeline, from idea through
-  experimentation, investment and deployment to diffusion, as a weighted centre
-  of its stage scores. Vertical is substance minus attention. A dot's size is
-  the volume of evidence behind it.</p>
-  <p>Only technologies with documents in this {{ period_noun }} are placed. A
-  score is a claim about a period, and a period a technology did not appear in
-  is not one it can have a standing in. Scores are computed over the trailing
-  four {{ period_noun }}s.</p>
-  <p>Hover a dot for its name and figures; the key below carries the same.</p>
+  <details class="explain">
+    <summary>Figure explanation</summary>
+    <div class="explain-body">
+      <p>Horizontal is where a technology sits in the pipeline, from idea through
+      experimentation, investment and deployment to diffusion, as a weighted centre
+      of its stage scores. Vertical is substance minus attention. A dot's size is
+      the volume of evidence behind it.</p>
+      <p>Only technologies with documents in this {{ period_noun }} are placed. A
+      score is a claim about a period, and a period a technology did not appear in
+      is not one it can have a standing in. Scores are computed over the trailing
+      four {{ period_noun }}s.</p>
+      <p>Hover a dot for its name and figures; the key below carries the same.</p>
+    </div>
+  </details>
 </section>
 <div class="panel">
   {{ stage_board }}
@@ -293,7 +390,7 @@
 {% endif %}
 
 {% if locations %}
-<section>
+<section id="money">
   <h2>Where the money went</h2>
   <p class="source">{{ locations|length }} states with federal awards this {{ period_noun }}</p>
   <p>Places rather than a map. An earlier version plotted these as dots on a
@@ -328,7 +425,7 @@
 {% endif %}
 
 {% if risers %}
-<section>
+<section id="moved">
   <h2>What moved against {{ previous }}</h2>
   <p class="source">Share of the {{ period_noun }}'s documents, in percentage points</p>
   <p>Share rather than count, because the corpus itself is not stable from one
@@ -353,7 +450,7 @@
   </table>
 </div>
 {% elif not partial %}
-<section>
+<section id="moved-none">
   <h2>Nothing to compare against</h2>
   <p>{{ previous }} holds no observations, so no share can have moved. A technology
   cannot have risen against a {{ period_noun }} that was never observed.</p>
@@ -372,7 +469,7 @@
 </ul>
 {% endif %}
 
-<section>
+<section id="appendix-a">
   <h2>Appendix A &mdash; tracked technologies</h2>
   <p>Each description is generated from the entry's own matching patterns, so
   it cannot drift away from what the technology actually matches.</p>
@@ -427,6 +524,8 @@
     <li>Matching is deterministic. The pattern that fired is stored on every
     observation, so any number here can be traced to its evidence.</li>
   </ul>
+  <p class="credit">Created and produced by Dr. Kevin Dooley. For inquiries,
+  email <a href="mailto:kevin.dooley@asu.edu">kevin.dooley@asu.edu</a>.</p>
 </footer>
 </div>
 </body>
