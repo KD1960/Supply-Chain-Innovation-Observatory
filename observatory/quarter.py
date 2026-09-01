@@ -161,7 +161,8 @@ def _describe(tech) -> str:
     return "matches " + "; ".join(phrases) if phrases else "no patterns"
 
 
-def _summary(name: str, rows, counts, ran: int, total_weeks: int) -> list[str]:
+def _summary(name: str, rows, counts, ran: int, total_weeks: int,
+             partial: bool = False) -> list[str]:
     """The quarter as points, for a reader who reads nothing else.
 
     A list rather than a paragraph: prose is read start to finish or not at
@@ -191,6 +192,12 @@ def _summary(name: str, rows, counts, ran: int, total_weeks: int) -> list[str]:
         f"By the family supplying most of their evidence, the quarter reads {stage_text}."
         if stage_text else "",
     ]
+    if not top and partial:
+        parts.append(
+            f"Scores are withheld: this period has run {ran} of {total_weeks} weeks, "
+            f"and a score compares a period against periods that are complete. The "
+            f"counts stand -- they are observations, and only the scores are inferences."
+        )
     if top:
         names = ", ".join(row["name"] for row in top)
         parts.append(
@@ -589,7 +596,7 @@ def build_context(conn, name: str, watchlist) -> dict:
             x_label="pipeline position (idea \u2192 diffusion)",
             y_label="substance minus attention", numbered=True,
         )) if stage_points else None,
-        "summary": _summary(name, rows, counts, ran, len(weeks)),
+        "summary": _summary(name, rows, counts, ran, len(weeks), partial),
         "appendix_technologies": [
             {"id": tech.id, "name": tech.name, "family": tech.family,
              "description": _describe(tech)}

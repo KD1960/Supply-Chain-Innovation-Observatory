@@ -236,6 +236,16 @@
 </div>
 {% endif %}
 
+{% if not stage_board and partial %}
+<section>
+  <h2>Stage Board</h2>
+  <p>Withheld. This {{ period_noun }} has run {{ weeks_run }} of its
+  {{ weeks_total }} weeks, and a score compares a period against periods that
+  are complete &mdash; an unfinished one would be marked down for being
+  unfinished. The counts above stand: they are observations, and only the
+  scores are inferences.</p>
+</section>
+{% endif %}
 {% if stage_board %}
 <section>
   <h2>Stage Board</h2>

@@ -204,6 +204,35 @@ def trailing_quarters(name: str, count: int = TRAILING_QUARTERS) -> list[str]:
     return list(reversed(window))
 
 
+def collected_quarters(conn, names: list[str]) -> set[str]:
+    """The quarters that were actually collected, whole.
+
+    A quarter with some of its weeks run is not a quarter of data. 2025-Q3 had
+    5 of its 13 weeks and, counted as complete, turned collection ramp-up into
+    a rise: the technology had not grown, the collector had started.
+
+    Whole rather than mostly, because a partial quarter's shortfall is not
+    knowable from inside it -- the same reason a report withholds share
+    movement until every week of its period has run.
+    """
+    collected = set()
+    for name in names:
+        weeks = _quarters().weeks_in_quarter(name) if "-Q" in name else _quarters().weeks_in_year(name)
+        placeholders = ",".join("?" for _ in weeks)
+        row = conn.execute(
+            f"SELECT COUNT(DISTINCT week) AS n FROM source_runs WHERE week IN ({placeholders})",
+            weeks,
+        ).fetchone()
+        if row and row["n"] >= len(weeks):
+            collected.add(name)
+    return collected
+
+
+def _quarters():
+    from . import quarter as module
+    return module
+
+
 def quarterly_signal(conn, tech_id: str, signal: str, quarters: list[str],
                      collected: set[str] | None = None) -> list[float | None]:
     """One signal's value in each quarter of the window.
@@ -245,6 +274,15 @@ def compute_quarter(conn, name: str, watchlist) -> list[dict]:
     """
     from . import quarter as quarter_module
     window = trailing_quarters(name)
+    # The parameter existed and its docstring cited the rule; nothing passed
+    # it. Without this a quarter nobody collected contributes a zero to the
+    # spread, and MIN_HISTORY_QUARTERS can never fire because every quarter
+    # looks present.
+    collected = collected_quarters(conn, window)
+    # Asked of the period itself, not of the window. A year's window is its own
+    # four quarters, so the year's name never appears in it and every annual
+    # report would have read as partial.
+    partial = name not in collected_quarters(conn, [name])
     start, end = quarter_module.period_bounds(name)
     rows: list[dict] = []
     for tech in watchlist.active:
@@ -253,7 +291,8 @@ def compute_quarter(conn, name: str, watchlist) -> list[dict]:
             "AND doc_date BETWEEN ? AND ?", (tech.id, start, end),
         ).fetchone()["n"]
         z_by_signal = {
-            signal: zscore_quarters(quarterly_signal(conn, tech.id, signal, window))
+            signal: zscore_quarters(
+                quarterly_signal(conn, tech.id, signal, window, collected))
             for signal in QUARTERLY_SIGNALS
         }
         stages = {
@@ -262,11 +301,16 @@ def compute_quarter(conn, name: str, watchlist) -> list[dict]:
         }
         hard = mean_of_present([z_by_signal.get(s) for s in QUARTERLY_HARD])
         soft = mean_of_present([z_by_signal.get(s) for s in QUARTERLY_SOFT])
-        scored = present > 0
+        # A period still filling up cannot be scored against periods that are
+        # complete: carry_forward would fill its missing value from the quarter
+        # before, so the score would belong to that one. The count stands --
+        # it is an observation -- and the score does not.
+        scored = present > 0 and not partial
         rows.append({
             "tech_id": tech.id,
             "quarter": name,
             "documents": present,
+            "partial": partial,
             "sai": (hard - soft) if scored and hard is not None and soft is not None else None,
             "lfi": lab_to_field(stages) if scored else None,
             "position": pipeline_position(stages) if scored else None,

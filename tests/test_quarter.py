@@ -297,9 +297,12 @@ def _seed_two_quarters(conn):
     for n in range(14, 26):
         observe(conn, "broad", f"2026-W{n:02d}",
                 ("arxiv", "github", "edgar", "hn")[n % 4], f"b-q2-{n}")
-    for week in quarter.weeks_in_quarter("2026-Q1") + quarter.weeks_in_quarter("2026-Q2"):
-        conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
-                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    # Every week of the trailing four quarters, because a score needs a window
+    # and a partly collected quarter is now correctly excluded from one.
+    for name in ("2025-Q3", "2025-Q4", "2026-Q1", "2026-Q2"):
+        for week in quarter.weeks_in_quarter(name):
+            conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
+                         "VALUES ('arxiv', ?, 'ok')", (week,))
     conn.commit()
     return Watchlist(version=1, context=("x",), technologies=(tech("solo"), tech("broad")))
 
@@ -848,5 +851,6 @@ def test_the_legend_matches_the_points_it_keys(conn):
     watchlist = _seed_two_quarters(conn)
     context = quarter.build_context(conn, "2026-Q2", watchlist)
     assert len(context["stage_legend"]) == len(context["stage_points"])
-    assert [row["name"] for row in context["stage_legend"]] == \
-challenge if False else [point.label.split(" — ")[0] for point in context["stage_points"]]
+    assert [row["name"] for row in context["stage_legend"]] == [
+        point.label.split(" — ")[0] for point in context["stage_points"]
+    ]

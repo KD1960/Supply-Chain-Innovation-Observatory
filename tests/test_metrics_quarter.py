@@ -73,7 +73,11 @@ def test_a_technology_with_no_documents_in_the_quarter_is_not_scored(conn):
 
 
 def test_a_technology_present_in_the_quarter_is_scored(conn):
-    import datetime as dt
+    from observatory import quarter as quarters
+    for name in ("2025-Q4", "2026-Q1", "2026-Q2", "2026-Q3"):
+        for week in quarters.weeks_in_quarter(name):
+            conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
+                         "VALUES ('arxiv', ?, 'ok')", (week,))
     for quarter_start in ("2025-11", "2026-02", "2026-05", "2026-08"):
         for day in ("04", "11", "18"):
             _observe(conn, "a", f"{quarter_start}-{day}", "arxiv")
@@ -109,6 +113,10 @@ def test_an_annual_period_uses_its_own_four_quarters():
 
 
 def test_an_annual_period_scores(conn):
+    from observatory import quarter as quarters
+    for week in quarters.weeks_in_year("2026"):
+        conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
     for month in ("02", "05", "08", "11"):
         for day in ("04", "11", "18"):
             _observe(conn, "a", f"2026-{month}-{day}", "arxiv")
@@ -116,3 +124,71 @@ def test_an_annual_period_scores(conn):
     rows = {row["tech_id"]: row for row in metrics.compute_quarter(conn, "2026", _watchlist())}
     assert rows["a"]["documents"] == 24
     assert rows["a"]["sai"] is not None
+
+
+# --- the rule the window was breaking ---------------------------------------
+#
+# `quarterly_signal` takes `collected` and its docstring cites the project's
+# oldest rule -- a missing period is not a zero period. compute_quarter never
+# passed it. 2025-Q3 was collected for 5 of its 13 weeks and entered the window
+# as a full quarter, so collection ramp-up read as a rise. It also made
+# MIN_HISTORY_QUARTERS unreachable: every quarter was present, so the guard
+# could never fire.
+
+
+def test_a_partly_collected_quarter_is_not_treated_as_a_full_one(conn):
+    for week in ("2025-W28", "2025-W29"):
+        conn.execute("INSERT INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    conn.commit()
+    assert "2025-Q3" not in metrics.collected_quarters(conn, ["2025-Q3"])
+
+
+def test_a_fully_collected_quarter_counts(conn):
+    from observatory import quarter as quarters
+    for week in quarters.weeks_in_quarter("2026-Q2"):
+        conn.execute("INSERT INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    conn.commit()
+    assert "2026-Q2" in metrics.collected_quarters(conn, ["2026-Q2"])
+
+
+def test_compute_quarter_excludes_the_quarters_it_did_not_collect(conn):
+    """The bug in one line: without this, a quarter nobody ran contributes a
+    zero to the spread, and a technology that simply was not being collected
+    yet reads as one that has risen."""
+    from observatory import quarter as quarters
+    for week in quarters.weeks_in_quarter("2026-Q3"):
+        conn.execute("INSERT INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    conn.commit()
+    for day in ("04", "11", "18"):
+        _observe(conn, "a", f"2026-08-{day}", "arxiv")
+    rows = {row["tech_id"]: row for row in metrics.compute_quarter(conn, "2026-Q3", _watchlist())}
+    # Three of the four quarters in the window were never collected, so there
+    # is not enough history to score against and the row says so.
+    assert rows["a"]["documents"] == 3
+    assert rows["a"]["sai"] is None
+
+
+def test_a_period_still_filling_up_is_not_scored(conn):
+    """Excluding a partial quarter from the *window* is not enough: if the
+    period being reported is itself partial, carry_forward fills its missing
+    value from the quarter before, so the score belongs to that one. The report
+    already withholds share movement on a partial period for the same reason."""
+    from observatory import quarter as quarters
+    for name in ("2025-Q4", "2026-Q1", "2026-Q2"):
+        for week in quarters.weeks_in_quarter(name):
+            conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
+                         "VALUES ('arxiv', ?, 'ok')", (week,))
+    # 2026-Q3 gets only part of its weeks, as a quarter in progress does.
+    for week in quarters.weeks_in_quarter("2026-Q3")[:8]:
+        conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    conn.commit()
+    for day in ("04", "11", "18"):
+        _observe(conn, "a", f"2026-08-{day}", "arxiv")
+    rows = {row["tech_id"]: row for row in metrics.compute_quarter(conn, "2026-Q3", _watchlist())}
+    assert rows["a"]["documents"] == 3, "the count is an observation and stands"
+    assert rows["a"]["sai"] is None, "the score is an inference and does not"
+    assert rows["a"]["partial"] is True
