@@ -1,63 +1,69 @@
 # STATUS
 
 Supply Chain Innovation Observatory — state of the project, written for someone
-picking it up cold. Last updated after commit `2ebfc58`.
+picking it up cold. Last updated 2026-08-31.
 
 Owner: Kevin Dooley, ASU W. P. Carey.
+
+**Read this, then `docs/process-review-2026-08-31.md`.** That is an independent
+process review commissioned on 2026-08-31; it is more candid about this
+project's weaknesses than this document is, and its risk register is the best
+short guide to what will break next.
 
 ---
 
 ## 1. What this is
 
-A dashboard and report that detect the emergence and diffusion of supply chain
-innovations from observable digital traces in publicly accessible data. Six
-tracked questions: what is accelerating; what is moving out of the lab; where new
-logistics capability is being built; what has substance rather than attention;
-what developers are building; what large companies are adopting.
+A quarterly report that detects the emergence and diffusion of supply chain
+innovations from observable digital traces in publicly accessible data.
 
-Design of record: `docs/superpowers/specs/2026-08-16-supply-chain-innovation-observatory-design.md`.
-Where this document and the spec disagree, this document is newer — several of
-the spec's decisions have since been reversed on evidence, and §6 lists them.
+The central question: **what technologies are moving from idea → experimentation
+→ investment → deployment → diffusion?**
+
+Collection runs weekly and unattended. Reporting is quarterly, on calendar
+quarters. The two cadences are deliberately different and neither should be
+changed into the other — see §4.
 
 ## 2. Current state
 
 | | |
 |---|---|
-| Tests | **623 passing** |
-| Precision | **51%**, two coders (kappa 0.79) plus a full owner review, 91 judgeable rows |
-| Lexicon | version **9**, 50 active technologies, 7 families |
-| Observations | **2,130** across 54 weeks, 2025-W34 → 2026-W35 |
-| By source | scopus 830, github 826, arxiv 705, edgar 128, lens 85, hn 74, usaspending 33, federalregister 21, abi_inform 9 |
-| Evidence families | **all 8 populated** — research, code, patents, filings, trade, regulation, money, community |
-| Evidence families | research, code, patents, filings, regulation, money, community — **7 of 8** (no trade press yet) |
-| Raw weeks on disk | 53, 2025-W35 → 2026-W35 |
-| Source runs | 318 recorded, **none has ever failed** |
-| Deliverable | quarterly and annual reports, `output/report-*.html`, with evidence and standalone charts |
+| Tests | **627 passing** |
+| Lexicon | version **9**, 50 active technologies |
+| Observations | **2,455** |
+| Sources | 11, across 9 evidence families |
+| By source | github 820, arxiv 569, scopus 434, openalex 253, edgar 129, hn 74, lens 64, nsf 49, usaspending 33, federalregister 21, abi_inform 9 |
+| Precision | **51%**, two coders (kappa 0.79) plus a full owner review |
+| Deliverable | `output/report-<period>.html`, with evidence pages and standalone SVG/PDF charts |
 | Weekly page | collection health only — did the collectors run, what arrived, rising terms |
+| Repository | https://github.com/KD1960/Supply-Chain-Innovation-Observatory (public) |
 
-The weekly cron fired unattended on Monday 2026-08-24 07:00 and worked: all six
-sources OK, W35 fetched, and the seven-day lookback correctly added 12 more
-documents back into W34. That is the first run nobody supervised.
+**The 2026-Q3 report withholds its scores.** The quarter has run 10 of 13 weeks,
+and a score compares a period against periods that are complete. Counts are
+shown; inferences are not. 2026-Q2 is the most recent fully scored period.
 
 ## 3. How to run it
 
-    python -m observatory.run                  # the weekly run (this is what cron does)
-    python -m observatory.run --annual 2026    # the deliverable
-    python -m observatory.run --quarter 2026-Q2
-    python -m observatory.run --export-queries 2026-Q4   # the sheet a human works from
-    python -m observatory.run --import-manual  # licensed database exports
-    python -m observatory.run --rebuild        # replay all raw under the current lexicon
-    python -m observatory.run --backfill 52    # fetch N trailing weeks, then rebuild
+    python -m observatory.run                        # the weekly run; this is what cron does
+    python -m observatory.run --quarter 2026-Q4      # the deliverable
+    python -m observatory.run --annual 2026
+    python -m observatory.run --export-queries 2026-Q4 --split   # the sheet a human works from
+    python -m observatory.run --import-manual        # ingest the exports that come back
+    python -m observatory.run --rebuild              # replay all raw under the current lexicon
+    python -m observatory.run --backfill 52          # fetch N trailing weeks, then rebuild
 
 Installed cron, Monday 07:00 local:
 
     0 7 * * MON cd '/Users/kevindooley/Claude/Projects/Supply chain innovation' && /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m observatory.run >> data/cron.log 2>&1
 
 The interpreter path matters: `/usr/bin/python3` is macOS's 3.9 and has none of
-the dependencies.
+the dependencies. Keys live in `.env`; `GITHUB_TOKEN` and `SEC_CONTACT_EMAIL`
+are set and working.
 
-Keys live in `.env`: `GITHUB_TOKEN` is set and working. `PATENTSVIEW_API_KEY` is
-not — see §5.
+**A number read without a rebuild is the old lexicon's number.** Observations
+insert with `INSERT OR IGNORE`, so rows written under old patterns survive until
+`--rebuild` drops the derived tables. This has produced a wrong figure in a
+report to the owner twice.
 
 ## 4. The rules this project runs on
 
@@ -80,243 +86,26 @@ looks the way it does.
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
 
-## 4h. The map was not a map (2026-08-31)
+## 4a. What changed recently
 
-`build_map` drew dots on a blank rectangle with no coastline — its own
-docstring said as much, calling it "a US map without a coastline". A scatter
-chart with nothing under it is not a map, and it was answering the block's
-question by implication rather than by saying anything.
+The full reasoning is in the commit messages, which are long on purpose. In
+brief, over 2026-08-27 to 08-31:
 
-Replaced by a table of states: awards, obligated dollars, and the awards
-themselves with the technology each was counted under. Twenty-four states on
-2026-Q3, covering USAspending infrastructure grants and NSF research awards
-together, both of which carry a place of performance.
-
-The executive summary is bullets rather than prose, on the same reasoning: a
-summary exists to be scanned, and a paragraph is read start to finish or not at
-all.
-
-**Chart labels were the wrong answer to begin with.** Nudging them apart moved
-a label away from the dot it belonged to, and dropping the ones that would not
-fit thinned the chart. On the page the dots are numbered instead: a number
-cannot collide, the name is on hover, and a key beneath carries the name,
-document count, stage and concentration with room to read them.
-
-The exported SVG and PDF keep printed labels, because a file has neither hover
-nor a key beneath it. Same points, two renderings, chosen by medium.
-
-## 4g. Interpretation moved to the quarter (2026-08-31)
-
-Week to week was too noisy to read. Two thirds of technology-weeks hold no
-observations, so a weekly ranking mostly reported which week a collector caught
-something — and a trailing z-score let a technology with **nothing at all in
-the week** top "This Week's Movers". On 2026-W36 seven of the top eight had no
-documents in the week they were named for, and the evidence page each linked to
-said so. The owner spotted it on 2026-W49.
-
-Metrics now run on a **four-quarter window**, needing three quarters present,
-and a technology is scored only in a period it actually appeared in. Signals
-are per family rather than per collector, so a stage does not swing on which of
-three research sources happened to run.
-
-**The weekly page is a collection health view.** Did the collectors run, what
-arrived, what terms are rising. Everything interpretive — stage board,
-substance against attention, lab to field, the build map, and the evidence
-behind them — is in the quarterly report.
-
-The quarterly report gained an executive summary, a stage board, labelled
-charts whose parity line says what each side means, two appendices, and
-standalone SVG and PDF of every chart. Its evidence page lists only
-technologies that have documents, ordered by how much, with the rest named at
-the foot: absence is a finding, and forty-two empty headings between a reader
-and the evidence is not.
-
-## 4f. NSF added, SBIR and CORDIS rejected (2026-08-31)
-
-Each was measured before any of it was built, and the measurements decided.
-
-**NSF: built.** 1,184 awards backfilled over a year, every one with a technical
-abstract of a few thousand characters, 49 matched. It is the research half of
-the investment stage -- USAspending sees ports and rail corridors being built
-and nothing upstream of them.
-
-Its volume is **seasonal and October and November 2025 are empty**, which was
-checked against the API rather than assumed to be a collector fault: querying
-October alone returns zero where September returns fourteen. NSF's fiscal year
-ends September 30th. A quarter holding an autumn is genuinely thinner here.
-
-`research funding` is its own family. Folded into `money` it would swamp the
-infrastructure signal under a corpus five times its size, 184 documents against
-roughly a thousand; folded into `research` it would count funding an idea and
-publishing one as the same evidence.
-
-**SBIR: rejected.** 500 awards in three months, **0 matched**. A federal
-contract description names the programme and the agency and never the
-technology — "THIS IS A SBIR III CONTRACT IN SUPPORT OF THE DOD". Patents had
-CPC codes to rescue them; these have no classification field. Its own API
-returns 403 to everything, browser user-agent included.
-
-**CORDIS: left alone.** It matches well — 24% of a 50-project sample, and it
-reaches inland ports. But its records are multi-year projects carrying dates
-like `1 {{month_06}} 2018`, and how to date a three-year programme is a
-question about what this corpus is for rather than a parsing problem. Worth
-returning to if EU coverage matters.
-
-## 4e. OpenAlex joins, and does not replace Scopus (2026-08-31)
-
-Built as a Scopus replacement and kept as a complement, because the
-measurement said so. Same twelve journals, 2026-Q3:
-
-| | retrieved | matched | rate |
-|---|---|---|---|
-| Scopus | 585 | **110** | 18.80% |
-| OpenAlex | 1,004 | 49 | 4.88% |
-
-OpenAlex retrieves nearly twice as much and matches less than half. The cause
-is abstract coverage: **99% of Scopus records carry one, 49% of OpenAlex
-records do**, and without an abstract the matcher sees a title. That is the
-same thing that held Lens patents at 1% until abstracts arrived. Scopus finds
-eleven technologies OpenAlex misses, among them warehouse robotics and port
-automation; OpenAlex finds two Scopus misses, digital product passport and
-smart labels.
-
-**Keep both.** OpenAlex is free, keyless, automated, gives a real publication
-date and is open data, so it costs nothing to run. Scopus costs twelve exports
-a quarter and buys recall the free source cannot.
-
-The error worth remembering: OpenAlex was recommended as a replacement after
-testing its *retrieval* — count, dates, ISSN filter, one sample abstract — and
-never its abstract coverage across the corpus, which is what decides whether
-the matcher can see anything at all.
-
-## 4d. Rates, not ranks — and concentration labels a stage (2026-08-30)
-
-Two owner rulings reversed decisions made earlier the same day.
-
-**Concentration is a finding, not a defect.** The gate withheld a technology's
-movement when one family supplied 80%+ of its evidence. But if 88% of freight
-decarbonisation's documents are research, that *is* the indicator: the
-technology is at the research stage. Withholding it deleted the finding along
-with the risk. Concentration is now reported and the dominant family names a
-stage; nothing is suppressed. The reason for having several sources per stage
-is unchanged — it is how you find out the concentration was collection and not
-substance.
-
-**The 0-100 index was a percentile, and a percentile cannot move.** If every
-technology doubles, every rank stays exactly where it was, which is fatal for a
-tool built to detect movement. It also flattered: vehicle routing read 93 when
-it appears in **0.52%** of supply chain research.
-
-Each family column now carries `matched / retrieved` as a percentage, where 100
-would mean every document that family collected mentioned the technology.
-Nothing comes near it, and those are the true magnitudes. The denominator is
-counted from raw and from the export files rather than stored, so it cannot
-drift from what was actually collected.
-
-**Read the small corpora with care.** Filings and trade press are searched by
-phrase rather than swept, so warehouse management systems reads 21% of filings
-on six documents out of twenty-eight. Research and code hold thousands; one
-document moves the small ones by percentage points.
-
-## 4c. Operations research retired (lexicon v9, 2026-08-30)
-
-A method, not a technology that emerges and diffuses. It held **546
-observations, 20% of the whole corpus**, of which 256 were matched by
-`mixed-integer linear programming` — a solution technique that appears in
-nearly every optimisation paper — and 65 by `computational experiments`, a
-phrase from the methods section of one.
-
-It answered none of the six tracked questions. Operations research has been out
-of the lab since the 1950s; it had no deployment signal, no adoption signal, and
-96% of its evidence was research. **31% of its documents were already counted
-under a technology that does move** — 87 under vehicle routing, 43 under
-last-mile delivery.
-
-This is consistent with the three entries §8 already rejects as fields rather
-than technologies, one of which is *machine learning for operations*. Keeping
-this one while rejecting that was the inconsistency, and the owner spotted it
-by reading the audit sample.
-
-**Retired, not deleted.** The entry and its patterns stay, so every past week
-still replays under this file, and a test asserts both — that it is retired and
-that its patterns survive.
-
-## 4b. What the precision audit changed (lexicon v8, 2026-08-30)
-
-A 105-row stratified audit, coded independently by two coders, puts precision
-at **51% across 91 judgeable rows** — raw agreement 88%, Cohen's kappa 0.79
-(`docs/precision-audit-2026-08-30.md`, codes in `docs/audit/`). Five faults
-were acted on; the sixth was measured and left alone.
-
-- **Positive train control is its own technology now.** Eleven of twelve
-  sampled Federal Register rows for `rail_intermodal_tech` were FRA notices of
-  PTC amendments, mostly for passenger railroads — that technology was
-  measuring the FRA's paperwork cadence. It falls 22 → 2 and PTC keeps 20 under
-  its own entry. Owner's decision: PTC is not only about intermodal.
-- **`item_level_rfid` 26 → 5.** The rule underneath is the audit's most useful
-  finding: **CPC-as-evidence works for a *mechanism* class and fails for an
-  *enabling technology* class.** `B65G1/137` (storage with indicating means)
-  was 4 of 4; `G06K7` (reading record carriers) attributed a blockchain
-  shipping patent and an apartment access-control system. An enabling class now
-  carries a `confirm` pattern in `sources.yaml` that the text must also match.
-  Swapping to the narrower `G06K19/07` was measured and changes nothing.
-- **`operations_research` 556 → 546**, excluding passenger transit.
-- **`agentic_procurement` 85 → 84.** Only `software supply chain` excluded,
-  which was already out of scope. Two narrower options were measured and
-  rejected: adjacency dropped "Agentic AI Framework for Smart Inventory
-  Replenishment"; a wider exclusion list dropped "Procurement-Agentic-App".
-  **This technology has known low precision** — "agentic AI" is a general
-  buzzword and a document-level gate cannot separate a supply chain agent from
-  an AI-industry post. Read its counts accordingly.
-- **`last_mile_delivery` 223 → 222**, excluding a "LAST MILE RAIL PROJECT".
-
-**Left alone deliberately:** a Hacker News post using "last mile" for software
-deployment is one row in 223, and every rule broad enough to catch it dropped
-42 drone-delivery papers that use the word "deployment".
-
-## 4a. The lexicon carried the domain word where the gate belonged
-
-Ten of fifty technologies wrote the domain into the pattern itself with
-`needs_context` off, so the domain word had to sit *adjacent* to the technology
-word. "Target strengthens inventory management with digital twins" did not
-match `(supply chain|logistics|warehouse) digital twin(s)?` -- it says
-"inventory" one clause away, and the gate built for exactly this was never
-consulted.
-
-Seven were revised at lexicon v7 (2026-08-29). Last-mile delivery went 114 to
-222, digital twins 10 to 89, control towers 9 to 17.
-
-**The rule that came out of it:** the gate rescues a *distinctive* term and
-cannot rescue a *generic* one. `generative ai` ungated went 2 to 77 at roughly
-25% precision -- a hospital management platform, a language-teacher assistant,
-printed circuit board design. It was reverted to adjacency, widened but not
-gated. A document-level gate passes anything that says "supply chain" once
-anywhere, which is enough for a distinctive term and nowhere near enough for a
-generic one.
-
-**Precision is 51%, and the first estimate of it was optimistic.** The obstacle
-to measuring it at all was that the database does not hold the text a match was
-made on — a GitHub row's title is `owner/repo-name` and the match happens on
-the description. `observatory/audit.py` walks an observation back to that text,
-from `raw/` for the API collectors and from `data/manual` for the hand-fetched
-ones; it recovered 105 of 105.
-
-**A single coder read 59%. Two coders adjudicated to 51%.** Of thirteen
-disagreements, **nine resolved against the first coder and none against the
-second** — a leniency bias whose direction was predictable, since that coder
-had written the patterns being judged. It had counted a repository that merely
-*integrates with* S/4HANA as ERP, a security advisory about a transport
-management product as AI transportation management, and a vessel fleet
-decarbonisation study as port electrification.
-
-Both coders independently marked the same twelve EDGAR rows unjudgeable, which
-is good evidence that "the filing text is not recoverable" is a fact about the
-data rather than one coder's caution.
-
-**What the statistic still cannot see:** both coders are the same model. It
-catches a bias one of them holds and is blind to one they share. A human coder
-on the same sheet — it is in `docs/audit/sample.md` — remains worth an hour,
-and is the only thing that would settle whether 51% is itself optimistic.
+- **USAspending fixed** — it searched six multi-word phrases against an API that
+  phrase-matches, returning 36 awards in a year and matching none. It queries
+  freight assistance-listing programmes now.
+- **Five sources added** — Scopus, Lens.org patents, ABI/INFORM trade press
+  (all human-exported), plus OpenAlex and NSF (automated, keyless). SBIR and
+  CORDIS were measured and rejected; see §5.
+- **Lexicon v6 → v9** — the domain word moved out of ten patterns and into the
+  context gate; operations research retired as a method rather than a
+  technology; Positive Train Control split into its own entry.
+- **Reporting moved to calendar quarters**, selected by each document's own
+  date. The ISO year had been ending on 27 December.
+- **Metrics moved from a 52-week to a four-quarter window.** A trailing weekly
+  z-score had been ranking technologies with no documents in the week.
+- **The weekly dashboard became a collection health view**; everything
+  interpretive, and the evidence pages, moved to the quarterly report.
 
 ## 5. What is broken or missing
 
@@ -325,7 +114,7 @@ the API phrase-matches them against terse award prose: `port` returns over a
 hundred awards in a week where `port infrastructure` returns one. Six such
 phrases retrieved 36 awards in a year and matched none of them.
 
-Widening the keywords -- which §7 used to recommend -- was measured and
+Widening the keywords -- which this document used to recommend -- was measured and
 rejected: broad terms retrieve defence logistics services, passenger transit and
 highway resurfacing, trading a false zero for thousands of rows of false signal.
 
@@ -345,52 +134,11 @@ year. Investment remains the thinnest stage, and whether federal infrastructure
 money should count as domain evidence without technology resolution is an open
 question for the owner.
 
-**Backfilled 2026-08-28.** 52 weeks refetched under the programme query:
-**31 observations across 28 awards, $390M, 30 of them carrying coordinates.**
-The Build Map has points for the first time. The old raw is kept at
-`data/raw-retired/usaspending-keyword-query/` — it is the evidence for the 36-in-
-a-year claim, and backfill would have skipped every week without clearing
-`source_runs`, since resumability correctly treats a recorded run as done.
-
 **GitHub measures the wrong population.** Of 735 matched repositories, 78% have
 exactly one star and the largest has 118. I sampled 60 repos first seen in
 2025-Q4 and re-queried them live 9–12 months later: **not one had gained a single
 star, and none had been deleted.** These are inert student and portfolio projects,
 not an ecosystem — and GitHub is 48% of all observations.
-
-**A manual export needs its own record identifier.** Identity fell back to the
-first 120 characters of the title, and 185 real patents produced 183 documents:
-patents carry no DOI, and a continuation shares its parent's words. Two rows
-became one and nothing said so. `manual.document_id` now prefers the database's
-identifier (Lens ID, EID, accession number), then a DOI, then the title.
-
-**Patents needed classification evidence, not text.** A real 185-patent Lens
-export matched **2 records** by text, and 11 even with the context gate off.
-Patents describe mechanisms while the watchlist speaks trade vocabulary: an
-abstract about "reconfigurable racks for standardized packages" is warehouse
-automation and never says so. Attributing on the CPC code the patent was filed
-under reaches **75 of 185, producing 85 observations**. Only codes naming a
-mechanism are mapped — `G06Q10/087` is "inventory management" and would have
-labelled 135 of 185 patents as warehouse management systems, "Material
-conveying method" among them.
-
-**Seven technologies are silent for the whole year** (was nine): advanced
-planning and scheduling, autonomous yard trucks, item-level RFID, GS1 2D
-barcodes, GenAI for supply chain planning, active cold chain packaging, smart
-labels. **Port electrification (15 observations) and inland ports (1) broke
-their silence on the USAspending fix** — federal money was the source that saw
-them, which is exactly the argument for widening the base. Each was probed against the corpus directly, so this is
-a finding rather than a mystery: they are absent from *these six sources*, not
-from the world. Trade press and patents would see them.
-
-**Trade press is thin, and that is a finding rather than a fault.** Supply
-Chain Dive's whole 2026-Q3 slice in ABI/INFORM is 28 articles across five term
-batches, of which 9 mention a tracked technology. The misses were read and are
-right: rate increases, fuel surcharges, 3PL partnerships, earnings. The outlet
-covers supply chain business news and technology is a minority of it. Three
-outlets remain unexported (Modern Materials Handling, Supply Chain Management
-Review, Journal of Commerce); one of the four originally listed publications
-and three others are not indexed by ABI/INFORM at all.
 
 **Sources barely overlap** — and the quarterly report now says so on its own
 face. The source-diversity gate (2026-08-28) marks any technology drawing 80%+
@@ -406,6 +154,18 @@ spec exists to fix: Of the 18 technologies with 19+ documents, seven draw
 over 80% of their evidence from a single source — ERP 95% GitHub, vehicle routing
 92% arXiv, blockchain 99% GitHub, rail intermodal 100% Federal Register. No
 technology is evenly present across research, code and filings.
+
+**No durable record of a collection failure.** `source_runs` upserts on
+`(source, week)`, so a retry overwrites the failure it retried. This document
+claimed for weeks that "318 source runs, none has ever failed" — a claim the
+schema made incapable of being false. Until a failure log exists, treat
+collection health on the weekly page as *the last attempt succeeded*, not *every
+attempt has*.
+
+**No linter.** The process review found a shipped `NameError`, an assertion
+that could not fail (`challenge if False else [...]`, which parses as a
+conditional expression), and several guards built and never connected. `ruff`
+in a pre-commit hook catches all three shapes for nothing.
 
 **Not deferred, just absent:** PatentsView (awaiting a key, gets its own plan) and
 GDELT (plan 2A tasks 3 and 4; the implementation is written, it needs a clean
@@ -456,33 +216,25 @@ pinned model and published prompts. The weekly run must stay deterministic.
 
 ## 7. Where to pick up
 
-Roughly in value order.
+In value order. The process review's risk register (`docs/`) is more detailed.
 
-1. **Backfill USAspending.** The collector is fixed but the corpus is not;
-   `--backfill 52` refetches under the programme query. Then decide whether the
-   7% match rate is enough for the Investment stage to make claims from.
-2. **Run the first supplemental exports.** `--export-queries <quarter>` prints
-   the query for Lens.org, Scopus and ABI/INFORM, where to save each file and
-   what its sidecar must say. Lens is free and needs no library account, so it
-   goes first. **Its CPC set and query syntax are unverified** — read the first
-   result set by hand and correct `sources.yaml`, not the code. The manual
-   importer still needs Lens's CSV column names added to `manual.CSV_FIELDS`,
-   and those must come from a real file rather than from documentation.
-
-3. **First real licensed export.** `--import-manual` is built and tested but has
-   only ever seen a synthetic file. When Kevin supplies a real Web of Science or
-   Scopus export, check the field mapping against what that database actually
-   emits rather than what its documentation claims. Factiva exports RTF/HTML and
-   is not handled — that wants a real file, not a guess.
-3. **Trade press via ABI/INFORM or Factiva.** The single biggest coverage gap;
-   it is where deployment gets announced and where the nine silent technologies
-   would appear.
-4. **PatentsView**, once the key arrives.
-5. **Gartner Hype Cycle, if ASU licenses it.** Not just another source — an
-   independent published placement to correlate our pipeline position against,
-   which turns "does this metric mean anything" into a testable claim.
-6. **Reconsider the GitHub floor** once Lens patents are collecting. Decided
-   and recorded in §8; not open until then.
+1. **Add `ruff` in a pre-commit hook.** The review found a shipped `NameError`,
+   a test that could not fail, and several orphaned guards — all of which a
+   linter catches for nothing.
+2. **Make source failures durable.** `source_runs` upserts on `(source, week)`,
+   so a retry erases the failure it retried. STATUS long claimed "no source run
+   has ever failed", which is a claim that could not have been false.
+3. **Q4 supplemental exports**, first week of January. Three databases, roughly
+   four hours: `--export-queries 2026-Q4 --split` prints the sheet. **Clear
+   ProQuest's marked-items list between exports** — it accumulates, and the
+   importer will refuse the files.
+4. **The first complete calendar year.** 2026 finishes at W53. It is the first
+   annual report where neither year is truncated.
+5. **A human coder on the precision sheet.** `docs/audit/sample.md`. Both
+   existing coders were the same model, and the second moved the estimate down
+   eight points by catching a leniency bias in the first.
+6. **PatentsView**, if the key arrives — it would replace the manual Lens export
+   with an automated collector on the same CPC principle.
 
 ## 8. Owner decisions already made — do not relitigate
 
@@ -511,20 +263,23 @@ Roughly in value order.
 
 ## 9. Published artifacts
 
-- Annual report — https://claude.ai/code/artifact/0bcfa58e-9340-4a7e-9405-f2e4ff5317c6
-- WMS deep dive — https://claude.ai/code/artifact/338d4dd5-8b1d-4c04-b99b-3fa69a18e6a3
+Reports are regenerated from the database and are cheap to remake; do not treat
+any published copy as current. `output/` holds the latest of each period, its
+evidence page, and `output/charts/` holds standalone SVG and PDF.
 
-Both are **second edition and now stale**: they were written at lexicon version 4
-against 1,593 observations. Regenerate before sharing.
+## 10. A note on how this project has gone wrong
 
-## 10. Note on the annual report
+Recorded because the same shape recurs and recognising it early is worth more
+than any single fix.
 
-Neither calendar year in the data is complete, and both reports say so on their
-own face rather than presenting a shortfall as a decline:
+**Verifying the mechanism instead of the outcome.** The tests checked that a
+chart's SVG was in the template context, not that it reached the page — it did
+not, for two releases. OpenAlex was recommended as a Scopus replacement after
+testing its retrieval and never its abstract coverage, which is what decides
+whether the matcher can see anything. A guard was written for partial quarters,
+documented accurately, and never connected to its caller.
 
-- **2025**: 18 of 52 weeks — collection began at W34.
-- **2026**: 35 of 53 weeks — the year is not over.
-
-Both withhold share movement for that reason. **The first complete calendar-year
-report is 2026, available after the weekly run for 2026-W53.** The cron fills it
-in unattended; no action is needed between now and then.
+**The remedy that works:** check the artifact, not the code that makes it. Read
+the rendered page, count the rows in the database, compare the number against
+the export file. Every wrong figure in this project was caught that way, and
+none were caught by reading the code that produced them.
