@@ -245,6 +245,16 @@
   unfinished. The counts above stand: they are observations, and only the
   scores are inferences.</p>
 </section>
+{% elif not stage_board and short_history %}
+<section>
+  <h2>Stage Board</h2>
+  <p>Withheld. This {{ period_noun }} is complete, but a score is computed over
+  the trailing {{ window_total }} quarters and only {{ window_collected }} of
+  the {{ window_total }} were ever collected &mdash; a quarter nobody collected
+  is absent rather than zero, and folding a hole into a zero invents a trend.
+  The counts above stand: they are observations, and only the scores are
+  inferences.</p>
+</section>
 {% endif %}
 {% if stage_board %}
 <section>

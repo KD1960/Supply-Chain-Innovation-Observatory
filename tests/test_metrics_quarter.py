@@ -56,8 +56,22 @@ def test_a_quarter_that_was_never_collected_is_absent_not_zero(conn):
 
 def test_a_score_needs_enough_quarters_to_mean_anything(conn):
     """Four quarters of history, and a z-score from two of them is a claim
-    about a spread computed from two numbers."""
+    about a spread computed from two numbers.
+
+    Both sides of the boundary, because the gate is a number and a number can
+    be changed. This test named two quarters as the case it rejected and then
+    probed one, which passes whether the gate is two or three: mutating
+    MIN_HISTORY_QUARTERS from 3 to 2 left all 627 tests green. The gate had
+    also never fired in production -- nothing passed `collected`, so every
+    quarter looked present -- so the suite was the only thing holding it.
+    """
     assert metrics.zscore_quarters([None, None, 3.0]) is None
+    # Exactly two observed: the case the docstring rejects. Fails if the gate
+    # is lowered to 2.
+    assert metrics.zscore_quarters([None, 1.0, 5.0, None]) is None
+    # Exactly three observed: the smallest scorable window. Fails if the gate
+    # is raised to 4.
+    assert metrics.zscore_quarters([None, 1.0, 3.0, 8.0]) is not None
     assert metrics.zscore_quarters([1.0, 2.0, 3.0]) is not None
 
 

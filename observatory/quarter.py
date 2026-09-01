@@ -162,7 +162,8 @@ def _describe(tech) -> str:
 
 
 def _summary(name: str, rows, counts, ran: int, total_weeks: int,
-             partial: bool = False) -> list[str]:
+             partial: bool = False, short_history: bool = False,
+             window_collected: int = 0, window_total: int = 0) -> list[str]:
     """The quarter as points, for a reader who reads nothing else.
 
     A list rather than a paragraph: prose is read start to finish or not at
@@ -197,6 +198,16 @@ def _summary(name: str, rows, counts, ran: int, total_weeks: int,
             f"Scores are withheld: this period has run {ran} of {total_weeks} weeks, "
             f"and a score compares a period against periods that are complete. The "
             f"counts stand -- they are observations, and only the scores are inferences."
+        )
+    elif not top and short_history:
+        # Named rather than left blank. The period is whole, so nothing above
+        # tells the reader why the movement section is missing, and a missing
+        # section reads as nothing moved rather than as we cannot yet say.
+        parts.append(
+            f"Scores are withheld: {window_collected} of the {window_total} quarters "
+            f"a score is computed over were collected, and a score compares a period "
+            f"against periods that exist. The counts stand -- they are observations, "
+            f"and only the scores are inferences."
         )
     if top:
         names = ", ".join(row["name"] for row in top)
@@ -538,6 +549,15 @@ def build_context(conn, name: str, watchlist) -> dict:
     # what the weekly version got wrong.
     from . import metrics
     scores = {row["tech_id"]: row for row in metrics.compute_quarter(conn, name, watchlist)}
+    # The second reason a score can be absent. `partial` asks whether this
+    # period finished; this asks whether the periods it is scored against were
+    # ever collected. 2025-Q4 ran all thirteen of its weeks and still could not
+    # be scored, because only one quarter of its trailing four had been
+    # collected -- and the page said nothing, because every withholding notice
+    # was gated on `partial`.
+    window = metrics.trailing_quarters(name)
+    window_collected = len(metrics.collected_quarters(conn, window))
+    short_history = window_collected < metrics.MIN_HISTORY_QUARTERS
     for row in rows:
         score = scores.get(row["id"], {})
         row["sai"] = score.get("sai")
@@ -596,7 +616,8 @@ def build_context(conn, name: str, watchlist) -> dict:
             x_label="pipeline position (idea \u2192 diffusion)",
             y_label="substance minus attention", numbered=True,
         )) if stage_points else None,
-        "summary": _summary(name, rows, counts, ran, len(weeks), partial),
+        "summary": _summary(name, rows, counts, ran, len(weeks), partial,
+                            short_history, window_collected, len(window)),
         "appendix_technologies": [
             {"id": tech.id, "name": tech.name, "family": tech.family,
              "description": _describe(tech)}
@@ -645,6 +666,9 @@ def build_context(conn, name: str, watchlist) -> dict:
         "period_label": "quarterly report" if "-Q" in name else "annual report",
         "period_noun": "quarter" if "-Q" in name else "year",
         "partial": partial,
+        "short_history": short_history,
+        "window_collected": window_collected,
+        "window_total": len(window),
         "documents": sum(row["total"] for row in counts.values()),
         "rows": rows,
         "risers": movers[:8],

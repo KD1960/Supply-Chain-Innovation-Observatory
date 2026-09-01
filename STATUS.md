@@ -1,7 +1,7 @@
 # STATUS
 
 Supply Chain Innovation Observatory — state of the project, written for someone
-picking it up cold. Last updated 2026-08-31.
+picking it up cold. Last updated 2026-09-01.
 
 Owner: Kevin Dooley, ASU W. P. Carey.
 
@@ -9,6 +9,13 @@ Owner: Kevin Dooley, ASU W. P. Carey.
 process review commissioned on 2026-08-31; it is more candid about this
 project's weaknesses than this document is, and its risk register is the best
 short guide to what will break next.
+
+**Read the review's risk 1 as closed.** It reports every published z-score as
+inflated by collection ramp-up, because `compute_quarter` never passed
+`collected` to `quarterly_signal`. That was fixed in `cec2a0b`, and the review
+was committed after it (`7359a3a`) describing the state before. Verified live
+on 2026-09-01: the 2026-Q2 window drops 2025-Q3, the quarter that was collected
+for 5 of its 13 weeks. Do not fix it again.
 
 ---
 
@@ -28,7 +35,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **627 passing** |
+| Tests | **630 passing** |
 | Lexicon | version **9**, 50 active technologies |
 | Observations | **2,455** |
 | Sources | 11, across 9 evidence families |
@@ -106,6 +113,27 @@ brief, over 2026-08-27 to 08-31:
   z-score had been ranking technologies with no documents in the week.
 - **The weekly dashboard became a collection health view**; everything
   interpretive, and the evidence pages, moved to the quarterly report.
+
+On 2026-09-01:
+
+- **The withholding notice was gated on the wrong condition.** A report says
+  "scores are withheld" in two places, and both asked only whether the *period*
+  had finished. A score also needs three collected quarters in its trailing
+  window, and that fails independently: 2025-Q4 ran all 13 of its weeks and
+  still could not be scored, because one quarter of its window had ever been
+  collected. Neither notice fired, so the Stage Board and the movers simply
+  vanished from a complete-looking page with nothing said — this project's
+  oldest failure mode, wearing the clothes of the guard against it. Both places
+  now name the collected count. It was silently blank on two published reports,
+  2025-Q4 and 2026-Q1, not one.
+- **`MIN_HISTORY_QUARTERS` had no boundary test.** Mutating it from 3 to 2 left
+  all 627 tests green. The test that should have caught it rejected "a z-score
+  from two quarters" in its docstring and then probed one, which passes at
+  either setting. It is now pinned in both directions.
+- **Reports regenerated.** 2025-Q3, 2025-Q4 and the 2025 annual were older than
+  the fix, the current template and lexicon v9 — the annual was built under v8.
+  All seven reports were rebuilt and swept: each now either scores or says why
+  it cannot. 2026-Q2 remains the only scored period.
 
 ## 5. What is broken or missing
 

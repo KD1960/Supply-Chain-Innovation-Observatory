@@ -854,3 +854,65 @@ def test_the_legend_matches_the_points_it_keys(conn):
     assert [row["name"] for row in context["stage_legend"]] == [
         point.label.split(" — ")[0] for point in context["stage_points"]
     ]
+
+
+# --- a complete period whose window is not ----------------------------------
+#
+# The withheld Stage Board and the summary's "scores are withheld" sentence are
+# both gated on `partial`, which asks about the period. There is a second
+# reason a score can be absent: the trailing window needs three collected
+# quarters and may not have them. 2025-Q4 ran all thirteen of its weeks, so
+# `partial` was false, but only one quarter of its window had been collected --
+# so every score came back empty and the whole Stage Board vanished from the
+# page with nothing said. A reader saw a complete-looking report with its
+# movement section simply missing.
+
+
+def _complete_quarter_short_window(conn):
+    """2025-Q4 collected whole; the three quarters before it never collected."""
+    for week in quarter.weeks_in_quarter("2025-Q4"):
+        conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    conn.commit()
+    for day in ("06", "13", "20"):
+        observe(conn, "a", "2025-W41", "arxiv", f"d{day}", doc_date=f"2025-10-{day}")
+    return Watchlist(version=1, context=("x",), technologies=(tech("a", "A"),))
+
+
+def test_a_complete_period_with_too_little_history_says_so_on_the_page(tmp_path, conn):
+    """Checked on the rendered page, not the context: the report is the
+    artifact, and every wrong figure in this project was caught by reading one."""
+    watchlist = _complete_quarter_short_window(conn)
+    context = quarter.build_context(conn, "2025-Q4", watchlist)
+    # The preconditions the bug needed: a whole period, and no scores in it.
+    assert context["partial"] is False
+    assert context["stage_board"] is None
+
+    page = quarter.render_quarter(conn, "2025-Q4", watchlist, tmp_path).read_text()
+    assert "Stage Board" in page
+    # The count of collected quarters is the fact being withheld on; naming it
+    # is the difference between a silence and a statement.
+    assert "1 of the 4" in page
+    assert "counts above stand" in page
+
+
+def test_the_summary_names_the_short_window_too(conn):
+    """The banner and the summary are read by different people. The summary is
+    the part a reader who reads nothing else reads."""
+    watchlist = _complete_quarter_short_window(conn)
+    summary = quarter.build_context(conn, "2025-Q4", watchlist)["summary"]
+    assert any("Scores are withheld" in part for part in summary)
+    assert any("1 of the 4" in part for part in summary)
+
+
+def test_a_partly_run_period_still_reports_its_own_shortfall(conn):
+    """The two reasons must not shadow each other. A period that is itself
+    unfinished says that, because it is the more immediate fact."""
+    for week in quarter.weeks_in_quarter("2025-Q3")[:5]:
+        conn.execute("INSERT OR IGNORE INTO source_runs (source, week, status) "
+                     "VALUES ('arxiv', ?, 'ok')", (week,))
+    conn.commit()
+    observe(conn, "a", "2025-W30", "arxiv", "d1", doc_date="2025-07-21")
+    watchlist = Watchlist(version=1, context=("x",), technologies=(tech("a", "A"),))
+    summary = quarter.build_context(conn, "2025-Q3", watchlist)["summary"]
+    assert any("has run 5 of 13 weeks" in part for part in summary)
