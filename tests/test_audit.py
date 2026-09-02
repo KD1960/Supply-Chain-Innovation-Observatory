@@ -159,3 +159,47 @@ def _observe(conn, source, doc_id, tech_id, pattern, title, raw_ref):
 
 def _rows(conn):
     return [dict(row) for row in conn.execute("SELECT * FROM observations")]
+
+
+# --- the sheet must not hide the evidence it is asking about -----------------
+#
+# `shown()` truncated to a fixed width and said nothing. Measured 2026-09-02
+# against a sample drawn the same way as the published one: 62 of 108 items ran
+# past 600 characters, 24 had the matched pattern beyond the cut, and 13 had the
+# only context word that opened the gate beyond it. Median evidence is 886
+# characters, so the cap removed the middle of the distribution.
+#
+# The owner found this by coding the sheet: item 10 matched
+# `agentic_procurement`, and he looked for "procurement" and could not see it.
+# It was there, at character 1693, in "a worked enterprise procurement-agent
+# scenario". He was right and the instrument was wrong -- and the two model
+# coders had judged the same truncated text.
+
+
+def test_short_evidence_is_shown_whole():
+    ev = audit.Evidence(source="arxiv", doc_id="d", tech_id="a", matched_pattern="widget", title="T",
+                        text="a widget in a warehouse", url=None)
+    # The match is marked in place, so the literal sentence no longer appears.
+    assert "a [[widget]] in a warehouse" in ev.shown()
+    assert "not shown" not in ev.shown()
+
+
+def test_a_match_beyond_the_cap_is_still_visible():
+    """The whole point. A coder asked whether a pattern justifies a technology
+    must be able to see the pattern."""
+    filler = "x" * 5000
+    ev = audit.Evidence(source="arxiv", doc_id="d", tech_id="a", matched_pattern="procurement", title="T",
+                        text=f"{filler} a worked enterprise procurement-agent scenario",
+                        url=None)
+    out = ev.shown()
+    assert "[[procurement]]" in out, "the matched text was cut out of the sheet"
+
+
+def test_truncation_says_how_much_it_removed():
+    """Silent truncation is this project's oldest failure mode, and it was
+    inside the instrument built to measure quality."""
+    ev = audit.Evidence(source="arxiv", doc_id="d", tech_id="a", matched_pattern="widget", title="T",
+                        text="widget " + "y" * 9000, url=None)
+    out = ev.shown()
+    assert "not shown" in out
+    assert any(ch.isdigit() for ch in out.split("not shown")[0][-40:])

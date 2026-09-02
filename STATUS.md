@@ -35,7 +35,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **677 passing** |
+| Tests | **680 passing** |
 | Lexicon | version **9**, 50 active technologies |
 | Observations | **2,462** |
 | Sources | 11, across 9 evidence families |

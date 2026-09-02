@@ -58,21 +58,57 @@ class Evidence:
     text: str | None
     url: str | None
 
-    def shown(self, width: int = 700) -> str:
+    def shown(self, width: int = 4000) -> str:
         """The evidence as a coder should see it, with the match marked.
 
         Marked because a coder should not have to re-run a regex in their head,
         and because a pattern that fired on something unexpected is the single
         most useful thing an audit can surface.
+
+        This used to cut at a fixed 700 and say nothing. Measured against a
+        sample drawn like the published one: 62 of 108 items ran past the cut,
+        24 had the matched pattern beyond it and 13 had the only context word
+        that opened the gate beyond it, against a median evidence length of 886
+        characters. Coders were asked whether a match was justified while the
+        text that justified it sat outside the window -- the owner found it by
+        looking for "procurement" on an item matched as `agentic_procurement`
+        and not seeing it. It was at character 1693.
+
+        So: the cap is wide enough for ninety per cent of the corpus, the match
+        is kept in view when it falls beyond the cap, and what was removed is
+        counted out loud.
         """
         if self.text is None:
             return f"{self.title or ''}\n(full text not recovered from raw)"
-        body = f"{self.title or ''}\n{self.text}"[:width]
+        body = f"{self.title or ''}\n{self.text}"
+        if len(body) > width:
+            body = self._window(body, width)
         try:
             return re.sub(f"({self.matched_pattern})", r"[[\1]]", body,
                           flags=re.IGNORECASE)
         except re.error:
             return body
+
+    def _window(self, body: str, width: int) -> str:
+        """Keep the head, and the match with room around it if it falls outside.
+
+        A head-only cut is what hid the evidence. Taking a window around the
+        match instead means the one span a coder has to see is always in front
+        of them, whatever the length of what precedes it.
+        """
+        try:
+            found = re.search(self.matched_pattern, body, re.IGNORECASE)
+        except re.error:
+            found = None
+        if found is None or found.end() <= width:
+            return f"{body[:width]}\n[{len(body) - width} characters not shown]"
+        margin = 600
+        start = max(0, found.start() - margin)
+        end = min(len(body), found.end() + margin)
+        return (f"{body[:width - (end - start)]}\n"
+                f"[{start - (width - (end - start))} characters not shown]\n"
+                f"{body[start:end]}"
+                + (f"\n[{len(body) - end} characters not shown]" if end < len(body) else ""))
 
 
 def _github_text(page: str, doc_id: str) -> str | None:
