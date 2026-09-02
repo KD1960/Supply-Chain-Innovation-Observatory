@@ -1,8 +1,12 @@
 # Would CRA improve precision here?
 
-**Status:** tested 2026-09-03, before any spec or workflow change, at the owner's
-instruction. **Verdict: not as a global filter. Worth it as a stored flag, and
-possibly as a filter on two sources.**
+**Status:** tested 2026-09-03 before any spec or workflow change, at the
+owner's instruction. **Rejected the same day — CRA is not being added in any
+form, including the stored-flag option this document recommends below.** The
+recommendation is left as written because it is what the measurement supported;
+the decision not to take it is the owner's, on cost against a 0.70 AUC and a
+42% coverage ceiling. Reverse only if the ABI/INFORM export is fixed and the
+short-text sources gain real abstracts, which is what makes the ceiling.
 
 Crawdad classic (`~/Claude/Projects/Crawdad/app/js`), the deterministic
 implementation of Centering Resonance Analysis — not Crawdad NLP, which is

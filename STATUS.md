@@ -512,6 +512,16 @@ In value order. The process review's risk register (`docs/`) is more detailed.
   created and are therefore fresh by construction.
 - arXiv's old-ID limitation: leave the plan's code, log it.
 - Momentum dropped; annual report is the deliverable; collection stays weekly.
+- **CRA is not being added** (2026-09-03). Centering Resonance Analysis was
+  tested against the 120 coded audit items before any change, because it
+  measures whether a matched term is central or peripheral and every false
+  positive found was a passing mention. It works — AUC 0.70, and the canonical
+  SAVMap false positive scores its match at influence 0.000, rank 23 of 28 —
+  but not well enough: roughly six precision points for thirteen per cent of
+  the true positives, concentrated in NSF (0.87) and USAspending (0.75) and at
+  or below chance on arXiv and OpenAlex. It also cannot reach 42% of the corpus,
+  github included, for want of text. Full measurement in
+  `docs/cra-feasibility-2026-09-03.md`; harness in `docs/experiments/`.
 - Three proposed technologies were rejected as fields rather than technologies:
   software supply chain security, e-commerce, machine learning for operations.
   Together they would have more than doubled the corpus.
