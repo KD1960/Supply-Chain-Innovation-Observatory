@@ -84,10 +84,23 @@ class Evidence:
         if len(body) > width:
             body = self._window(body, width)
         try:
-            return re.sub(f"({self.matched_pattern})", r"[[\1]]", body,
-                          flags=re.IGNORECASE)
+            marked = re.sub(f"({self.matched_pattern})", r"[[\1]]", body,
+                            flags=re.IGNORECASE)
         except re.error:
             return body
+        if "[[" not in marked:
+            # Said out loud rather than left for the coder to wonder about. On
+            # EDGAR this is structural and not a bug: filing bodies are
+            # megabytes and are never fetched, so an observation is attributed
+            # by the query term that retrieved it and the stored text is the
+            # filer's name. A coder shown a company name and asked whether it
+            # supports a technology is being asked to guess.
+            marked += (
+                "\n\n[the matched text is not in the stored evidence — this "
+                "observation was attributed by the query that retrieved it. "
+                "Open the link to judge it, or code it `x`.]"
+            )
+        return marked
 
     def _window(self, body: str, width: int) -> str:
         """Keep the head, and the match with room around it if it falls outside.
@@ -153,7 +166,33 @@ def _json_text(page: str, doc_id: str, keys: tuple[str, ...],
     return None
 
 
+def _nsf_text(page: str, doc_id: str) -> str | None:
+    wanted = doc_id.split(":", 1)[1]
+    for award in (json.loads(page or "{}").get("response") or {}).get("award") or []:
+        if str(award.get("id")) == wanted:
+            return f"{award.get('title') or ''}\n{award.get('abstractText') or ''}".strip()
+    return None
+
+
+def _openalex_text(page: str, doc_id: str) -> str | None:
+    """Rebuilt from the inverted index, the same way the collector does it --
+    OpenAlex ships abstracts as a word-to-positions map, not as prose."""
+    from .collectors.openalex import OpenAlexCollector
+    wanted = doc_id.split(":", 1)[1]
+    for work in json.loads(page or "{}").get("results") or []:
+        if (work.get("id") or "").rsplit("/", 1)[-1] == wanted:
+            body = OpenAlexCollector().abstract(work.get("abstract_inverted_index"))
+            return f"{work.get('title') or ''}\n{body or ''}".strip()
+    return None
+
+
+# Every source that can be walked back to words. NSF and OpenAlex were added as
+# collectors in August 2026 and never added here, so 24 of 132 sample items
+# reached a coder as "(full text not recovered from raw)" -- unjudgeable, and
+# silently so.
 RECOVERY = {
+    "nsf": lambda page, doc_id: _nsf_text(page, doc_id),
+    "openalex": lambda page, doc_id: _openalex_text(page, doc_id),
     "github": lambda page, doc_id: _github_text(page, doc_id),
     "arxiv": lambda page, doc_id: _arxiv_text(page, doc_id),
     "hn": lambda page, doc_id: _json_text(page, doc_id, ("hits",), ("title", "story_text")),
@@ -231,3 +270,84 @@ def sheet(conn, per_stratum: int = 12, seed: int = 20260830) -> list[dict]:
          "shown": evidence(conn, row).shown()}
         for index, row in enumerate(sorted(drawn, key=lambda r: (r["source"], r["tech_id"])), 1)
     ]
+
+
+LENS_PATENT_URL = "https://www.lens.org/lens/patent/{}"
+
+WITHHELD = (
+    "(excerpt withheld — this record came from a licensed database, and the\n"
+    "abstract is the part the publisher licenses. Open the link above to read\n"
+    "it; the coding is against the full document, not against this file.)"
+)
+
+
+def coding_url(row: dict) -> str | None:
+    """A link a coder can actually open.
+
+    The blocker on the first pass was that a third of the sheet had no text and
+    no way to reach any: the owner coded 33 items `x` because the excerpt was
+    withheld and nothing on the page said where to find the document. Scopus
+    and ABI/INFORM already store a URL -- ABI's goes through the ASU proxy, so
+    it resolves straight to the record. Lens stores none, but its document ids
+    are Lens.org's own, so the link is reconstructible.
+    """
+    url = (row.get("url") or "").strip()
+    if url:
+        return url
+    doc_id = row.get("doc_id") or ""
+    if row.get("source") == "lens" and ":" in doc_id:
+        return LENS_PATENT_URL.format(doc_id.split(":", 1)[1])
+    return None
+
+
+def markdown(conn, rows: list[dict], seed: int, lexicon_version: int,
+             licensed: set[str] | None = None) -> str:
+    """The sheet a coder works from.
+
+    Every item carries its link, whether or not its text can be shown, so an
+    item nobody can read is still an item somebody can go and read.
+    """
+    licensed = licensed if licensed is not None else set()
+    shown = sum(1 for row in rows if row["source"] not in licensed)
+    out = [
+        f"# Precision audit sample — lexicon v{lexicon_version}",
+        "",
+        f"{len(rows)} observations, stratified by source, seed {seed}.",
+        "",
+        "The match is marked [[like this]]. For each, the question is only:",
+        "**does this document support counting it under that technology?**",
+        "",
+        f"**{len(rows) - shown} of {len(rows)} excerpts are withheld** — they came from",
+        "licensed databases, and the abstract is the part the publisher licenses.",
+        "Every one carries its link, so it can be opened and coded rather than",
+        "skipped. Code an item you cannot reach as `x`, not as a guess.",
+        "",
+        "Excerpts are no longer cut at a fixed width. The previous sheet was, and",
+        "said nothing about it: 24 of 108 items had the matched pattern outside",
+        "the window, so coders were asked to judge a match they could not see.",
+        "Where a long document is still trimmed, the window follows the match and",
+        "the number of characters removed is printed.",
+        "",
+    ]
+    for index, row in enumerate(rows, start=1):
+        url = coding_url(row)
+        out.append(f"## {index}. {row['tech_id']}  ({row['source']})")
+        out.append(f"pattern: `{row['matched_pattern']}`")
+        out.append(f"link: {url}" if url else "link: (none recorded)")
+        out.append("```")
+        if row["source"] in licensed:
+            out.append(WITHHELD)
+        else:
+            out.append(evidence(conn, row).shown())
+        out.append("```")
+        out.append("")
+    return "\n".join(out)
+
+
+def draw(conn, per_stratum: int = 12, seed: int = 20260830) -> list[dict]:
+    """The sampled observation rows themselves, ordered as the sheet numbers
+    them. `sheet` returns rendered rows; this returns what they were made from,
+    which is what `markdown` and any re-coding need."""
+    rows = [dict(row) for row in conn.execute("SELECT * FROM observations")]
+    drawn = stratify(rows, per_stratum=per_stratum, key="source", seed=seed)
+    return sorted(drawn, key=lambda r: (r["source"], r["tech_id"]))

@@ -416,6 +416,10 @@ def main(argv=None) -> int:
                         help="write the annual report for a calendar year, e.g. 2026")
     parser.add_argument("--import-manual", action="store_true",
                         help="ingest licensed exports from data/manual, then rescore")
+    parser.add_argument("--audit-sheet", nargs="?", const=20260902, type=int,
+                        metavar="SEED",
+                        help="draw a precision-audit sample and write the coding "
+                             "sheet, then exit")
     parser.add_argument("--write-status", action="store_true",
                         help="rewrite STATUS section 2 from the database, then exit")
     parser.add_argument("--export-queries", default=None, metavar="YYYY-Qn",
@@ -459,6 +463,18 @@ def main(argv=None) -> int:
     conn = store.connect()
     store.init_schema(conn)
     try:
+        if args.audit_sheet:
+            from . import audit
+            drawn = audit.draw(conn, seed=args.audit_sheet)
+            licensed = set(supplemental.load().sources)
+            text = audit.markdown(conn, drawn, args.audit_sheet,
+                                  watchlist.version, licensed)
+            out = config.ROOT / "docs" / "audit" / f"sample-{args.audit_sheet}.md"
+            out.write_text(text)
+            withheld = sum(1 for row in drawn if row["source"] in licensed)
+            print(f"{out}: {len(drawn)} items, {withheld} withheld but linked")
+            return 0
+
         # Before anything that fetches or renders: this reads counts and
         # rewrites four rows of one markdown file.
         if args.write_status:

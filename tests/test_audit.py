@@ -203,3 +203,15 @@ def test_truncation_says_how_much_it_removed():
     out = ev.shown()
     assert "not shown" in out
     assert any(ch.isdigit() for ch in out.split("not shown")[0][-40:])
+
+
+def test_an_unmatchable_item_says_so_rather_than_looking_like_evidence():
+    """EDGAR attributes by the query term and never fetches the filing, so the
+    stored text is the filer's name. Twelve such items reached a coder as a
+    company name and a form type, with nothing saying the match was elsewhere."""
+    ev = audit.Evidence(source="edgar", doc_id="edgar:1", tech_id="autonomous_trucking",
+                        matched_pattern="autonomous truck(s|ing)?",
+                        title="Aeva Technologies, Inc. (AEVA)", text="8-K", url=None)
+    out = ev.shown()
+    assert "not in the stored evidence" in out
+    assert "code it `x`" in out

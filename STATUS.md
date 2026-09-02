@@ -35,7 +35,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **680 passing** |
+| Tests | **681 passing** |
 | Lexicon | version **9**, 50 active technologies |
 | Observations | **2,462** |
 | Sources | 11, across 9 evidence families |
@@ -460,8 +460,22 @@ In value order. The process review's risk register (`docs/`) is more detailed.
    `agentic_procurement` and could not see it. It was at character 1693, in "a
    worked enterprise procurement-agent scenario".
 
-   Re-drawing and re-coding is the fix. `docs/audit/coder-c.csv` is the owner's
-   pass and should be re-run against the repaired sheet, not carried forward.
+   **The sheet is re-drawn** (2026-09-02): `docs/audit/sample-20260902.md`, 132
+   items at lexicon v9, twelve per source across eleven sources, seed 20260902.
+   Rebuild it with `python -m observatory.run --audit-sheet`.
+
+   Every item is now in a known state, which is the part that was missing: 83
+   show their match, 36 are withheld under licence **but carry a link** — ABI's
+   goes through the ASU proxy and Lens's is reconstructed from its document id
+   — and 13 are flagged as unjudgeable from stored evidence, twelve of them
+   EDGAR, which attributes by the query that retrieved a filing and never
+   fetches the body. None is silently unexplained and none lacks a link. The
+   previous sheet had 24 items reading "(full text not recovered from raw)"
+   because NSF and OpenAlex were added as collectors in August and never added
+   to `audit.RECOVERY`.
+
+   `docs/audit/coder-c.csv` is kept as the record of the pass that found the
+   truncation. It must not be carried forward: it codes a different sample.
 
 4. **A coder who did not write the patterns.** Both model coders were the same
    model, and the owner approved the watchlist, so none of the three is
