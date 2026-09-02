@@ -443,18 +443,30 @@ pinned model and published prompts. The weekly run must stay deterministic.
 
 In value order. The process review's risk register (`docs/`) is more detailed.
 
-1. **Decide whether a week of nothing but failures counts as collected.**
-   `collected_quarters` counts any week holding a `source_runs` row, whatever
-   its status. Changing it moves report scores, so it is an owner call — see §5.
-2. **Q4 supplemental exports**, first week of January. Three databases, roughly
+1. **Q4 supplemental exports**, first week of January. Three databases, roughly
    four hours: `--export-queries 2026-Q4 --split` prints the sheet. **Clear
    ProQuest's marked-items list between exports** — it accumulates, and the
    importer will refuse the files.
-3. **The first complete calendar year.** 2026 finishes at W53. It is the first
+2. **The first complete calendar year.** 2026 finishes at W53. It is the first
    annual report where neither year is truncated.
-4. **A human coder on the precision sheet.** `docs/audit/sample.md`. Both
-   existing coders were the same model, and the second moved the estimate down
-   eight points by catching a leniency bias in the first.
+3. **Re-code the precision sheet; treat 51% as unsettled.** The sheet
+   truncated its own evidence at 600 characters and said nothing about it
+   (fixed 2026-09-02, `audit.Evidence.shown`). Measured on a comparable sample:
+   62 of 108 items ran past the cut, **24 had the matched pattern beyond it**,
+   and 13 had the only context word that opened the gate beyond it — against a
+   median evidence length of 886. Every coder so far judged that truncated
+   text, so 51% measures the slot as much as the lexicon. Found by the owner
+   coding the sheet: he looked for "procurement" on an item matched as
+   `agentic_procurement` and could not see it. It was at character 1693, in "a
+   worked enterprise procurement-agent scenario".
+
+   Re-drawing and re-coding is the fix. `docs/audit/coder-c.csv` is the owner's
+   pass and should be re-run against the repaired sheet, not carried forward.
+
+4. **A coder who did not write the patterns.** Both model coders were the same
+   model, and the owner approved the watchlist, so none of the three is
+   independent in the way the estimate needs.
+
 5. **PatentsView**, if the key arrives — it would replace the manual Lens export
    with an automated collector on the same CPC principle.
 
