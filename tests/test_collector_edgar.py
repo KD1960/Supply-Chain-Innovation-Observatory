@@ -128,7 +128,6 @@ INTENDED_TECHNOLOGY = {
     "warehouse robotics": "warehouse_robotics",
     "digital freight matching": "digital_freight",
     "cold chain monitoring": "cold_chain_iot",
-    "nearshoring supply chain": "nearshoring_analytics",
     "warehouse management system": "wms",
     "last mile delivery": "last_mile_delivery",
     "critical minerals supply chain": "minerals_traceability",

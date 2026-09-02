@@ -27,7 +27,6 @@ QUERY_TERMS = (
     "warehouse robotics",
     "digital freight matching",
     "cold chain monitoring",
-    "nearshoring supply chain",
     "warehouse management system",
     # Added 2026-09-01. Every one was measured live over 2026-Q2 before it was
     # added, and the number beside it is the filings it retrieved in that
@@ -61,6 +60,11 @@ QUERY_TERMS = (
 # Reversing this needs the SIC container filter or the filing bodies, not a
 # better phrase: every phrase was tried. See docs/edgar-depth-2026-09-01.md.
 EXCLUDED_TERMS = {
+    "nearshoring supply chain": (
+        "orphaned 2026-W36 when nearshoring_analytics was retired at lexicon "
+        "v10; it retrieved 6 filings a quarter and now matches no active "
+        "technology, so every one of them would be discarded after the fetch"
+    ),
     "supply chain risk intelligence": (
         "zero observations in the life of the project. `risk intelligence` "
         "retrieves 7 filings a quarter and fails the gate; `supplier risk "

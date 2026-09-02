@@ -1,4 +1,4 @@
-lexicon_version: 9
+lexicon_version: 10
 
 # Supply chain and operations vocabulary. A technology marked `needs_context`
 # only counts when the document also uses one of these words somewhere — that is
@@ -116,10 +116,19 @@ technologies:
      status: active, added_week: 2026-W33, patterns_changed_week: 2026-W34}
 
   # --- Digital planning & AI -------------------------------------------------
+  # Bare "agentic ai" matched any paper about agents at all -- a cyber kill
+  # chain, an NSF cyber-defence education grant, and two Hacker News threads
+  # where the context gate opened on "shipping", as in "every startup shipping
+  # a dashboard". 1 of 5 correct in the 2026-09-02 audit. "agentic procurement"
+  # and "agentic sourcing" name the technology on their own and are kept; the
+  # bare form now needs a procurement word within forty characters, which is
+  # the same shape quantum_logistics already uses.
   - {id: agentic_procurement, name: Agentic AI for procurement, family: digital,
-     include: ["agentic (ai|procurement|sourcing)",
+     include: ["agentic (procurement|sourcing)",
+               "agentic ai[^.]{0,40}(procurement|sourcing|supply chain|logistics|inventory|warehous)",
+               "(procurement|sourcing|supply chain|logistics|inventory|warehous)[^.]{0,40}agentic ai",
                "\\bai agent(s)? (for|in) (procurement|sourcing|supply chain)"],
-     exclude: ["software supply chain"], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
+     exclude: ["software supply chain"], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W36}
   - {id: supply_chain_digital_twin, name: Supply chain digital twins, family: digital,
      include: ["digital twin(s)?"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
@@ -249,10 +258,16 @@ technologies:
      include: ["risk (intelligence|monitoring) platform(s)?", "risk intelligence",
                "\\bn[- ]tier (visibility|mapping)", "supplier risk platform(s)?"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W35}
+  # Retired 2026-W36. 0 of 4 correct in the 2026-09-02 audit: bare
+  # "nearshoring" and "reshoring" are topic words that appear in trade-policy
+  # stories, factory-automation features and robotics grant abstracts, none of
+  # which is an analytics tool. The name promised analytics and the patterns
+  # asked only for the subject. Retired rather than deleted so past weeks still
+  # replay and the reason stays where the next reader is.
   - {id: nearshoring_analytics, name: Nearshoring and network redesign, family: networks,
      include: ["nearshoring", "reshoring", "friend[- ]shoring",
                "network (re)?design optimi[sz]ation"],
-     exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+     exclude: [], needs_context: true, status: retired, added_week: 2026-W33, patterns_changed_week: 2026-W36}
   - {id: rail_intermodal_tech, name: Rail intermodal technology, family: networks,
      include: ["intermodal (terminal|technology|automation)",
                "automated (rail )?inspection portal(s)?"],
@@ -278,12 +293,29 @@ technologies:
      include: ["quantum (annealing|optimi[sz]ation)[^.]{0,30}(logistics|routing|supply chain)",
                "quantum[- ]inspired optimi[sz]ation"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W33}
+  # Kept, not retired, and the audit is why: 51 of its 121 observations come
+  # from Scopus, where the journal container already guarantees the domain, and
+  # those read correctly -- "Green logistics service sharing", "Decarbonisation
+  # and firm financial performance". What scored 1 of 6 were the bare phrases
+  # elsewhere: "greenhouse gas emissions" is a *reported metric* on a federal
+  # freight award and generic framing in energy papers. The bare terms now need
+  # a freight word within eighty characters; "green logistics" stands alone.
+  # Eighty and not forty: forty dropped "Decarbonisation and firm financial
+  # performance: The roles of supply chain transparency", where the two halves
+  # sit fifty-five characters apart. Tuned against the coded items, not guessed.
   - {id: green_logistics, name: Freight decarbonization, family: networks,
-     include: ["greenhouse gas emission(s)?", "decarboni[sz](e|ed|ing|ation)",
-               "carbon footprint", "green logistics"],
-     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W34}
+     include: ["green logistics",
+               "(freight|logistics|shipping|maritime|port|truck(ing)?|rail|vessel|supply chain)[^.]{0,80}(decarboni[sz](e|ed|ing|ation)|greenhouse gas emission(s)?|carbon footprint|emission(s)? reduction)",
+               "(decarboni[sz](e|ed|ing|ation)|greenhouse gas emission(s)?|carbon footprint)[^.]{0,80}(freight|logistics|shipping|maritime|port|truck(ing)?|rail|vessel|supply chain)"],
+     exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W36}
+  # Retired 2026-W36. 0 of 4 correct in the 2026-09-02 audit: "critical
+  # infrastructure" is background phrasing in secure-coding education grants,
+  # bridge-inspection research and drone roadmaps, and 15 of its 28
+  # observations came from arXiv on that phrase alone. It is also software
+  # supply chain security -- rejected in 6bf0700 as a field rather than a
+  # technology -- arriving through the pattern list instead of the front door.
   - {id: infrastructure_security, name: Critical infrastructure and OT security, family: networks,
      include: ["critical infrastructure", "operational technology security",
                "\\bICS\\b security", "\\bSCADA\\b"],
      exclude: ["catenary", "wharf", "pole foundation", "breakwater", "dredg"],
-     needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W35}
+     needs_context: true, status: retired, added_week: 2026-W34, patterns_changed_week: 2026-W36}

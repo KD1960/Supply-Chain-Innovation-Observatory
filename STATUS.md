@@ -36,10 +36,10 @@ changed into the other — see §4.
 | | |
 |---|---|
 | Tests | **681 passing** |
-| Lexicon | version **9**, 50 active technologies |
-| Observations | **2,462** |
+| Lexicon | version **10**, 48 active technologies |
+| Observations | **2,309** |
 | Sources | 11, across 9 evidence families |
-| By source | github 820, arxiv 569, scopus 434, openalex 253, edgar 129, hn 74, lens 64, nsf 49, usaspending 33, federalregister 21, abi_inform 16 |
+| By source | github 791, arxiv 514, scopus 419, openalex 237, edgar 120, lens 64, hn 62, nsf 40, usaspending 29, federalregister 20, abi_inform 13 |
 | Precision | **70%** at lexicon v9, one model coder, 120 of 132 judged (`docs/precision-audit-2026-09-02.md`) — not comparable with the earlier 51% |
 | Deliverable | `output/report-<period>.html`, with evidence pages and standalone SVG/PDF charts |
 | Weekly page | collection health only — did the collectors run, what arrived, rising terms |
@@ -449,7 +449,17 @@ In value order. The process review's risk register (`docs/`) is more detailed.
    importer will refuse the files.
 2. **The first complete calendar year.** 2026 finishes at W53. It is the first
    annual report where neither year is truncated.
-3. **A coder who did not write the patterns.** The 2026-09-02 pass put the
+3. **Re-audit at lexicon v10.** The four weak technologies were acted on
+   2026-09-02 and the 70% figure predates that, so it now describes a corpus
+   that no longer exists. `infrastructure_security` and `nearshoring_analytics`
+   are retired; `green_logistics` and `agentic_procurement` had their bare
+   topic words replaced with proximity patterns. Rebuilt: **2,462 → 2,309
+   observations, −6.2%**, and every other technology came back at exactly
+   2,198 — the change was surgical. Hacker News agentic items went 10 to 0,
+   which were the "every startup shipping a dashboard" matches; Scopus
+   green_logistics kept 44 of 51, arXiv lost two thirds.
+
+4. **A coder who did not write the patterns.** The 2026-09-02 pass put the
    sample at **70%** at lexicon v9, but that is one coder and it is this model
    again — the third from the same source. It is not comparable with the
    earlier 51%: the lexicon, the sample, the instrument and the coder all
@@ -466,7 +476,7 @@ In value order. The process review's risk register (`docs/`) is more detailed.
    twelve sampled items are `x`: 129 observations, the strongest diffusion leg,
    precision unknown and unmeasurable without fetching filings.
 
-4. **The instrument's own history**, kept because it explains the two
+5. **The instrument's own history**, kept because it explains the two
    precision figures. The old sheet truncated its evidence at 600 characters
    and said nothing: 62 of 108 items ran past the cut and **24 had the matched
    pattern beyond it**, against a median evidence length of 886. Every coder
@@ -478,7 +488,7 @@ In value order. The process review's risk register (`docs/`) is more detailed.
    not recovered from raw)". `docs/audit/coder-c.csv` is that pass and must not
    be carried forward: it codes a different sample through a broken window.
 
-5. **PatentsView**, if the key arrives — it would replace the manual Lens export
+6. **PatentsView**, if the key arrives — it would replace the manual Lens export
    with an automated collector on the same CPC principle.
 
 ## 8. Owner decisions already made — do not relitigate
