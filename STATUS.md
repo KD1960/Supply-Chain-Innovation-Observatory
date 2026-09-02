@@ -40,7 +40,7 @@ changed into the other — see §4.
 | Observations | **2,462** |
 | Sources | 11, across 9 evidence families |
 | By source | github 820, arxiv 569, scopus 434, openalex 253, edgar 129, hn 74, lens 64, nsf 49, usaspending 33, federalregister 21, abi_inform 16 |
-| Precision | **51%**, two coders (kappa 0.79) plus a full owner review |
+| Precision | **70%** at lexicon v9, one model coder, 120 of 132 judged (`docs/precision-audit-2026-09-02.md`) — not comparable with the earlier 51% |
 | Deliverable | `output/report-<period>.html`, with evidence pages and standalone SVG/PDF charts |
 | Weekly page | collection health only — did the collectors run, what arrived, rising terms |
 | Repository | https://github.com/KD1960/Supply-Chain-Innovation-Observatory (public) |
@@ -449,37 +449,34 @@ In value order. The process review's risk register (`docs/`) is more detailed.
    importer will refuse the files.
 2. **The first complete calendar year.** 2026 finishes at W53. It is the first
    annual report where neither year is truncated.
-3. **Re-code the precision sheet; treat 51% as unsettled.** The sheet
-   truncated its own evidence at 600 characters and said nothing about it
-   (fixed 2026-09-02, `audit.Evidence.shown`). Measured on a comparable sample:
-   62 of 108 items ran past the cut, **24 had the matched pattern beyond it**,
-   and 13 had the only context word that opened the gate beyond it — against a
-   median evidence length of 886. Every coder so far judged that truncated
-   text, so 51% measures the slot as much as the lexicon. Found by the owner
-   coding the sheet: he looked for "procurement" on an item matched as
-   `agentic_procurement` and could not see it. It was at character 1693, in "a
-   worked enterprise procurement-agent scenario".
+3. **A coder who did not write the patterns.** The 2026-09-02 pass put the
+   sample at **70%** at lexicon v9, but that is one coder and it is this model
+   again — the third from the same source. It is not comparable with the
+   earlier 51%: the lexicon, the sample, the instrument and the coder all
+   changed at once.
 
-   **The sheet is re-drawn** (2026-09-02): `docs/audit/sample-20260902.md`, 132
-   items at lexicon v9, twelve per source across eleven sources, seed 20260902.
-   Rebuild it with `python -m observatory.run --audit-sheet`.
+   **Four technologies are close to pure noise** and are 16% of the judged
+   sample: `nearshoring_analytics` 0 of 4, `infrastructure_security` 0 of 4,
+   `green_logistics` 1 of 6, `agentic_procurement` 1 of 5. Each matches a topic
+   word rather than the technology its name promises. Fixing or retiring those
+   four is the highest-value lexicon work available, and it is an owner call
+   because three of them are near-misses of fields already rejected.
 
-   Every item is now in a known state, which is the part that was missing: 83
-   show their match, 36 are withheld under licence **but carry a link** — ABI's
-   goes through the ASU proxy and Lens's is reconstructed from its document id
-   — and 13 are flagged as unjudgeable from stored evidence, twelve of them
-   EDGAR, which attributes by the query that retrieved a filing and never
-   fetches the body. None is silently unexplained and none lacks a link. The
-   previous sheet had 24 items reading "(full text not recovered from raw)"
-   because NSF and OpenAlex were added as collectors in August and never added
-   to `audit.RECOVERY`.
+   **EDGAR cannot be audited at all.** Filing bodies are never fetched, so all
+   twelve sampled items are `x`: 129 observations, the strongest diffusion leg,
+   precision unknown and unmeasurable without fetching filings.
 
-   `docs/audit/coder-c.csv` is kept as the record of the pass that found the
-   truncation. It must not be carried forward: it codes a different sample.
-
-4. **A coder who did not write the patterns.** Both model coders were the same
-   model, and the owner approved the watchlist, so none of the three is
-   independent in the way the estimate needs.
+4. **The instrument's own history**, kept because it explains the two
+   precision figures. The old sheet truncated its evidence at 600 characters
+   and said nothing: 62 of 108 items ran past the cut and **24 had the matched
+   pattern beyond it**, against a median evidence length of 886. Every coder
+   before 2026-09-02 judged that truncated text, which is why the 51% is not
+   comparable with the 70%. The owner found it by looking for "procurement" on
+   an item matched as `agentic_procurement` and not seeing it — it was at
+   character 1693. Fixed in `audit.Evidence.shown`; NSF and OpenAlex were also
+   missing from `audit.RECOVERY`, so 24 items had reached coders as "(full text
+   not recovered from raw)". `docs/audit/coder-c.csv` is that pass and must not
+   be carried forward: it codes a different sample through a broken window.
 
 5. **PatentsView**, if the key arrives — it would replace the manual Lens export
    with an automated collector on the same CPC principle.

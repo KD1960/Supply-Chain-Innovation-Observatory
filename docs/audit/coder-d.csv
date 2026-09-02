@@ -1,0 +1,133 @@
+n,code,note
+1,N,ERP only in the ProQuest subject-term list; the article is about an SCM curriculum
+2,Y,
+3,Y,
+4,N,"nearshoring as trade policy, not nearshoring analytics"
+5,N,reshoring in the subject list; article is about factory automation
+6,N,3PL industry survey; nearshoring is one subject term
+7,Y,
+8,Y,
+9,N,same curriculum article as 1; digital twins is a subject term
+10,Y,
+11,Y,
+12,Y,
+13,Y,
+14,Y,
+15,Y,
+16,N,"water electrolysis cost curves; decarbonisation is generic, not logistics"
+17,N,drone research roadmap; critical infrastructure is one bullet in a list
+18,Y,
+19,N,visual mapping method; digital twin generation is a motivation sentence
+20,N,agent-reasoning method that explicitly disclaims a routing contribution
+21,Y,
+22,Y,
+23,Y,
+24,Y,
+25,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+26,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+27,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+28,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+29,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+30,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+31,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+32,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+33,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+34,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+35,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+36,x,"EDGAR: filing body never fetched, so the match is not in stored evidence"
+37,N,"environmental technologies notice; critical infrastructure buildout, not security"
+38,Y,
+39,Y,
+40,Y,
+41,Y,
+42,Y,
+43,Y,
+44,Y,
+45,Y,
+46,Y,
+47,Y,
+48,Y,
+49,N,cyber kill chain for agentic AI; no procurement
+50,Y,
+51,N,agri marketplace; blockchain appears as a team skill
+52,Y,
+53,Y,
+54,Y,
+55,Y,
+56,Y,
+57,Y,
+58,Y,
+59,Y,
+60,Y,
+61,N,general agentic AI discussion; gate passed on 'shipping a dashboard'
+62,N,"agentic AI security post; gate passed on 'shipping', not freight"
+63,Y,
+64,Y,
+65,N,ammonia as an energy carrier; not freight decarbonisation
+66,N,bipedal leg hardware; no logistics application
+67,N,IoT connectivity platform that streams to an MES; not an MES
+68,Y,
+69,Y,
+70,Y,
+71,N,"attacks on the LLM software supply chain, the reverse of a supply chain LLM"
+72,Y,
+73,N,generic resource tracking; not cargo or damage inspection
+74,Y,
+75,N,"retail shelf out-of-stock detection, not cargo or damage inspection"
+76,N,a heated seat. CPC G06V20 false positive
+77,Y,
+78,N,event ticketing access rights over NFC; CPC G06K7 false positive
+79,Y,
+80,Y,
+81,Y,
+82,Y,
+83,Y,
+84,N,reconfigurable storage racks; no robotic handling
+85,N,cyber defence education; agentic AI without procurement
+86,Y,
+87,Y,
+88,Y,
+89,Y,
+90,N,secure-coding education; critical infrastructure is background
+91,N,civil infrastructure inspection risk; not security
+92,Y,
+93,N,robotics grant citing reshoring as a benefit; not nearshoring analytics
+94,Y,
+95,N,urban micromobility study; delivery robots are one example in a list
+96,N,a *network* digital twin in an O-RAN testbed
+97,Y,
+98,Y,
+99,N,"blockchain for supply chain finance, not traceability or provenance"
+100,Y,
+101,N,supply chain finance study; forecasting accuracy is a reported outcome
+102,N,"emissions-aware sourcing, not freight decarbonisation"
+103,Y,
+104,Y,
+105,Y,
+106,Y,
+107,Y,
+108,Y,
+109,Y,
+110,Y,
+111,Y,
+112,Y,
+113,Y,
+114,Y,
+115,Y,
+116,Y,
+117,Y,
+118,Y,
+119,Y,
+120,Y,
+121,N,"container facility construction; GHG is a reported metric, not the technology"
+122,N,"freight project metrics; GHG is a measure, not the technology"
+123,Y,
+124,Y,
+125,N,"transit station first/last-mile pedestrian access, not delivery"
+126,Y,
+127,Y,
+128,Y,
+129,Y,
+130,N,vessel fleet energy-transition study attributed by CFDA programme; not port electrification
+131,Y,
+132,Y,
