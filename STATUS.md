@@ -37,9 +37,9 @@ changed into the other — see §4.
 |---|---|
 | Tests | **681 passing** |
 | Lexicon | version **10**, 48 active technologies |
-| Observations | **2,309** |
+| Observations | **2,324** |
 | Sources | 11, across 9 evidence families |
-| By source | github 791, arxiv 514, scopus 419, openalex 237, edgar 120, lens 64, hn 62, nsf 40, usaspending 29, federalregister 20, abi_inform 13 |
+| By source | github 799, arxiv 517, scopus 421, openalex 239, edgar 120, lens 64, hn 62, nsf 40, usaspending 29, federalregister 20, abi_inform 13 |
 | Precision | **70%** at lexicon v9, one model coder, 120 of 132 judged (`docs/precision-audit-2026-09-02.md`) — not comparable with the earlier 51% |
 | Deliverable | `output/report-<period>.html`, with evidence pages and standalone SVG/PDF charts |
 | Weekly page | collection health only — did the collectors run, what arrived, rising terms |

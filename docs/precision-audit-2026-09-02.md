@@ -95,3 +95,67 @@ broader than the technology it is standing in for.
   pattern in each is clear, but the rate is not.
 - No inter-coder agreement, because there is one coder. The 0.79 kappa of the
   previous audit is not inherited by this one.
+
+---
+
+# Re-audit at lexicon v10 — 2026-09-03
+
+**Targeted, not stratified by source.** Ten items each from four groups: what
+`green_logistics` and `agentic_procurement` **kept** under the tightened
+patterns, and what they **dropped**. Codes in `docs/audit/reaudit-20260903.csv`.
+
+Sampling the dropped side is the point. A tightening always raises precision on
+what remains; the only question that matters is what it cost.
+
+## What survived
+
+| technology | before | after |
+|---|---|---|
+| green_logistics | 1 of 6 | **8 of 10** |
+| agentic_procurement | 1 of 5 | **10 of 10** |
+
+The two green misses are an electric-taxi study (passenger mobility, not
+freight) and the ammonia energy-carrier item that was borderline in the first
+audit and stayed borderline.
+
+## What it cost — and this is where it found a mistake
+
+**Four of twenty dropped items were dropped wrongly**, and none of the four was
+a judgement call. All were defects in the patterns I had just written.
+
+1. **`agentic_procurement` was still at forty characters, not eighty.** The
+   widening applied to the green patterns only; the comment beside the agentic
+   entry even said "forty". It was cutting "Agentic AI for Cold-Chain
+   Sustainability: LSTM-Based Predictive Logistics", where the two halves sit
+   fifty-four characters apart.
+2. **`transport` and `logistical` were missing from the freight vocabulary**,
+   so "emissions reporting across transport chains undermine system-level
+   decarbonization" fell out for want of the word.
+
+Measured against the whole dropped population rather than the sample: the fix
+returns **16 observations**, agentic +12 of 56 dropped and green +4 of 53.
+Spot-checked, they are agentic digital twins for supply chain, UAV logistics
+scheduling, and truck-electrification charging infrastructure.
+
+Rebuilt: **2,462 → 2,324, −5.6%.** `agentic_procurement` 35 → 47,
+`green_logistics` 76 → 79, and every other technology at 2,198 exactly for the
+second rebuild running.
+
+## Two things learned about the mechanism
+
+**The context gate blocks more than the patterns do.** A tugboat-decarbonisation
+paper needs a word like *shipping* or *cargo* in its abstract; `port` is not in
+the context list. Several apparent pattern failures were gate failures, and the
+two are easy to confuse from the outside.
+
+**A test can pass at the wrong width.** The claim that the agentic patterns
+scored "five of five" was true — of the regexes, tested directly, without the
+gate, at a width that had not actually shipped. Testing a pattern is not
+testing the matcher.
+
+## Limits
+
+Ten per group. The direction of each finding is clear; none of the rates is.
+The two remaining green misses suggest the freight boundary is still fuzzy at
+the passenger-transport edge, which is a definitional question rather than a
+pattern one. And this is the same model coding again.

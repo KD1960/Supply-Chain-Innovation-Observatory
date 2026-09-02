@@ -1,0 +1,41 @@
+n,group,verdict,note
+1,green_logistics/KEPT,correct,
+2,green_logistics/KEPT,correct,
+3,green_logistics/KEPT,correct,
+4,green_logistics/KEPT,correct,
+5,green_logistics/KEPT,correct,
+6,green_logistics/KEPT,correct,
+7,green_logistics/KEPT,incorrect,"electric taxi service; passenger mobility, not freight"
+8,green_logistics/KEPT,incorrect,"ammonia as an energy carrier; title only, no freight application stated"
+9,green_logistics/KEPT,correct,
+10,green_logistics/KEPT,correct,
+11,green_logistics/DROPPED,rightly_dropped,
+12,green_logistics/DROPPED,rightly_dropped,
+13,green_logistics/DROPPED,rightly_dropped,
+14,green_logistics/DROPPED,wrongly_dropped,"transport infrastructure and logistical networks; 130 chars apart, still missed"
+15,green_logistics/DROPPED,rightly_dropped,
+16,green_logistics/DROPPED,rightly_dropped,
+17,green_logistics/DROPPED,wrongly_dropped,'transport chains' was missing from the freight vocabulary
+18,green_logistics/DROPPED,rightly_dropped,
+19,green_logistics/DROPPED,rightly_dropped,
+20,green_logistics/DROPPED,rightly_dropped,
+21,agentic_procurement/KEPT,correct,
+22,agentic_procurement/KEPT,correct,
+23,agentic_procurement/KEPT,correct,
+24,agentic_procurement/KEPT,correct,
+25,agentic_procurement/KEPT,correct,
+26,agentic_procurement/KEPT,correct,
+27,agentic_procurement/KEPT,correct,
+28,agentic_procurement/KEPT,correct,
+29,agentic_procurement/KEPT,correct,
+30,agentic_procurement/KEPT,correct,
+31,agentic_procurement/DROPPED,rightly_dropped,
+32,agentic_procurement/DROPPED,rightly_dropped,
+33,agentic_procurement/DROPPED,rightly_dropped,"borderline; blocked by the sentence-boundary rule, which is deliberate"
+34,agentic_procurement/DROPPED,rightly_dropped,
+35,agentic_procurement/DROPPED,rightly_dropped,
+36,agentic_procurement/DROPPED,rightly_dropped,
+37,agentic_procurement/DROPPED,rightly_dropped,
+38,agentic_procurement/DROPPED,rightly_dropped,
+39,agentic_procurement/DROPPED,wrongly_dropped,cold-chain logistics 54 chars from 'agentic ai'; the window was still 40
+40,agentic_procurement/DROPPED,rightly_dropped,

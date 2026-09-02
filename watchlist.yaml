@@ -121,12 +121,15 @@ technologies:
   # where the context gate opened on "shipping", as in "every startup shipping
   # a dashboard". 1 of 5 correct in the 2026-09-02 audit. "agentic procurement"
   # and "agentic sourcing" name the technology on their own and are kept; the
-  # bare form now needs a procurement word within forty characters, which is
-  # the same shape quantum_logistics already uses.
+  # bare form now needs a procurement word within eighty characters, which is
+  # the same shape quantum_logistics already uses. Eighty and not forty: the
+  # re-audit of 2026-09-03 found forty dropped "Agentic AI for Cold-Chain
+  # Sustainability: LSTM-Based Predictive Logistics", where the two sit
+  # fifty-four characters apart.
   - {id: agentic_procurement, name: Agentic AI for procurement, family: digital,
      include: ["agentic (procurement|sourcing)",
-               "agentic ai[^.]{0,40}(procurement|sourcing|supply chain|logistics|inventory|warehous)",
-               "(procurement|sourcing|supply chain|logistics|inventory|warehous)[^.]{0,40}agentic ai",
+               "agentic ai[^.]{0,80}(procurement|sourcing|supply chain|logistics|inventory|warehous)",
+               "(procurement|sourcing|supply chain|logistics|inventory|warehous)[^.]{0,80}agentic ai",
                "\\bai agent(s)? (for|in) (procurement|sourcing|supply chain)"],
      exclude: ["software supply chain"], needs_context: true, status: active, added_week: 2026-W33, patterns_changed_week: 2026-W36}
   - {id: supply_chain_digital_twin, name: Supply chain digital twins, family: digital,
@@ -303,10 +306,13 @@ technologies:
   # Eighty and not forty: forty dropped "Decarbonisation and firm financial
   # performance: The roles of supply chain transparency", where the two halves
   # sit fifty-five characters apart. Tuned against the coded items, not guessed.
+  # The re-audit added "transport" and "logistical" to the freight vocabulary:
+  # "emissions reporting across transport chains undermine system-level
+  # decarbonization" was being dropped for want of the word.
   - {id: green_logistics, name: Freight decarbonization, family: networks,
      include: ["green logistics",
-               "(freight|logistics|shipping|maritime|port|truck(ing)?|rail|vessel|supply chain)[^.]{0,80}(decarboni[sz](e|ed|ing|ation)|greenhouse gas emission(s)?|carbon footprint|emission(s)? reduction)",
-               "(decarboni[sz](e|ed|ing|ation)|greenhouse gas emission(s)?|carbon footprint)[^.]{0,80}(freight|logistics|shipping|maritime|port|truck(ing)?|rail|vessel|supply chain)"],
+               "(freight|logistic(s|al)|shipping|maritime|port|truck(ing)?|rail|vessel|transport(ation)?|supply chain)[^.]{0,80}(decarboni[sz](e|ed|ing|ation)|greenhouse gas emission(s)?|carbon footprint|emission(s)? reduction)",
+               "(decarboni[sz](e|ed|ing|ation)|greenhouse gas emission(s)?|carbon footprint)[^.]{0,80}(freight|logistic(s|al)|shipping|maritime|port|truck(ing)?|rail|vessel|transport(ation)?|supply chain)"],
      exclude: [], needs_context: true, status: active, added_week: 2026-W34, patterns_changed_week: 2026-W36}
   # Retired 2026-W36. 0 of 4 correct in the 2026-09-02 audit: "critical
   # infrastructure" is background phrasing in secure-coding education grants,
