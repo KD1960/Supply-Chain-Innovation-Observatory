@@ -37,6 +37,11 @@ class Finding:
     id: str
     text: str
     anchor: str = ""
+    # What a post card puts in large type, and the sample the sentence rests
+    # on. Every finding states its own n; the marketing plan's first risk is
+    # over-claiming from a small one.
+    stat: str = ""
+    n: int = 0
 
 
 def _anchor(row) -> str:
@@ -89,7 +94,9 @@ def stage_frontier(rows, context=None) -> Finding | None:
             f"appeared there on fewer than {MIN_EVIDENCE} documents, too few "
             f"to name."
         )
-    return Finding("stage_frontier", sentence, _anchor(first))
+    return Finding("stage_frontier", sentence, _anchor(first),
+                   stat=f"{filings} of {first['total']} documents are company filings",
+                   n=first["total"])
 
 
 def federal_money(rows, context=None) -> Finding | None:
@@ -114,6 +121,8 @@ def federal_money(rows, context=None) -> Finding | None:
         f"{first['name']} is where federal money went: {awards} of its "
         f"{first['total']} documents this period are federal awards.{rest}",
         _anchor(first),
+        stat=f"{awards} of {first['total']} documents are federal awards",
+        n=first["total"],
     )
 
 
@@ -136,6 +145,8 @@ def patent_led(rows, context=None) -> Finding | None:
         f"{first['total']} documents, {first['concentration']}% of them "
         f"patents{others}.",
         _anchor(first),
+        stat=f"{first['concentration']}% of {first['total']} documents are patents",
+        n=first["total"],
     )
 
 
@@ -156,6 +167,8 @@ def most_evidenced(rows, context=None) -> Finding | None:
         f"{first['top_family']} \u2014 volume in one family, not movement across "
         f"stages.",
         _anchor(first),
+        stat=f"{first['total']} documents, {first['concentration']}% {first['top_family']}",
+        n=first["total"],
     )
 
 
@@ -178,6 +191,9 @@ def crossing(rows, context=None) -> Finding | None:
         f"laboratory looks like in this data ({over[0]['total']} documents "
         f"for {over[0]['name'].lower()}).",
         _anchor(over[0]),
+        stat=(f"{len(over)} technolog{'y' if len(over) == 1 else 'ies'} past "
+              f"the laboratory"),
+        n=over[0]["total"],
     )
 
 
@@ -195,6 +211,8 @@ def built_versus_said(rows, context=None) -> Finding | None:
         f"talk ({leaders[0]['total']} documents for "
         f"{leaders[0]['name'].lower()}).",
         _anchor(leaders[0]),
+        stat=f"{leaders[0]['name']} leads on substance against attention",
+        n=leaders[0]["total"],
     )
 
 
@@ -213,6 +231,8 @@ def movers(rows, context=None) -> Finding | None:
         f"up {first['shift']:.1f} points of its family's share on "
         f"{first['total']} documents.",
         _anchor(first),
+        stat=f"up {first['shift']:.1f} points of family share",
+        n=first["total"],
     )
 
 

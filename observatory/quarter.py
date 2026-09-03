@@ -23,7 +23,8 @@ from pathlib import Path
 
 from markupsafe import Markup
 
-from . import charts, config, export, findings, render, store, supplemental
+from . import (brief, cards, charts, config, export, findings, render, store,
+               supplemental)
 
 QUARTER_WEEKS = 13
 # The six public collectors. Anything else in `observations` arrived through a
@@ -796,4 +797,21 @@ def render_quarter(conn, name: str, watchlist, out_dir: Path | None = None) -> P
         "substance-attention": context["printable_charts"].get("substance and attention"),
         "stage-board": context["printable_charts"].get("stage board"),
     })
+    # The deliverables the marketing plan lists per report: a card per finding
+    # in the two sizes a post accepts, and the two-page brief. Generated here
+    # or not made at all -- the plan budgets two days a quarter of the owner's
+    # time, and cutting images by hand is where that goes.
+    if context["findings"]:
+        try:
+            cards.write_cards(directory / "cards", name, context["findings"])
+        except cards.FontsMissing as error:
+            # A report is worth more than its attachments, and a card that
+            # silently came out in a fallback face is worse than none.
+            print(f"  cards: none written ({error})")
+    try:
+        brief.write(context, name, directory)
+    except brief.BriefOverflow as error:
+        # Same rule as the charts and the cards: the report ships, the
+        # attachment says why it did not.
+        print(f"  brief: not written ({error})")
     return path

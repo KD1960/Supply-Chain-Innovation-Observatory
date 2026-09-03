@@ -193,3 +193,18 @@ def test_an_override_naming_no_rule_is_an_error(tmp_path):
 def test_no_file_means_the_drafted_sentences_ship(tmp_path):
     found = findings.compose(q2_rows(), overrides=findings.load_overrides("2026-Q2", tmp_path))
     assert "stage_frontier" in ids(found)
+
+
+def test_every_finding_carries_a_stat_and_a_sample_size():
+    """A card puts the stat in large type and the n in the source line. A
+    finding with neither cannot be posted without someone inventing them."""
+    rows = [row("Autonomous trucking", 12, {"filings": 8, "research": 4},
+                stage="diffusion", filers=6, sai=0.5, lfi=0.3, shift=1.2),
+            row("Port electrification", 6, {"money": 4, "research": 2}, sai=0.4),
+            row("Warehouse robotics", 32, {"patents": 23, "research": 9}, sai=0.3),
+            row("Vehicle routing", 121, {"research": 116, "code": 5}, sai=0.2)]
+    for rule in findings.RULES:
+        found = rule(rows)
+        assert found is not None, rule.__name__
+        assert found.stat, rule.__name__
+        assert found.n > 0, rule.__name__

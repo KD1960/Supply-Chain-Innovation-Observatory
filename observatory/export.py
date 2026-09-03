@@ -3,11 +3,16 @@
 The charts live inline in the HTML, which is right for reading and useless for
 putting one in a slide deck or a paper.
 
-PDF rather than PNG, deliberately. Every rasteriser available -- cairosvg,
-rsvg-convert, inkscape -- needs native libraries, and this project has so far
-needed none; svglib and reportlab are pure Python. The SVG is written beside
-the PDF as well, because it is the source the PDF came from and anything can
-open it.
+PDF rather than PNG here, deliberately. Every rasteriser that converts an SVG
+-- cairosvg, rsvg-convert, inkscape, and reportlab's own renderPM -- needs
+native libraries; svglib and reportlab are pure Python. The SVG is written
+beside the PDF as well, because it is the source the PDF came from and anything
+can open it.
+
+PNGs do now exist, in `cards.py`, and they are drawn with Pillow rather than
+converted from these files. That is the distinction: Pillow is a wheel like any
+other, and the refusal above was always about native libraries rather than
+about raster formats.
 """
 
 from __future__ import annotations

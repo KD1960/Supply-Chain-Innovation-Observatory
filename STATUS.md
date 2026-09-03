@@ -37,7 +37,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **712 passing** |
+| Tests | **726 passing** |
 | Lexicon | version **10**, 48 active technologies |
 | Observations | **2,324** |
 | Sources | 11, across 9 evidence families |
@@ -113,6 +113,27 @@ year; it queries freight assistance-listing programmes now). Five sources added:
 Scopus, Lens, ABI/INFORM by hand, OpenAlex and NSF automated. Lexicon v6 → v9.
 Reporting moved to calendar quarters. Metrics moved from a 52-week to a
 four-quarter window. The weekly page became a collection-health view.
+
+**2026-09-03 (latest)** — the two deliverables that hang off the findings:
+
+**Post cards.** `observatory/cards.py` draws one PNG per finding at 1200×627
+(LinkedIn) and 1080×1350 (carousel): the stat in large type, the sentence, the
+source line with its n, and the lockup. Drawn with **Pillow**, which is now a
+declared dependency. That reverses `export.py`'s refusal of PNG on the recorded
+condition: the refusal was about native libraries, and Pillow needs none.
+Converting the SVG still cannot be done here — reportlab's own `renderPM` wants
+cairo. A missing font raises `FontsMissing` rather than falling back to Pillow's
+bitmap default, because CI runs on Ubuntu, which has no Arial.
+
+**Quarterly brief.** `observatory/brief.py`, two pages of reportlab from the
+same `build_context`: findings on page one, the table, what is withheld, the
+limitations and the provenance line on page two. reportlab draws past the bottom
+edge without complaint, so the brief raises `BriefOverflow` instead of shipping
+a sentence that is in the file and not on the paper.
+
+Both are written by `--quarter`, into `output/cards/` and
+`output/brief-<period>.pdf`. Both fail soft: the report still ships and says
+what did not.
 
 **2026-09-03 (later)** — the report gained a **findings layer**, §4 of
 `docs/marketing-plan-2026-09-03.md` and the largest gap that plan names. Seven
@@ -292,9 +313,9 @@ risk register.
 3. **Q4 supplemental exports**, first week of January. `--export-queries 2026-Q4
    --split`. Clear ProQuest's marked-items list between exports, and choose the
    option that includes the abstract.
-4. **The rest of the marketing plan's §4**: PNG post sizes (1200×627 and
-   1080×1350), the two-page quarterly brief, and the tracked-technologies
-   sheet. The findings layer they hang off is built; these are the next pass.
+4. **The tracked-technologies sheet** — the last of the marketing plan's §4.
+   Appendix A as a standalone one-page PDF for students and instructors. The
+   findings layer, the post cards and the brief are built.
 5. **The first complete calendar year.** 2026 finishes at W53 — the first annual
    report where neither year is truncated.
 6. **PatentsView**, if the key arrives. Check the endpoint first.

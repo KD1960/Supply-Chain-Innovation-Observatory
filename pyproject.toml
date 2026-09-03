@@ -3,6 +3,10 @@ name = "supply-chain-observatory"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
+    # Post cards are drawn rather than rasterised from the report's SVG.
+    # reportlab's own renderPM wants cairo, which is the native dependency
+    # this project has always refused; Pillow is a wheel and needs nothing.
+    "pillow>=10.0",
     "svglib>=1.5",
     "reportlab>=4.0",
     "requests>=2.31",
