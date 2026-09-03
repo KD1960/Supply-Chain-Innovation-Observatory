@@ -333,10 +333,16 @@ pinned model and published prompts. The weekly run must stay deterministic.
 In value order. `docs/process-review-2026-09-03.md` has the reasoning and the
 risk register.
 
-1. **The Scopus API collector.** Elsevier gives academic researchers a free key
-   (dev.elsevier.com); the library is not involved. It retires the largest
-   hand-export path — 421 observations from 349 records — and moves Scopus onto
-   the route Elsevier sanctions. Kevin requests the key.
+1. **The Scopus API collector — waiting on the key.** Elsevier gives academic
+   researchers a free key (dev.elsevier.com); the library is not involved.
+   Worth building: measured 2026-09-03, Scopus carries **159 matched documents
+   OpenAlex does not**, 46% of its own matched set
+   (`docs/scopus-vs-openalex-2026-09-03.md`), so it is not the duplicate the
+   OpenAlex docstring implies. Not written against a guessed response shape —
+   when the key lands, capture one real response as the fixture and **measure
+   abstract coverage before adopting**, which is the check OpenAlex never got.
+   Abstracts stay local: observations store title, url and matched pattern, and
+   the evidence pages publish a title and a link.
 2. **A coder who did not write the patterns.** Four passes, one model. The only
    thing that settles what precision is. Sheet: `docs/audit/sample-20260902.md`.
 3. **Q4 supplemental exports**, first week of January. `--export-queries 2026-Q4
