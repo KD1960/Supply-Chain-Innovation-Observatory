@@ -196,6 +196,16 @@ sources:
     signal: trade_articles
     stage: diffusion
     format: ris
+    # ProQuest's RIS export defaults to citation-only: bibliographic fields and
+    # the indexer's subject terms, with no AB tag at all. Every export from
+    # 2026-08-29 to 2026-09-01 came back that way, so trade press reached the
+    # matcher as about twenty-six median words of subject headings rather than
+    # an abstract. `--import-manual` now refuses to be quiet about it.
+    export_note: >-
+      Choose the RIS option that INCLUDES THE ABSTRACT -- in ProQuest that is
+      "Citation, abstract & indexing", not the default "Citation only". An
+      export without abstracts still imports, but the matcher then sees only
+      the title and the subject terms, and --import-manual will say so.
     note: >-
       Publication-restricted plus one disjunctive term query, not one search per
       technology. Terms are generated from watchlist.yaml, so this query changes

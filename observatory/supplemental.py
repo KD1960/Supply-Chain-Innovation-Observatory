@@ -49,6 +49,9 @@ class Source:
     format: str
     query: str
     note: str = ""
+    # How to run the export, as opposed to what to ask for. Separate from
+    # `note` because a person skims the caveats and follows the instructions.
+    export_note: str = ""
     # Classification prefix -> technology. Where a source's retrieval is
     # specific enough to stand as evidence without the text agreeing.
     evidences: dict | None = None
@@ -459,6 +462,7 @@ def export_queries(period: str, watchlist, registry: Registry | None = None,
             entries.append({
                 "source": source.id, "name": source.name, "family": source.family,
                 "format": source.format, "note": " ".join((source.note or "").split()),
+                "export_note": " ".join((source.export_note or "").split()),
                 "period": period, "start": start, "end": end, "piece": label,
                 "filename": f"{source.id}{suffix}.{source.format}",
                 "registry_version": registry.version,
@@ -557,8 +561,10 @@ def print_queries(period: str, watchlist, registry: Registry | None = None,
     print(f"\nSupplemental exports for {period}  "
           f"(registry v{entries[0]['registry_version']}, "
           f"lexicon v{entries[0]['lexicon_version']})")
+    # Calendar, not ISO weeks. These are the dates the report counts, and the
+    # two disagreed by three days at every quarter edge until 2026-09-01.
     print(f"Covering {entries[0]['start']} to {entries[0]['end']}, "
-          f"by ISO week rather than calendar month.")
+          f"the same window the report counts.")
     by_source = collections.Counter(entry["source"] for entry in entries)
     for source_id, pieces in by_source.items():
         if pieces > 1:
@@ -574,8 +580,11 @@ def print_queries(period: str, watchlist, registry: Registry | None = None,
               f"[{entry['family']} evidence, export as {entry['format'].upper()}]")
         # Once per source. Repeating a paragraph of caveats above each of twelve
         # queries buries the queries.
-        if entry["note"] and entry["source"] not in seen_note:
-            print(f"  {entry['note']}")
+        if entry["source"] not in seen_note:
+            if entry["note"]:
+                print(f"  {entry['note']}")
+            if entry.get("export_note"):
+                print(f"  HOW TO EXPORT: {entry['export_note']}")
             seen_note.add(entry["source"])
         print(f"\n  QUERY -- paste verbatim:\n\n{entry['query']}\n")
         print(f"  Save the export to: data/manual/{period}/{entry['filename']}")

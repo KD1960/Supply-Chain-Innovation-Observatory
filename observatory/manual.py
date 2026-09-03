@@ -229,6 +229,41 @@ def with_resolved_dates(records: list[dict], dates: dict[str, str | None]) -> li
     return placed
 
 
+# Below this, an export is citation-only in practice and the matcher is reading
+# subject headings rather than prose. Not zero: a handful of records legitimately
+# lack an abstract in any database.
+ABSTRACT_FLOOR = 0.25
+
+
+def abstract_coverage(records: list[dict]) -> float | None:
+    """The share of records carrying an abstract, or None for an empty export."""
+    if not records:
+        return None
+    return sum(1 for r in records if (r.get("abstract") or "").strip()) / len(records)
+
+
+def abstract_warning(source: str, filename: str, coverage: float | None) -> str | None:
+    """Said at import, because nobody re-reads an export months later.
+
+    ProQuest's RIS export defaults to citation-only -- bibliographic fields and
+    the indexer's subject terms, no `AB` tag at all. Every ABI/INFORM export so
+    far arrived that way, so trade press reached the matcher as about
+    twenty-six words of subject headings. The keyword fallback in `haystack`
+    was built around that and made it look like a property of the source rather
+    than a setting on the export screen; it surfaced only as a side finding of
+    the CRA feasibility test. Scopus files from the same importer carry
+    abstracts, so the parser was never the problem.
+    """
+    if coverage is None or coverage >= ABSTRACT_FLOOR:
+        return None
+    return (
+        f"  {source}: {filename} has abstracts on {coverage * 100:.0f}% of its "
+        f"records. The matcher is reading titles and subject terms only. "
+        f"Re-export choosing the option that includes the abstract "
+        f"(ProQuest: 'RIS' with Citation, abstract & indexing, not Citation only)."
+    )
+
+
 def haystack(record: dict) -> str:
     """Everything about a record that says what it is about.
 
@@ -349,6 +384,10 @@ def read_exports(root: Path) -> list[tuple[dict, list[dict]]]:
                 f"{declared}. An export capped by the database looks exactly like a "
                 f"complete one; fix the count or re-export before ingesting."
             )
+        # The filename travels with the sidecar so a warning can name the file
+        # rather than the source. `read_exports` drops the path on return, and
+        # both callers unpack two-tuples.
+        meta["_filename"] = path.name
         found.append((meta, records, path))
     _refuse_overlapping(found)
     return [(meta, records) for meta, records, _ in found]
@@ -416,6 +455,15 @@ def import_exports(conn, watchlist, root: Path | None = None, session=None,
             needing, session=session,
             progress=lambda done, total: print(f"    {done} of {total}"),
         )
+
+    # Said before anything is counted, for the same reason the missing-export
+    # report is: an export that came back thin is not visible in its own
+    # numbers, only in a comparison nobody runs.
+    for meta, records in exports:
+        line = abstract_warning(str(meta["source"]), str(meta.get("_filename") or "export"),
+                                abstract_coverage(records))
+        if line:
+            print(line)
 
     written = 0
     retrieved: dict[str, dict] = collections.defaultdict(dict)

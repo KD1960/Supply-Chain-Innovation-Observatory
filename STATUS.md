@@ -35,7 +35,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **681 passing** |
+| Tests | **687 passing** |
 | Lexicon | version **10**, 48 active technologies |
 | Observations | **2,324** |
 | Sources | 11, across 9 evidence families |
@@ -221,6 +221,26 @@ can only judge the files it can see. `supplemental.missing_exports` now compares
 what arrived against what the sheet asked for, and `--import-manual` prints the
 absences before ingesting anything. It is never fatal: the rows that did arrive
 are real, and refusing them would trade an undercount for nothing.
+
+**ABI/INFORM exports carry no abstracts, and that is an export setting**
+(found 2026-09-03). ProQuest's RIS export defaults to citation-only:
+bibliographic fields plus the indexer's subject terms, with no `AB` tag at all.
+Every export so far came back that way, so trade press reached the matcher as
+**26 median words of subject headings** — "Supply chains; Inventory; Artificial
+intelligence" — against 269 for Scopus through the same importer. Two items in
+the 2026-09-02 audit matched on a keyword string for this reason.
+
+Nothing noticed for months, because `manual.haystack` had a keyword fallback
+built around it and a comment reading "a trade export has no abstract", which
+made a setting look like a property of the source. It surfaced only as a side
+finding of the CRA feasibility test, which measured words per source.
+
+The parser was never at fault — Scopus files carry 39 abstracts each through
+the same code. **`--import-manual` now warns when an export lands below 25%
+abstract coverage**, naming the file and the ProQuest option, and the export
+sheet carries the instruction. **The Q4 export in January is the first chance to
+fix it**; re-exporting 2026-Q3 would recover the abstracts for 78 documents
+already collected, which is the owner's call.
 
 **Corrected by the owner 2026-09-01, and it matters.** Supply Chain Dive's
 fifth batch *was* run and returned nothing — its own sidecar always said so;
