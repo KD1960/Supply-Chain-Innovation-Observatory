@@ -73,9 +73,27 @@ def test_a_query_referring_to_an_unknown_list_is_an_error_not_a_broken_string():
         supplemental.render("{nonexistent} AND x", {}, "2026-Q2")
 
 
+def _offered():
+    """The sources still collected. A retired one keeps its registry entry and
+    its query -- the machinery has to work the day the licence answer changes
+    -- but it is not put in front of a person to export."""
+    return [source for source in supplemental.load().sources.values()
+            if not source.retired]
+
+
+def test_a_retired_source_is_named_on_the_sheet_with_its_reason(capsys):
+    supplemental.print_queries("2026-Q2", _watchlist())
+    printed = capsys.readouterr().out
+    assert "NOT OFFERED" in printed
+    assert "ProQuest ABI/INFORM" in printed
+    assert "TDM Studio" in printed
+
+
 def test_export_queries_returns_one_entry_per_source():
     entries = supplemental.export_queries("2026-Q2", _watchlist())
-    assert {entry["source"] for entry in entries} == set(supplemental.load().sources)
+    assert {entry["source"] for entry in entries} == {
+        source_id for source_id, source in supplemental.load().sources.items()
+        if not source.retired}
     for entry in entries:
         assert entry["query"].strip()
         assert entry["format"] in ("ris", "csv")
@@ -116,7 +134,7 @@ def _watchlist(extra=None):
 def test_the_sheet_shows_the_query_for_every_source(capsys):
     supplemental.print_queries("2026-Q2", _watchlist())
     printed = capsys.readouterr().out
-    for source in supplemental.load().sources.values():
+    for source in _offered():
         assert source.name in printed
     assert "G06Q10/08" in printed
 
@@ -217,7 +235,9 @@ def test_the_sheet_states_how_many_phrases_the_query_carries(capsys):
     """Silent truncation is this project's oldest failure mode, so the sheet
     states the count, the total and the cap whether or not the cap bit."""
     watchlist = _watchlist()
-    supplemental.print_queries("2026-Q2", watchlist)
+    # Through the retired source: nothing offered carries a phrase list, and
+    # the machinery has to keep working for the day the licence answer changes.
+    supplemental.print_queries("2026-Q2", watchlist, only="abi_inform")
     printed = capsys.readouterr().out
     total = len(supplemental.watchlist_phrases(watchlist))
     carried = min(total, supplemental.MAX_TERMS)
@@ -227,7 +247,7 @@ def test_the_sheet_states_how_many_phrases_the_query_carries(capsys):
 
 def test_a_cap_that_bites_says_how_many_it_dropped(capsys, monkeypatch):
     monkeypatch.setattr(supplemental, "MAX_TERMS", 5)
-    supplemental.print_queries("2026-Q2", _watchlist())
+    supplemental.print_queries("2026-Q2", _watchlist(), only="abi_inform")
     printed = capsys.readouterr().out
     assert "were dropped by the cap" in printed
     assert "5 of" in printed
@@ -254,7 +274,7 @@ def test_technologies_with_no_phrasable_pattern_are_named_not_dropped(capsys):
     phrase. That is a hole in trade press coverage and the sheet has to say
     which technologies are in it."""
     watchlist = _watchlist()
-    supplemental.print_queries("2026-Q2", watchlist)
+    supplemental.print_queries("2026-Q2", watchlist, only="abi_inform")
     printed = capsys.readouterr().out
     for tech_id in supplemental.unphrasable(watchlist):
         assert tech_id in printed, f"{tech_id} is unsearchable and the sheet never says so"
@@ -356,15 +376,18 @@ def test_a_split_query_still_carries_the_period():
 
 def test_without_splitting_there_is_one_query_per_source():
     entries = supplemental.export_queries("2026-Q2", _watchlist())
-    assert len(entries) == len(supplemental.load().sources)
+    assert len(entries) == len(_offered())
 
 
 def test_trade_press_splits_by_publication():
     """One outlet returns 3,460 records for a quarter against a 1,000 export
     limit, so the whole set cannot come out in one file."""
     registry = supplemental.load()
-    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
-               if e["source"] == "abi_inform"]
+    # Asked for by name: abi_inform is retired and no longer offered, and this
+    # test is about the batching, which the source still describes.
+    entries = [e for e in supplemental.export_queries(
+        "2026-Q2", _watchlist(), split=True, only="abi_inform")
+        if e["source"] == "abi_inform"]
     publications = len(registry.lists["publications"]["items"])
     batches = -(-min(len(supplemental.trade_phrases(_watchlist())), supplemental.MAX_TERMS)
                 // registry.sources["abi_inform"].max_terms)
@@ -494,8 +517,9 @@ def test_the_term_wrapper_is_configurable_rather_than_assumed():
 
 
 def test_a_long_term_list_is_split_into_batches():
-    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
-               if e["source"] == "abi_inform"]
+    entries = [e for e in supplemental.export_queries(
+        "2026-Q2", _watchlist(), split=True, only="abi_inform")
+        if e["source"] == "abi_inform"]
     publications = len(supplemental.load().lists["publications"]["items"])
     assert len(entries) > publications, "terms should batch, not just publications"
 
@@ -510,8 +534,9 @@ def test_no_query_carries_more_terms_than_the_batch_size():
 def test_every_term_appears_in_exactly_one_batch():
     """A term dropped between batches is a technology that silently stops being
     looked for."""
-    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
-               if e["source"] == "abi_inform"]
+    entries = [e for e in supplemental.export_queries(
+        "2026-Q2", _watchlist(), split=True, only="abi_inform")
+        if e["source"] == "abi_inform"]
     one_publication = [e for e in entries if "Supply Chain Dive" in e["query"]]
     seen = " ".join(e["query"] for e in one_publication)
     for phrase in supplemental.trade_phrases(_watchlist())[:supplemental.MAX_TERMS]:
@@ -519,8 +544,9 @@ def test_every_term_appears_in_exactly_one_batch():
 
 
 def test_each_batch_gets_its_own_filename():
-    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
-               if e["source"] == "abi_inform"]
+    entries = [e for e in supplemental.export_queries(
+        "2026-Q2", _watchlist(), split=True, only="abi_inform")
+        if e["source"] == "abi_inform"]
     names = [e["filename"] for e in entries]
     assert len(set(names)) == len(names)
 
@@ -567,8 +593,9 @@ def test_acronyms_are_recognised_in_their_usual_shapes():
 
 
 def test_adding_acronyms_does_not_break_the_batching():
-    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
-               if e["source"] == "abi_inform"]
+    entries = [e for e in supplemental.export_queries(
+        "2026-Q2", _watchlist(), split=True, only="abi_inform")
+        if e["source"] == "abi_inform"]
     limit = supplemental.load().sources["abi_inform"].max_terms
     for entry in entries:
         assert entry["query"].count(" OR ") + 1 <= limit + 1
@@ -578,8 +605,9 @@ def test_batches_are_evenly_sized_rather_than_chunked():
     """Chunking 61 terms into fifteens leaves a fifth batch holding one term --
     a whole export, and a whole round trip for a person, to ask about "SCADA"
     alone. Spread them instead."""
-    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
-               if e["source"] == "abi_inform" and "Supply Chain Dive" in e["query"]]
+    entries = [e for e in supplemental.export_queries(
+        "2026-Q2", _watchlist(), split=True, only="abi_inform")
+        if e["source"] == "abi_inform" and "Supply Chain Dive" in e["query"]]
     sizes = [entry["query"].count(" OR ") for entry in entries]
     assert max(sizes) - min(sizes) <= 1, sizes
 

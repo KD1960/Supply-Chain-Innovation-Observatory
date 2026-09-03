@@ -622,6 +622,8 @@ def build_context(conn, name: str, watchlist) -> dict:
     # they are rather than by absence from a hardcoded list: once supplemental
     # sources became first-class columns, "not in SOURCES" named nothing.
     human_fetched = set(supplemental.load().sources)
+    retired_sources = {source_id for source_id, source
+                       in supplemental.load().sources.items() if source.retired}
     licensed = sorted({
         source
         for row in counts.values()
@@ -674,10 +676,13 @@ def build_context(conn, name: str, watchlist) -> dict:
              "description": _describe(tech)}
             for tech in watchlist.active
         ],
+        # Retired sources are left out: a table saying which sources speak to
+        # each stage is a claim about coverage, and naming one that is no
+        # longer collected claims coverage this does not have.
         "appendix_stages": [
             {"stage": stage, "sources": sorted(
                 source for source, family in EVIDENCE_FAMILIES.items()
-                if family in families_for_stage)}
+                if family in families_for_stage and source not in retired_sources)}
             for stage, families_for_stage in STAGE_FAMILIES.items()
         ],
         "single_source_count": sum(1 for row in rows if row["single_source"]),

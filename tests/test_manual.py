@@ -475,8 +475,11 @@ def _export(tmp_path, name, ids):
         f"TY  - JOUR\nT1  - Article {i}\nAN  - {i}\nJF  - A Journal\n"
         f"Y1  - 2026/07/01/\nER  -\n" for i in ids)
     (tmp_path / name).write_text(body)
+    # `lens`, not the retired trade-press source: these tests are about the
+    # overlap guard, and a fixture that trips the retirement check first would
+    # be testing the wrong refusal.
     (tmp_path / f"{name}.meta.yaml").write_text(
-        f"source: abi_inform\nexported: 2026-08-29\nquery: q\nrecords: {len(ids)}\n")
+        f"source: lens\nexported: 2026-08-29\nquery: q\nrecords: {len(ids)}\n")
 
 
 def test_two_exports_of_the_same_records_are_refused(tmp_path):
@@ -637,3 +640,23 @@ def test_every_export_of_a_source_counts_towards_its_corpus(tmp_path):
     store.init_schema(conn)
     manual.import_exports(conn, matcher.load_watchlist(), tmp_path)
     assert store.corpus_between(conn, "2026-07-01", "2026-09-30") == {"scopus": 60}
+
+
+# --- a source whose licence no longer permits this ---------------------------
+#
+# ASU Library, 2026-09-03: Clarivate's terms forbid text and data mining of
+# ProQuest products "or any underlying data", which the licensing librarian
+# reads as covering metadata. The registry records the retirement; the importer
+# refuses the files rather than leaving them to be picked up by the next
+# rebuild.
+
+
+def test_an_export_from_a_retired_source_is_refused_with_the_reason(tmp_path):
+    _export(tmp_path, "trade.ris", range(1, 41))  # overwritten below
+    (tmp_path / "trade.ris.meta.yaml").write_text(
+        "source: abi_inform\nexported: 2026-08-29\nquery: q\nrecords: 40\n")
+    with pytest.raises(manual.ExportProblem) as raised:
+        manual.read_exports(tmp_path)
+    message = str(raised.value)
+    assert "abi_inform" in message
+    assert "retired" in message.lower()

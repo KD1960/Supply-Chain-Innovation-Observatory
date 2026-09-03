@@ -995,3 +995,15 @@ def test_rendering_a_quarter_also_writes_the_technologies_sheet(conn, tmp_path):
     watchlist = _filings_quarter(conn)
     quarter.render_quarter(conn, "2026-Q2", watchlist, out_dir=tmp_path)
     assert (tmp_path / "technologies-2026-Q2.pdf").exists()
+
+
+def test_appendix_b_does_not_advertise_a_retired_source(conn, tmp_path):
+    """The stage table said which sources speak to each stage, and named
+    abi_inform in two of them after its licence stopped allowing collection.
+    A report that lists a source it does not collect from is claiming coverage
+    it does not have."""
+    watchlist = _filings_quarter(conn)
+    html = quarter.render_quarter(conn, "2026-Q2", watchlist, out_dir=tmp_path).read_text()
+    appendix = html[html.index("Appendix B"):]
+    assert "abi_inform" not in appendix
+    assert "edgar" in appendix

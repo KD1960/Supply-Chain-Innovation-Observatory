@@ -98,7 +98,11 @@ def test_import_says_what_never_arrived(tmp_path, capsys):
                                      period="2026-Q3")
         printed = capsys.readouterr().out
         assert "never arrived" in printed
-        assert "abi_inform" in printed
+        assert "scopus" in printed
+        # Not the retired source. Asking a person for an export the licence
+        # forbids is worse than not asking, and a standing reminder for it
+        # would outlive anyone's memory of why it stopped.
+        assert "abi_inform" not in printed
     finally:
         conn.close()
 

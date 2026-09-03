@@ -384,6 +384,13 @@ def read_exports(root: Path) -> list[tuple[dict, list[dict]]]:
                 f"{declared}. An export capped by the database looks exactly like a "
                 f"complete one; fix the count or re-export before ingesting."
             )
+        retired = (supplemental.load().sources.get(str(meta["source"]))
+                   or _NOT_REGISTERED).retired
+        if retired:
+            raise ExportProblem(
+                f"{path.name} is an export from {meta['source']}, which is "
+                f"retired: {retired} Move the file out of the manual directory "
+                f"-- leaving it here means the next rebuild ingests it again.")
         # The filename travels with the sidecar so a warning can name the file
         # rather than the source. `read_exports` drops the path on return, and
         # both callers unpack two-tuples.
@@ -397,6 +404,12 @@ def read_exports(root: Path) -> list[tuple[dict, list[dict]]]:
 # this, the other files are adding real records; at or above it, they are
 # copies of one result set wearing different names.
 UNION_LIMIT = 0.95
+
+
+# A source with no registry entry is not retired; it is simply not one of the
+# human-fetched ones, and the rest of the importer already handles it.
+_NOT_REGISTERED = supplemental.Source(
+    id="", name="", family="", signal="", stage="", format="", query="")
 
 
 def _refuse_overlapping(found) -> None:

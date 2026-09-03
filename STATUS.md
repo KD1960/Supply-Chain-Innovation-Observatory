@@ -37,11 +37,11 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **742 passing** |
+| Tests | **745 passing** |
 | Lexicon | version **10**, 48 active technologies |
-| Observations | **2,324** |
-| Sources | 11, across 9 evidence families |
-| By source | github 799, arxiv 517, scopus 421, openalex 239, edgar 120, lens 64, hn 62, nsf 40, usaspending 29, federalregister 20, abi_inform 13 |
+| Observations | **2,311** |
+| Sources | 10, across 8 evidence families |
+| By source | github 799, arxiv 517, scopus 421, openalex 239, edgar 120, lens 64, hn 62, nsf 40, usaspending 29, federalregister 20 |
 | Precision | **70%** at lexicon v9, one model coder, 120 of 132 judged (`docs/precision-audit-2026-09-02.md`) — not comparable with the earlier 51% |
 | Deliverable | `output/report-<period>.html`, with evidence pages and standalone SVG/PDF charts |
 | Weekly page | collection health only — did the collectors run, what arrived, rising terms |
@@ -113,6 +113,23 @@ year; it queries freight assistance-listing programmes now). Five sources added:
 Scopus, Lens, ABI/INFORM by hand, OpenAlex and NSF automated. Lexicon v6 → v9.
 Reporting moved to calendar quarters. Metrics moved from a 52-week to a
 four-quarter window. The weekly page became a collection-health view.
+
+**2026-09-03 (licence)** — **ABI/INFORM is retired.** ASU Library's licensing
+answer: Clarivate forbids text and data mining of ProQuest products "or any
+underlying data", and the licensing librarian reads that as covering metadata.
+TDM Studio is the only sanctioned route. Thirteen observations were removed,
+the exports moved to `data/withdrawn/`, and every published report regenerated.
+2,324 → 2,311 observations; eleven sources → ten; trade press is gone as an
+evidence family. `sources.yaml` carries the retirement and what reverses it;
+`--export-queries` says out loud that the source exists and is not offered;
+`--import-manual` refuses its files. Full record and the closed questions —
+Web of Science, Factiva, NexisUni, Lightcast — in
+`docs/abi-inform-retired-2026-09-03.md`.
+
+**Scopus is the same question with a different answer**: Elsevier gives
+academic researchers a free API key and treats the API as the sanctioned route,
+while this project reaches Scopus by hand export — 421 observations, its
+largest supplemental source. The API collector is the next piece of work.
 
 **2026-09-03 (latest)** — the two deliverables that hang off the findings:
 
@@ -230,12 +247,12 @@ observations and the strongest diffusion leg, precision unknown.
 
 ### Sources
 
-**Trade press reads subject headings, not abstracts.** ProQuest's RIS export
-defaults to citation-only. Every ABI/INFORM export ever made lacks `AB`, so the
-matcher sees ~26 median words of subject terms against Scopus's 269.
-`--import-manual` now warns below 25% coverage and the export sheet says which
-option to pick. **Re-export 2026-Q3 to fix it retrospectively** —
-`docs/reexport-2026-Q3-abstracts.md`, twelve queries.
+**There is no trade press.** ABI/INFORM was retired on 2026-09-03 for licence
+reasons (`docs/abi-inform-retired-2026-09-03.md`), taking the `trade` evidence
+family with it. The abstract problem that used to sit here — ProQuest's RIS
+export defaults to citation-only, so every export lacked `AB` — is moot unless
+the source returns through TDM Studio. `docs/reexport-2026-Q3-abstracts.md` is
+superseded: **do not run it.**
 
 **GitHub measures the wrong population.** 78% of matched repositories have
 exactly one star and the largest has 118; 60 sampled repos gained no stars in
@@ -316,10 +333,10 @@ pinned model and published prompts. The weekly run must stay deterministic.
 In value order. `docs/process-review-2026-09-03.md` has the reasoning and the
 risk register.
 
-1. **Re-export 2026-Q3 ABI/INFORM with abstracts.** Sheet ready at
-   `docs/reexport-2026-Q3-abstracts.md` — twelve queries, and it also corrects
-   the lexicon version and the window. Delete the fifteen existing files first;
-   they are stale, and nothing detects that.
+1. **The Scopus API collector.** Elsevier gives academic researchers a free key
+   (dev.elsevier.com); the library is not involved. It retires the largest
+   hand-export path — 421 observations from 349 records — and moves Scopus onto
+   the route Elsevier sanctions. Kevin requests the key.
 2. **A coder who did not write the patterns.** Four passes, one model. The only
    thing that settles what precision is. Sheet: `docs/audit/sample-20260902.md`.
 3. **Q4 supplemental exports**, first week of January. `--export-queries 2026-Q4
@@ -332,8 +349,12 @@ risk register.
    none of the 48 watchlist entries, and a second discovery instrument is now
    specced beside it (`docs/superpowers/specs/2026-09-03-source-discovery-design.md`).
 
-**Waiting on the owner:** Reddit app credentials, the ASU library answer on
-Scopus API / Lightcast / Factiva, and the PatentsView key.
+**Waiting on the owner:** Reddit app credentials, an Elsevier API key for
+Scopus, the PatentsView key, and — if trade press is wanted back — the two
+questions for the licensing librarian in
+`docs/abi-inform-retired-2026-09-03.md`. The library has answered on Factiva
+(no subscription), Web of Science (terminated 2020), NexisUni (prohibited) and
+Lightcast (not a library resource).
 
 **Specced, not built:** source discovery (above), and a PDF of the quarterly
 report — agreed to use reportlab, report plus evidence in one file, rendering

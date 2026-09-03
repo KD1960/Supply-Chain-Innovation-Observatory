@@ -192,6 +192,18 @@ sources:
 
   abi_inform:
     name: ProQuest ABI/INFORM
+    # ASU Library, 2026-09-03, from the licensing librarian: Clarivate's terms
+    # say a subscriber "shall not perform any text or data mining or indexing
+    # of the Products or any underlying data", and in the librarian's reading
+    # that covers metadata as well as full text. TDM Studio is the only route
+    # ProQuest sanctions, and ABI/INFORM is in it. See
+    # docs/abi-inform-retired-2026-09-03.md.
+    retired: >-
+      ProQuest/Clarivate terms forbid text and data mining of the product or
+      its underlying data, metadata included (ASU Library, 2026-09-03). It
+      returns when the same content is drawn through TDM Studio, or when the
+      licensing librarian says in writing that a human export counted locally
+      is not mining.
     family: trade
     signal: trade_articles
     stage: diffusion

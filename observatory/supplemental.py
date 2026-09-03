@@ -63,6 +63,10 @@ class Source:
     # Terms per query, where the whole list is too long for the database to
     # parse. None means one query carries them all.
     max_terms: int | None = None
+    # Why this source is no longer collected, and what would bring it back.
+    # Kept in the registry rather than deleted, because a source removed
+    # without its reason is a source somebody adds again next year.
+    retired: str = ""
 
 
 @dataclass(frozen=True)
@@ -442,7 +446,8 @@ def export_queries(period: str, watchlist, registry: Registry | None = None,
             f"unknown source {only!r}; the registry holds "
             f"{', '.join(sorted(registry.sources))}"
         )
-    wanted = [registry.sources[only]] if only else list(registry.sources.values())
+    wanted = ([registry.sources[only]] if only
+              else [source for source in registry.sources.values() if not source.retired])
     start, end = period_bounds(period)
     entries = []
     for source in wanted:
@@ -565,6 +570,12 @@ def print_queries(period: str, watchlist, registry: Registry | None = None,
     # two disagreed by three days at every quarter edge until 2026-09-01.
     print(f"Covering {entries[0]['start']} to {entries[0]['end']}, "
           f"the same window the report counts.")
+    # Named rather than quietly absent. Someone who has run this sheet before
+    # will look for the missing source, and "it is not here" has to come with
+    # the reason and the way back.
+    for source in (() if only else (registry or load()).sources.values()):
+        if source.retired:
+            print(f"\nNOT OFFERED -- {source.name} is retired. {source.retired}")
     by_source = collections.Counter(entry["source"] for entry in entries)
     for source_id, pieces in by_source.items():
         if pieces > 1:
