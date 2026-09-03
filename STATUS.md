@@ -37,7 +37,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **691 passing** |
+| Tests | **712 passing** |
 | Lexicon | version **10**, 48 active technologies |
 | Observations | **2,324** |
 | Sources | 11, across 9 evidence families |
@@ -114,7 +114,28 @@ Scopus, Lens, ABI/INFORM by hand, OpenAlex and NSF automated. Lexicon v6 → v9.
 Reporting moved to calendar quarters. Metrics moved from a 52-week to a
 four-quarter window. The weekly page became a collection-health view.
 
-**2026-09-03 (later)** — two fixes to the overlapping-export guard, both verified
+**2026-09-03 (later)** — the report gained a **findings layer**, §4 of
+`docs/marketing-plan-2026-09-03.md` and the largest gap that plan names. Seven
+rules in `observatory/findings.py` read the rows `build_context` already makes
+and write a sentence with its own sample size in it; five ship, above everything
+that describes the instrument. The four count rules fire in a period whose
+scores are withheld, so 2026-Q3 still opens with four findings and no inferences.
+The instrument tiles moved into "How to read this document"; every technology
+row now carries `id="tech-<id>"` so a post can link to one row.
+
+A rule may not name a technology on fewer than three documents. 2026-Q2 holds
+cold chain IoT monitoring at diffusion on one SEC filing, which is what makes
+the marketing plan's own example sentence — autonomous trucking is the only
+technology at diffusion — false as written. The page says "1 further technology
+appeared there on fewer than 3 documents, too few to name" instead.
+
+`findings/<period>.yaml` is the owner's override: replace any sentence, drop any
+finding, set the order. Absent means the drafted sentences ship. An id in the
+file that no rule owns raises rather than sitting there looking applied. The
+findings are asserted against the rendered HTML, not the template context.
+Spec: `docs/superpowers/specs/2026-09-03-findings-layer-design.md`.
+
+**2026-09-03 (earlier)** — two fixes to the overlapping-export guard, both verified
 against `data/manual` and not only against tests.
 
 The guard now enforces the 5% tolerance its own comment documented: a set is
@@ -271,10 +292,13 @@ risk register.
 3. **Q4 supplemental exports**, first week of January. `--export-queries 2026-Q4
    --split`. Clear ProQuest's marked-items list between exports, and choose the
    option that includes the abstract.
-4. **The first complete calendar year.** 2026 finishes at W53 — the first annual
+4. **The rest of the marketing plan's §4**: PNG post sizes (1200×627 and
+   1080×1350), the two-page quarterly brief, and the tracked-technologies
+   sheet. The findings layer they hang off is built; these are the next pass.
+5. **The first complete calendar year.** 2026 finishes at W53 — the first annual
    report where neither year is truncated.
-5. **PatentsView**, if the key arrives. Check the endpoint first.
-6. **Retire `discover.py` or justify it.** The rising-terms loop has contributed
+6. **PatentsView**, if the key arrives. Check the endpoint first.
+7. **Retire `discover.py` or justify it.** The rising-terms loop has contributed
    none of the 48 watchlist entries, and a second discovery instrument is now
    specced beside it (`docs/superpowers/specs/2026-09-03-source-discovery-design.md`).
 

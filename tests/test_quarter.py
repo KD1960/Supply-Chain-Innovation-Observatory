@@ -925,3 +925,55 @@ def test_a_partly_run_period_still_reports_its_own_shortfall(conn):
     watchlist = Watchlist(version=1, context=("x",), technologies=(tech("a", "A"),))
     summary = quarter.build_context(conn, "2025-Q3", watchlist)["summary"]
     assert any("has run 5 of 13 weeks" in part for part in summary)
+
+
+# --- the findings layer -----------------------------------------------------
+#
+# Asserted against the rendered page rather than the context. A chart that sat
+# in the context and never reached the template shipped twice in this project,
+# and STATUS section 10 names that as the recurring shape.
+
+
+def _filings_quarter(conn):
+    """A technology whose evidence is led by company filings, above the floor
+    a finding may name."""
+    for index, entity in enumerate(("c1", "c2", "c3"), start=1):
+        observe(conn, "a", "2026-W16", "edgar", f"f{index}", entity_id=entity)
+    observe(conn, "a", "2026-W16", "arxiv", "p1")
+    return Watchlist(version=1, technologies=(tech("a", name="Autonomous trucking"),))
+
+
+def test_the_rendered_report_carries_its_findings(conn, tmp_path):
+    watchlist = _filings_quarter(conn)
+    html = quarter.render_quarter(conn, "2026-Q2", watchlist, out_dir=tmp_path).read_text()
+    assert 'id="findings"' in html
+    assert "Autonomous trucking is the technology furthest along the pipeline" in html
+
+
+def test_the_findings_come_before_the_summary_on_the_page(conn, tmp_path):
+    watchlist = _filings_quarter(conn)
+    html = quarter.render_quarter(conn, "2026-Q2", watchlist, out_dir=tmp_path).read_text()
+    assert html.index('id="findings"') < html.index('id="summary"')
+
+
+def test_the_instrument_tiles_move_inside_the_how_to_read_disclosure(conn, tmp_path):
+    """Documents matched and technologies silent describe the instrument. True,
+    and not what a practitioner opens the report for."""
+    watchlist = _filings_quarter(conn)
+    html = quarter.render_quarter(conn, "2026-Q2", watchlist, out_dir=tmp_path).read_text()
+    facts = html.index('class="facts"')
+    assert html.index("How to read this document") < facts
+    assert facts < html.index("</details>")
+
+
+def test_every_technology_row_carries_a_stable_anchor(conn, tmp_path):
+    """So a post can link to one row rather than to a 14,000-pixel page."""
+    watchlist = _filings_quarter(conn)
+    html = quarter.render_quarter(conn, "2026-Q2", watchlist, out_dir=tmp_path).read_text()
+    assert 'id="tech-a"' in html
+
+
+def test_a_finding_links_to_the_row_it_came_from(conn, tmp_path):
+    watchlist = _filings_quarter(conn)
+    html = quarter.render_quarter(conn, "2026-Q2", watchlist, out_dir=tmp_path).read_text()
+    assert 'href="#tech-a"' in html

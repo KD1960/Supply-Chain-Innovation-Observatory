@@ -17,6 +17,8 @@ RAW_DIR = DATA_DIR / "raw"
 # Hand-made exports from licensed databases. Never published: see manual.py.
 MANUAL_DIR = DATA_DIR / "manual"
 OUTPUT_DIR = ROOT / "output"
+# The owner's edits to the drafted findings, one file per period.
+FINDINGS_DIR = ROOT / "findings"
 DB_PATH = DATA_DIR / "observatory.db"
 WATCHLIST_PATH = ROOT / "watchlist.yaml"
 RUN_LOG_PATH = DATA_DIR / "run_log.jsonl"

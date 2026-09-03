@@ -48,6 +48,14 @@
   .source{font-family:var(--display);font-size:11px;font-weight:650;letter-spacing:.12em;
           text-transform:uppercase;color:var(--muted);margin:0 0 14px}
   p{margin:0 0 14px}
+  ul.findings{list-style:none;margin:0;padding:0}
+  ul.findings li{font-size:19px;line-height:1.5;color:var(--ink);margin:0 0 18px;
+                 padding:0 0 18px 0;border-bottom:1px solid var(--rule)}
+  ul.findings li:last-child{border-bottom:0}
+  a.trace{font-family:var(--display);font-size:11px;font-weight:650;letter-spacing:.08em;
+          text-transform:uppercase;color:var(--accent);white-space:nowrap;
+          text-decoration:none;margin-left:6px}
+  a.trace:hover{text-decoration:underline}
   .panel{background:var(--surface);border:1px solid var(--rule);border-radius:3px;
          padding:20px 22px;margin:20px 0 0;overflow-x:auto}
   /* min-width so a narrow viewport scrolls the panel rather than clipping the
@@ -171,6 +179,14 @@
         technology, and which sources feed which stage.</li>
       </ul>
 
+      <p><strong>The instrument itself, this {{ period_noun }}:</strong></p>
+      <div class="facts">
+        <div class="fact"><b>{{ documents }}</b><span>documents matched</span></div>
+        <div class="fact"><b>{{ rows|length }}</b><span>technologies seen</span></div>
+        <div class="fact"><b>{{ silent|length }}</b><span>silent</span></div>
+        <div class="fact"><b>{{ filers_total }}</b><span>filing companies</span></div>
+      </div>
+
       <p><strong>What it will not do.</strong> A score is withheld whenever the
       period or its comparison window is incomplete, and share movement is
       withheld for a technology drawing almost all its evidence from a single
@@ -179,13 +195,20 @@
     </div>
   </details>
 
-  <div class="facts">
-    <div class="fact"><b>{{ documents }}</b><span>documents matched</span></div>
-    <div class="fact"><b>{{ rows|length }}</b><span>technologies seen</span></div>
-    <div class="fact"><b>{{ silent|length }}</b><span>silent</span></div>
-    <div class="fact"><b>{{ filers_total }}</b><span>filing companies</span></div>
-  </div>
 </header>
+
+{% if findings %}
+<section id="findings">
+  <h2>What this {{ period_noun }} shows</h2>
+  <p class="source">every sentence carries its evidence &middot; follow a link for the row behind it</p>
+  <ul class="findings">
+    {% for finding in findings %}
+    <li>{{ finding.text }}{% if finding.anchor %}
+      <a class="trace" href="#{{ finding.anchor }}">the row</a>{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 
 {% if partial %}
 <section>
@@ -263,7 +286,7 @@
     </tr></thead>
     <tbody>
       {% for row in rows %}
-      <tr{% if row.single_source %} class="gated"{% endif %}>
+      <tr id="tech-{{ row.id }}"{% if row.single_source %} class="gated"{% endif %}>
         <td class="name">{{ row.name }}</td>
         <td class="num">{{ row.total }}</td>
         {# Families, not sources. Eight source columns will not fit, and the

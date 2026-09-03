@@ -23,7 +23,7 @@ from pathlib import Path
 
 from markupsafe import Markup
 
-from . import charts, config, export, render, store, supplemental
+from . import charts, config, export, findings, render, store, supplemental
 
 QUARTER_WEEKS = 13
 # The six public collectors. Anything else in `observations` arrived through a
@@ -730,6 +730,10 @@ def build_context(conn, name: str, watchlist) -> dict:
         "licensed": licensed,
         "filers_total": sum(row["filers"] for row in counts.values()),
         "lexicon_version": watchlist.version,
+        # What the period says about the world, above everything that says how
+        # the instrument works. Composed last because a rule reads the finished
+        # rows -- scores, family rates and all -- and nothing of its own.
+        "findings": findings.compose(rows, overrides=findings.load_overrides(name)),
     }
 
 
