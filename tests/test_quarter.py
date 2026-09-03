@@ -989,3 +989,9 @@ def test_rendering_a_quarter_also_writes_the_post_cards_and_the_brief(conn, tmp_
     assert "2026-Q2-stage_frontier-linkedin.png" in cards
     assert "2026-Q2-stage_frontier-portrait.png" in cards
     assert (tmp_path / "brief-2026-Q2.pdf").exists()
+
+
+def test_rendering_a_quarter_also_writes_the_technologies_sheet(conn, tmp_path):
+    watchlist = _filings_quarter(conn)
+    quarter.render_quarter(conn, "2026-Q2", watchlist, out_dir=tmp_path)
+    assert (tmp_path / "technologies-2026-Q2.pdf").exists()

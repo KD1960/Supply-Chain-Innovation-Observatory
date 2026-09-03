@@ -37,7 +37,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **726 passing** |
+| Tests | **742 passing** |
 | Lexicon | version **10**, 48 active technologies |
 | Observations | **2,324** |
 | Sources | 11, across 9 evidence families |
@@ -125,15 +125,27 @@ Converting the SVG still cannot be done here — reportlab's own `renderPM` want
 cairo. A missing font raises `FontsMissing` rather than falling back to Pillow's
 bitmap default, because CI runs on Ubuntu, which has no Arial.
 
+**Tracked-technologies sheet.** `observatory/sheet.py`, one page: all 48 active
+technologies in two columns with the terms each one matches, and the lexicon
+version it was made from. The terms are expanded from the patterns rather than
+kept beside them — `warehouse robot(s|ics)?` reads as "warehouse robots,
+warehouse robotics" — so a definition cannot drift from what the entry matches.
+128 of 145 patterns expand; the proximity ones do not, and a technology with
+nothing expandable shows its pattern as written rather than a guess. One of the
+48 does. Raises `SheetOverflow` rather than spilling onto a second page.
+
 **Quarterly brief.** `observatory/brief.py`, two pages of reportlab from the
 same `build_context`: findings on page one, the table, what is withheld, the
 limitations and the provenance line on page two. reportlab draws past the bottom
 edge without complaint, so the brief raises `BriefOverflow` instead of shipping
 a sentence that is in the file and not on the paper.
 
-Both are written by `--quarter`, into `output/cards/` and
-`output/brief-<period>.pdf`. Both fail soft: the report still ships and says
-what did not.
+All three are written by `--quarter`, into `output/cards/`,
+`output/brief-<period>.pdf` and `output/technologies-<period>.pdf`. All three
+fail soft: the report still ships and says what did not.
+
+**§4 of the marketing plan is now built end to end** — findings layer, post
+cards, brief, technologies sheet.
 
 **2026-09-03 (later)** — the report gained a **findings layer**, §4 of
 `docs/marketing-plan-2026-09-03.md` and the largest gap that plan names. Seven
@@ -313,13 +325,10 @@ risk register.
 3. **Q4 supplemental exports**, first week of January. `--export-queries 2026-Q4
    --split`. Clear ProQuest's marked-items list between exports, and choose the
    option that includes the abstract.
-4. **The tracked-technologies sheet** — the last of the marketing plan's §4.
-   Appendix A as a standalone one-page PDF for students and instructors. The
-   findings layer, the post cards and the brief are built.
-5. **The first complete calendar year.** 2026 finishes at W53 — the first annual
+4. **The first complete calendar year.** 2026 finishes at W53 — the first annual
    report where neither year is truncated.
-6. **PatentsView**, if the key arrives. Check the endpoint first.
-7. **Retire `discover.py` or justify it.** The rising-terms loop has contributed
+5. **PatentsView**, if the key arrives. Check the endpoint first.
+6. **Retire `discover.py` or justify it.** The rising-terms loop has contributed
    none of the 48 watchlist entries, and a second discovery instrument is now
    specced beside it (`docs/superpowers/specs/2026-09-03-source-discovery-design.md`).
 

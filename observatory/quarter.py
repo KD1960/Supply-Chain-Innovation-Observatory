@@ -23,7 +23,7 @@ from pathlib import Path
 
 from markupsafe import Markup
 
-from . import (brief, cards, charts, config, export, findings, render, store,
+from . import (brief, cards, charts, config, export, findings, render, sheet, store,
                supplemental)
 
 QUARTER_WEEKS = 13
@@ -808,6 +808,10 @@ def render_quarter(conn, name: str, watchlist, out_dir: Path | None = None) -> P
             # A report is worth more than its attachments, and a card that
             # silently came out in a fallback face is worse than none.
             print(f"  cards: none written ({error})")
+    try:
+        sheet.write(watchlist, name, directory)
+    except sheet.SheetOverflow as error:
+        print(f"  technologies sheet: not written ({error})")
     try:
         brief.write(context, name, directory)
     except brief.BriefOverflow as error:
