@@ -114,7 +114,7 @@ Scopus, Lens, ABI/INFORM by hand, OpenAlex and NSF automated. Lexicon v6 → v9.
 Reporting moved to calendar quarters. Metrics moved from a 52-week to a
 four-quarter window. The weekly page became a collection-health view.
 
-**2026-09-04** — two fixes to the overlapping-export guard, both verified
+**2026-09-03 (later)** — two fixes to the overlapping-export guard, both verified
 against `data/manual` and not only against tests.
 
 The guard now enforces the 5% tolerance its own comment documented: a set is
