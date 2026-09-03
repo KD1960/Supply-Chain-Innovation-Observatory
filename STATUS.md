@@ -37,7 +37,7 @@ changed into the other — see §4.
 
 | | |
 |---|---|
-| Tests | **687 passing** |
+| Tests | **691 passing** |
 | Lexicon | version **10**, 48 active technologies |
 | Observations | **2,324** |
 | Sources | 11, across 9 evidence families |
@@ -114,6 +114,26 @@ Scopus, Lens, ABI/INFORM by hand, OpenAlex and NSF automated. Lexicon v6 → v9.
 Reporting moved to calendar quarters. Metrics moved from a 52-week to a
 four-quarter window. The weekly page became a collection-health view.
 
+**2026-09-04** — two fixes to the overlapping-export guard, both verified
+against `data/manual` and not only against tests.
+
+The guard now enforces the 5% tolerance its own comment documented: a set is
+refused when its largest file holds 95% or more of the distinct records. The old
+comparison, `len(union) <= len(largest) / 0.95 * 0.95`, was both redundant with
+the clause beside it and wrong at 256 and 512, where the float round-trip lands
+below `n` -- an exactly-duplicated 256-record export was accepted. The owner
+chose the tolerance over the narrower fix, so a duplicated set carrying a stray
+extra record is caught too.
+
+The second was found by running the guard over the real export directory rather
+than reading it. **It had never once applied to Scopus.** Identity was the raw
+`identifier` field; ProQuest writes an accession number and Scopus does not, so
+all twelve Scopus exports -- 2,648 records, the largest manual source -- carried
+a blank one, `if ids` was false every time, and twelve files were skipped in
+silence. Identity is now `document_id`, the same function the rest of the
+pipeline uses. Scopus measures 0.255 today and abi_inform 0.241, so neither is
+near the limit.
+
 **2026-09-01 to 09-03** — 29 commits, assessed in
 `docs/process-review-2026-09-03.md`. Six of the previous review's twelve risks
 closed. Headlines:
@@ -184,11 +204,6 @@ the test it must pass is overlap with OpenAlex, not availability).
 
 ### Known defects, unfixed
 
-**The overlap guard has a hole at 256.** `manual.UNION_LIMIT` is 0.95 and the
-comparison is `len(union) <= len(largest) / 0.95 * 0.95`, which returns `n` for
-most integers but not for 256 or 512. An exactly-duplicated export of 256
-records is accepted. Named in both process reviews; four characters to fix.
-
 **`collected_quarters` counts a week as collected if any `source_runs` row
 exists** — the owner ruled on the all-failed case (`store.COLLECTED_STATUSES`),
 but the quarter-level count still does not use it.
@@ -247,22 +262,19 @@ pinned model and published prompts. The weekly run must stay deterministic.
 In value order. `docs/process-review-2026-09-03.md` has the reasoning and the
 risk register.
 
-1. **Fix the 256 hole** in `manual.UNION_LIMIT`. Four characters, named in both
-   process reviews, still open. An exactly-duplicated 256-record export is
-   accepted today.
-2. **Re-export 2026-Q3 ABI/INFORM with abstracts.** Sheet ready at
+1. **Re-export 2026-Q3 ABI/INFORM with abstracts.** Sheet ready at
    `docs/reexport-2026-Q3-abstracts.md` — twelve queries, and it also corrects
    the lexicon version and the window. Delete the fifteen existing files first;
    they are stale, and nothing detects that.
-3. **A coder who did not write the patterns.** Four passes, one model. The only
+2. **A coder who did not write the patterns.** Four passes, one model. The only
    thing that settles what precision is. Sheet: `docs/audit/sample-20260902.md`.
-4. **Q4 supplemental exports**, first week of January. `--export-queries 2026-Q4
+3. **Q4 supplemental exports**, first week of January. `--export-queries 2026-Q4
    --split`. Clear ProQuest's marked-items list between exports, and choose the
    option that includes the abstract.
-5. **The first complete calendar year.** 2026 finishes at W53 — the first annual
+4. **The first complete calendar year.** 2026 finishes at W53 — the first annual
    report where neither year is truncated.
-6. **PatentsView**, if the key arrives. Check the endpoint first.
-7. **Retire `discover.py` or justify it.** The rising-terms loop has contributed
+5. **PatentsView**, if the key arrives. Check the endpoint first.
+6. **Retire `discover.py` or justify it.** The rising-terms loop has contributed
    none of the 48 watchlist entries, and a second discovery instrument is now
    specced beside it (`docs/superpowers/specs/2026-09-03-source-discovery-design.md`).
 

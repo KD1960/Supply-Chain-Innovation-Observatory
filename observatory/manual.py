@@ -413,22 +413,34 @@ def _refuse_overlapping(found) -> None:
     terms from two batches appears in both, and a two-record batch fully inside
     a twelve-record one is exactly what a correct export looks like. What the
     accumulation case does that batching never does is leave the union no
-    bigger than the largest single file.
+    bigger than the largest single file: the tolerance below is what "no
+    bigger" means in practice, since a stray record picked up between exports
+    is enough to lift the union above it.
     """
     by_source: dict[str, list[tuple[str, set]]] = {}
     for meta, records, path in found:
-        ids = {record["identifier"] for record in records if record["identifier"]}
+        # The guard has to mean the same thing by "the same record" as the rest
+        # of the pipeline does, so identity is `document_id` and not the raw
+        # accession number. Keying on `identifier` alone skipped every Scopus
+        # export ever made: ProQuest writes an accession number and Scopus does
+        # not, so 2,648 records across twelve files carried a blank one, `if
+        # ids` was false every time, and the guard silently did not apply to
+        # the largest manual source.
+        source = str(meta["source"])
+        ids = {document_id(source, record) for record in records
+               if (record.get("identifier") or record.get("doi")
+                   or record.get("title") or "").strip()}
         if ids:
-            by_source.setdefault(str(meta["source"]), []).append((path.name, ids))
+            by_source.setdefault(source, []).append((path.name, ids))
     for source, files in by_source.items():
         if len(files) < 2:
             continue
         union = set().union(*(ids for _, ids in files))
         largest_name, largest = max(files, key=lambda item: len(item[1]))
-        if len(union) <= len(largest) / UNION_LIMIT * UNION_LIMIT and len(union) <= len(largest):
+        if len(largest) >= len(union) * UNION_LIMIT:
             raise ExportProblem(
                 f"{len(files)} {source} exports hold {sum(len(ids) for _, ids in files)} "
-                f"records between them and {len(union)} distinct -- no more than "
+                f"records between them and {len(union)} distinct -- little more than "
                 f"{largest_name} holds on its own. The set adds nothing to its own "
                 f"largest file, which is what a marked-items list exported again as it "
                 f"grew looks like. Clear the selections between exports and re-run; "

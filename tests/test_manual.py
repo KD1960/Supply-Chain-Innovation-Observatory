@@ -509,6 +509,53 @@ def test_files_that_add_nothing_to_each_other_are_still_refused(tmp_path):
         manual.read_exports(tmp_path)
 
 
+def test_a_duplicated_export_of_256_records_is_refused(tmp_path):
+    """256 is one of the sizes where the float round-trip in the guard landed
+    below n, so an exactly-duplicated set of that size was accepted where 255
+    and 257 were refused. Every power of two up to 512 behaved the same way."""
+    _export(tmp_path, "a.ris", range(1, 257))
+    _export(tmp_path, "b.ris", range(1, 257))
+    with pytest.raises(manual.ExportProblem):
+        manual.read_exports(tmp_path)
+
+
+def test_a_set_that_adds_only_a_handful_to_its_largest_file_is_refused(tmp_path):
+    """The documented tolerance. An accumulated set does not always land on an
+    exact duplicate: one stray record picked up between exports made the union
+    bigger than the largest file and slipped the whole set through."""
+    _export(tmp_path, "a.ris", range(1, 101))
+    _export(tmp_path, "b.ris", range(98, 104))
+    with pytest.raises(manual.ExportProblem):
+        manual.read_exports(tmp_path)
+
+
+def _scopus_export(tmp_path, name, dois):
+    """A Scopus RIS carries a DOI and no accession number -- every real export
+    in `data/manual` has a blank `identifier` on every record."""
+    body = "".join(
+        f"TY  - JOUR\nT1  - Article {i}\nDO  - 10.1000/{i}\nT2  - A Journal\n"
+        f"DA  - 2026/07/01\nER  -\n" for i in dois)
+    (tmp_path / name).write_text(body)
+    (tmp_path / f"{name}.meta.yaml").write_text(
+        f"source: scopus\nexported: 2026-08-29\nquery: q\nrecords: {len(dois)}\n")
+
+
+def test_a_duplicated_scopus_export_is_refused_on_its_dois(tmp_path):
+    """The guard keyed on `identifier` alone and skipped any file without one.
+    All twelve real Scopus exports -- 2,648 records, the largest manual source --
+    have blank identifiers, so the guard had never once applied to them."""
+    _scopus_export(tmp_path, "a.ris", range(1, 41))
+    _scopus_export(tmp_path, "b.ris", range(1, 41))
+    with pytest.raises(manual.ExportProblem):
+        manual.read_exports(tmp_path)
+
+
+def test_scopus_exports_of_different_articles_are_accepted(tmp_path):
+    _scopus_export(tmp_path, "a.ris", range(1, 41))
+    _scopus_export(tmp_path, "b.ris", range(100, 140))
+    assert len(manual.read_exports(tmp_path)) == 2
+
+
 def test_exports_of_genuinely_different_slices_are_accepted(tmp_path):
     _export(tmp_path, "a.ris", range(1, 41))
     _export(tmp_path, "b.ris", range(100, 140))
