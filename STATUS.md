@@ -412,9 +412,22 @@ exits 1. `run.weeks_to_render` filters weeks that have not happened, and
 The document's own date still decides its period. A December paper belongs to
 Q4; it just cannot be counted before December.
 
-**Not deferred, just absent:** PatentsView (awaiting a key, gets its own plan) and
-GDELT (plan 2A tasks 3 and 4; the implementation is written, it needs a clean
-fixture capture and is rate-limited).
+**Not deferred, just absent:** PatentsView (awaiting a key — and note
+`search.patentsview.org` has no DNS record as of 2026-09-03, so the endpoint in
+the plan needs re-checking) and
+GDELT (plan 2A tasks 3 and 4. **This document said "the implementation is
+written"; it is not.** There is no `gdelt_doc.py` or `gdelt_geo.py` and there
+never has been in git history. What exists is the downstream plumbing —
+`normalize.py` declares `media_articles` and `media_deploy` keyed on a source
+that was never built, which is why the review found `media_articles` declared
+and never written. The API answers 200 with real JSON and no key; it needs a
+collector and a fixture.
+
+**And the owner has run GDELT before, on another dashboard, where a query took
+many hours to complete.** That is direct operating experience and it outranks a
+single reachable probe: the weekly run is a cron job, and a source that takes
+hours does not belong in it. If GDELT is built it belongs beside the manual
+exports as a separate, occasional job — not in the Monday run).
 
 **Carry-forward items** recorded in the plan docs: clone-cohort policy beyond the
 star filter, `gh_commits` / `gh_stars_delta`, `adoption_new` hardcoded to 0,

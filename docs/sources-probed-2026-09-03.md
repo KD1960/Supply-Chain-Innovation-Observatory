@@ -81,3 +81,77 @@ Reddit is the smaller job and is blocked on one action by the owner.
 - **Vendors:** run the discovery sweep once it exists, or hand-collect the eight
   real newsroom URLs. Either way the decision needs the twenty-item sample, not
   a list of homepages.
+
+---
+
+# The three free-and-unbuilt sources, probed the same day
+
+## GDELT — works, is free, and STATUS is wrong about it
+
+`api.gdeltproject.org/api/v2/doc/doc` answered **HTTP 200 with 9,894 bytes of
+real JSON, no key**. It is genuinely available.
+
+**STATUS's claim that "the implementation is written" is false.** There is no
+`observatory/collectors/gdelt_doc.py` and no `gdelt_geo.py`. Plan 2A specifies
+both; neither was ever created, and nothing in git history has ever contained
+one. What *does* exist is the downstream plumbing that would consume them:
+`normalize.py` declares `media_articles` and `media_deploy` aggregations keyed
+on a `gdelt_doc` source, and the tests reference it as a string.
+
+That also explains the process review's §2.4 finding — `media_articles` is
+declared in `HARD_SIGNALS` and never written to `weekly_signals`. It is not a
+bug in the index; it is a collector that does not exist.
+
+**It is aggressively rate-limited**, which STATUS did get right. Roughly one
+request per five seconds; this probe exhausted the budget in under a dozen
+calls and started receiving 429s. One earlier call returned **HTTP 200 with a
+non-JSON body** — the same empty-but-valid-200 shape as Reddit's, and a third
+instance of it in one afternoon.
+
+**Match rate not measured.** The rate limit stopped the sweep before a sample
+was complete. That is the one number that decides it, and it is still missing.
+
+**The owner has run GDELT before, on another dashboard, and a query took many
+hours to complete.** That is direct operating experience and it outranks this
+probe, which measured only whether one call returns in one second. It does not.
+A weekly sweep is fifty-odd queries under a rate limit that starts refusing
+after a dozen, and the cron job runs Monday at 07:00.
+
+**So GDELT cannot go in the weekly run.** If it is built at all it belongs where
+the manual exports are: an occasional, separately-invoked job whose output is
+imported, not a collector the Monday job waits on.
+
+## Semantic Scholar — needs a free key
+
+`api.semanticscholar.org/graph/v1/paper/search` returns **429** unauthenticated.
+Semantic Scholar issues free API keys on request for higher limits.
+
+The question it must answer is not whether it works but whether it **adds
+anything OpenAlex does not**. That is the OpenAlex-versus-Scopus precedent
+exactly: OpenAlex survived because its abstract coverage was measured at 99%
+against Scopus's 49% on the same twelve journals. Semantic Scholar overlaps
+arXiv, OpenAlex and Scopus heavily, and the test is overlap, not availability.
+
+## PatentsView — the endpoint in the plan no longer exists
+
+`search.patentsview.org` has **no DNS record at all**. `api.patentsview.org`
+resolves. So beyond the key STATUS is waiting for, the API's shape needs
+re-checking before any plan written against it is trusted.
+
+## Ranking, on what is now known
+
+1. **PatentsView.** Would replace the hand-made Lens export, the second-most
+   expensive manual step after ABI/INFORM, and patents are a family currently
+   resting on 5 observations a quarter. Blocked on a key, and now also on an
+   endpoint question, but neither is a design problem.
+2. **GDELT.** Free, keyless, and it fills the media gap `render.py` already
+   apologises for — but the owner has run it before and a query took hours.
+   That rules it out of the weekly run entirely. It would have to be built as
+   an occasional job beside the manual exports, which is a bigger change than
+   "one collector", and the match rate is still unmeasured.
+3. **Semantic Scholar.** Last, because it probably duplicates sources already
+   held. Worth a measured overlap test, not a build.
+
+The ranking changed while this document was being written: GDELT led on the
+probe and lost on the owner's experience of running it. A single successful
+call is not a measurement of a sweep.
