@@ -1,23 +1,28 @@
 # STATUS
 
 Supply Chain Innovation Observatory — state of the project, written for someone
-picking it up cold. Last updated 2026-09-03.
+picking it up cold. Last updated 2026-09-04.
 
 Owner: Kevin Dooley, ASU W. P. Carey.
 
-**Read this, then `docs/process-review-2026-09-03.md`, then
-`docs/process-review-2026-08-31.md`.** The 09-03 review covers the most recent
-29 commits and says which of the 08-31 risks are closed; it is also a
-self-assessment by the assistant that wrote them, and says so at the top. The
-08-31 review is the independent one and is still the sharper document.
+**Read this, then `docs/process-review-2026-09-04.md`, then
+`docs/process-review-2026-08-31.md`.** The 09-04 review covers the most recent
+11 commits, rechecks the register again, and adds five new risks. Like the
+09-03 review before it, it is a self-assessment by the assistant that wrote the
+work it assesses, and says so at the top.
 
-**Original note on the 08-31 review:** That is an independent
-process review commissioned on 2026-08-31; it is more candid about this
-project's weaknesses than this document is, and its risk register is the best
-short guide to what will break next.
+**The 08-31 review is the only independent one** — commissioned from a reviewer
+with no prior contact with the project — and it is still the sharper document.
+It is more candid about this project's weaknesses than this file is, and its
+risk register remains the best short guide to what will break next.
 
-**The 08-31 risk register is rechecked in the 09-03 review**, item by item and
-by behaviour rather than by grep. Six of twelve are closed. Do not re-fix them.
+**Do not re-fix the closed risks.** Six of the original twelve were closed by
+2026-09-03 and a seventh (the 256 hole) on 2026-09-03; each was rechecked by
+behaviour rather than by grep.
+
+**The single most important open question is not technical.** Whether 421
+Scopus observations, gathered by hand export, may stay in a published report is
+waiting on ASU Library. See §4a and the drafted reply in `correspondence/`.
 
 ---
 
@@ -101,6 +106,11 @@ looks the way it does.
 - **Standing instruction from the owner:** plain correctness bugs inherited from
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
+- **Stage what you mean to commit.** `git add -A` on 2026-09-03 committed and
+  pushed the owner's marketing and distribution plan to the public repository,
+  because it happened to be untracked. The owner elected to leave it up. The
+  repository is public: a commit is a publication, and staging everything is
+  not the same as choosing what to publish.
 
 ## 4a. What the library can and cannot license (2026-09-03)
 
@@ -147,15 +157,15 @@ published.
 
 ## 4b. What changed recently
 
-Full reasoning is in the commit messages, which are long on purpose, and in
-`docs/`. In brief:
+Full reasoning is in the commit messages, which are long on purpose, in `docs/`,
+and in `docs/process-review-2026-09-04.md`.
 
-**2026-08-27 to 08-31** — USAspending fixed (it phrase-matched six multi-word
-strings against an API that phrase-matches, and matched none of 36 awards in a
-year; it queries freight assistance-listing programmes now). Five sources added:
-Scopus, Lens, ABI/INFORM by hand, OpenAlex and NSF automated. Lexicon v6 → v9.
-Reporting moved to calendar quarters. Metrics moved from a 52-week to a
-four-quarter window. The weekly page became a collection-health view.
+**2026-09-04** — the README was rewritten. It had described a weekly dashboard
+built from six sources with an annual report, and walked a reader through
+exporting from Web of Science and ABI/INFORM: the first is gone since 2020 and
+the second is prohibited. Four paths in it did not exist. The `--export-queries`
+help text named ABI/INFORM too, and a test now fails if the CLI's own help names
+a retired source. Third process review written the same day.
 
 **2026-09-03 (licence)** — **ABI/INFORM is retired.** ASU Library's licensing
 answer: Clarivate forbids text and data mining of ProQuest products "or any
@@ -267,13 +277,22 @@ closed. Headlines:
   See §5.
 - **The report gained a masthead**, disclosure tabs and a credit line.
 
+**2026-08-27 to 08-31** — USAspending fixed (it phrase-matched six multi-word
+strings against an API that phrase-matches, and matched none of 36 awards in a
+year; it queries freight assistance-listing programmes now). Five sources added:
+Scopus, Lens, ABI/INFORM by hand, OpenAlex and NSF automated. Lexicon v6 → v9.
+Reporting moved to calendar quarters. Metrics moved from a 52-week to a
+four-quarter window. The weekly page became a collection-health view.
+
 ## 5. What is broken or missing
 
 ### Measurement of the instrument itself
 
-**Precision is unsettled.** The last figure, **70%**, was measured at lexicon v9
-against a corpus that no longer exists — the four worst technologies were retired
-or tightened the next day. Nothing currently states the precision of what is
+**Precision is unsettled, and further from settled than it was.** The last
+figure, **70%**, was measured at lexicon v9 against a corpus that no longer
+exists — the four worst technologies were retired or tightened the next day, and
+ABI/INFORM was removed entirely on 2026-09-03. Two corpus changes now separate
+the measurement from what is published. Nothing currently states the precision of what is
 published. `docs/precision-audit-2026-09-02.md` carries both audits and the
 re-audit; the sheet is `docs/audit/sample-20260902.md`, rebuilt with
 `--audit-sheet`.
@@ -290,6 +309,17 @@ observations and the strongest diffusion leg, precision unknown.
 
 ### Sources
 
+**Scopus is the open licence question, and it is the biggest thing in this
+file.** ABI/INFORM was retired because ProQuest forbids mining. The same library
+answer says the Elsevier API is the sanctioned route for Scopus and that "any
+other text & data mining activity would violate the Elsevier terms" — and 421
+Scopus observations, from hand-run exports, are in the corpus and in published
+reports. The distinction being relied on (a person clicks export; the clause
+quoted names robots and crawlers) is a reading, not an answer. It is question 1
+in the drafted reply, and it should be settled before the next report is
+published. If the answer goes the other way, the corpus loses a further 421
+observations and its largest supplemental source.
+
 **There is no trade press.** ABI/INFORM was retired on 2026-09-03 for licence
 reasons (`docs/abi-inform-retired-2026-09-03.md`), taking the `trade` evidence
 family with it. The abstract problem that used to sit here — ProQuest's RIS
@@ -304,8 +334,10 @@ exactly one star and the largest has 118; 60 sampled repos gained no stars in
 **Sources barely overlap.** The source-diversity gate marks any technology
 drawing 80%+ of its evidence from one source and withholds its share movement.
 
-**Diffusion is the thinnest stage.** 2026-Q2 was 328 research and 275 code
-against 29 filings and 1 trade article. 14 of 48 technologies have fewer than
+**Diffusion is the thinnest stage, and thinner since 2026-09-03.** With trade
+press gone it rests on SEC filings and Hacker News alone, which is uncomfortable
+for a project whose central question is about diffusion. 2026-Q2 was 328
+research and 275 code against 29 filings and 1 trade article. 14 of 48 technologies have fewer than
 five observations ever. `docs/edgar-depth-2026-09-01.md` measured EDGAR's
 ceiling at 4–5×; `docs/sources-probed-2026-09-03.md` probed Reddit, vendors,
 GDELT, PatentsView and Semantic Scholar.
@@ -328,6 +360,18 @@ never existed.
 
 **`missing_exports` detects absence, not staleness.** A file present but
 generated under an older lexicon is invisible to it.
+
+**`patentsview` is declared and has never existed.** It sits in
+`EVIDENCE_FAMILIES` and was printed in Appendix B as a source feeding the
+experiment stage until 2026-09-03. Either build it or delete the declaration.
+
+**Two findings can name the same technology.** 2026-Q2 publishes autonomous
+trucking in finding 1 and again in finding 4. Nothing tests for it.
+
+**Post cards need a font the CI box does not have.** `cards.load_fonts` raises
+`FontsMissing` rather than falling back to Pillow's bitmap default, which is
+right, but `render_quarter` catches it and prints a line — so a quarter can ship
+with no cards and one line of output saying why.
 
 **Carry-forward items** in the plan docs: clone-cohort policy beyond the star
 filter, `gh_commits` / `gh_stars_delta`, `fed_obligated` semantics, discovery
@@ -373,41 +417,57 @@ pinned model and published prompts. The weekly run must stay deterministic.
 
 ## 7. Where to pick up
 
-In value order. `docs/process-review-2026-09-03.md` has the reasoning and the
-risk register.
+In value order. `docs/process-review-2026-09-04.md` has the reasoning and the
+current risk register.
 
-1. **The Scopus API collector — waiting on the key.** Elsevier gives academic
+1. **Send the reply to the library.** Drafted at
+   `correspondence/2026-09-03-library-reply-draft.md`, waiting on Kevin.
+   Question 1 — whether hand-run Scopus exports may continue, and whether what
+   is published from them is acceptable — decides whether 421 observations stay
+   in the corpus. Nothing else in this file is worth more than that answer.
+2. **The Scopus API collector — waiting on the key.** Elsevier gives academic
    researchers a free key (dev.elsevier.com); the library is not involved.
    Worth building: measured 2026-09-03, Scopus carries **159 matched documents
    OpenAlex does not**, 46% of its own matched set
    (`docs/scopus-vs-openalex-2026-09-03.md`), so it is not the duplicate the
-   OpenAlex docstring implies. Not written against a guessed response shape —
-   when the key lands, capture one real response as the fixture and **measure
-   abstract coverage before adopting**, which is the check OpenAlex never got.
-   Abstracts stay local: observations store title, url and matched pattern, and
-   the evidence pages publish a title and a link.
-2. **A coder who did not write the patterns.** Four passes, one model. The only
-   thing that settles what precision is. Sheet: `docs/audit/sample-20260902.md`.
-3. **Q4 supplemental exports**, first week of January. `--export-queries 2026-Q4
-   --split`. Clear ProQuest's marked-items list between exports, and choose the
-   option that includes the abstract.
-4. **The first complete calendar year.** 2026 finishes at W53 — the first annual
+   OpenAlex docstring implies. Deliberately not written against a guessed
+   response shape — when the key lands, capture one real response as the
+   fixture and **measure abstract coverage before adopting**, which is the check
+   OpenAlex never got.
+3. **A coder who did not write the patterns.** Four passes, one model, and the
+   figure is now two corpus changes stale. The only thing that settles what
+   precision is. Sheet: `docs/audit/sample-20260902.md`.
+4. **The think-aloud sessions**, October, per §5 of
+   `docs/marketing-plan-2026-09-03.md`. The findings layer was built ahead of
+   them rather than after, so the Q2 report is the stimulus and the override
+   file (`findings/<period>.yaml`) is what absorbs what they say.
+5. **Split `quarter.build_context`.** Risk 12 has been open across three reviews
+   and grew in every one; `quarter.py` is 826 lines.
+6. **Q4 supplemental exports**, first week of January. `--export-queries 2026-Q4
+   --split`, now Scopus and Lens only. Scopus caps an export at 2,000 records
+   and says so only in the interface.
+7. **The first complete calendar year.** 2026 finishes at W53 — the first annual
    report where neither year is truncated.
-5. **PatentsView**, if the key arrives. Check the endpoint first.
-6. **Retire `discover.py` or justify it.** The rising-terms loop has contributed
+8. **Decide `patentsview`:** build it if the key arrives and the endpoint
+   resolves, or delete the declaration. It has been named as a source since
+   before it existed.
+9. **Retire `discover.py` or justify it.** The rising-terms loop has contributed
    none of the 48 watchlist entries, and a second discovery instrument is now
    specced beside it (`docs/superpowers/specs/2026-09-03-source-discovery-design.md`).
 
-**Waiting on the owner:** Reddit app credentials, an Elsevier API key for
-Scopus, the PatentsView key, and — if trade press is wanted back — the two
-questions for the licensing librarian in
-`docs/abi-inform-retired-2026-09-03.md`. The library has answered on Factiva
-(no subscription), Web of Science (terminated 2020), NexisUni (prohibited) and
-Lightcast (not a library resource).
+**Waiting on the owner:** the library reply (above), an Elsevier API key for
+Scopus, Reddit app credentials, and the PatentsView key. The library has already
+answered on ABI/INFORM (retired), Factiva (no subscription), Web of Science
+(terminated 2020), NexisUni (prohibited) and Lightcast (not a library resource).
 
-**Specced, not built:** source discovery (above), and a PDF of the quarterly
-report — agreed to use reportlab, report plus evidence in one file, rendering
-from the same `build_context()` the HTML uses.
+**Specced, not built:** source discovery (above), and a PDF of the *full*
+quarterly report — agreed to use reportlab, report plus evidence in one file,
+rendering from the same `build_context()` the HTML uses. The two-page brief
+built on 2026-09-03 is a different artifact and does not replace it.
+
+**Built this session, and unexercised in anger:** the findings layer, the post
+cards, the brief and the technologies sheet have been generated for 2026-Q2 and
+2026-Q3 and looked at, but no reader outside this project has seen any of them.
 
 ## 8. Owner decisions already made — do not relitigate
 
@@ -444,6 +504,29 @@ from the same `build_context()` the HTML uses.
   software supply chain security, e-commerce, machine learning for operations.
   Together they would have more than doubled the corpus.
 
+**Decided 2026-09-03 and 09-04:**
+
+- **ABI/INFORM is retired**, and the 13 observations it had produced were
+  removed rather than left in published reports. Reversal conditions in
+  `docs/abi-inform-retired-2026-09-03.md`.
+- **The overlap guard enforces the 5% tolerance its comment documented**,
+  rather than the narrower fix of refusing only exact duplicates. A duplicated
+  set carrying a stray extra record is caught.
+- **Post cards carry the finding, not the figure.** A scatter with fifteen
+  labelled dots is unreadable in a social crop, and a post is one click from a
+  report most readers will not open.
+- **Pillow is an accepted dependency.** `export.py` refused PNG because
+  rasterisers need native libraries; that is still true of converting the SVG,
+  and was never true of drawing.
+- **The technologies sheet expands patterns into readable terms** rather than
+  printing them raw or dropping definitions. What cannot be expanded cleanly is
+  shown as written.
+- **The Scopus collector waits for a real API response** rather than being
+  written against the documented schema.
+- **The marketing plan stays public.** It was pushed to the public repository by
+  a `git add -A` that swept up an untracked file; the owner elected to leave it
+  rather than rewrite history. Correspondence is now gitignored.
+
 ## 9. Published artifacts
 
 Reports are regenerated from the database and are cheap to remake; do not treat
@@ -461,6 +544,12 @@ not, for two releases. OpenAlex was recommended as a Scopus replacement after
 testing its retrieval and never its abstract coverage, which is what decides
 whether the matcher can see anything. A guard was written for partial quarters,
 documented accurately, and never connected to its caller.
+
+**Assuming the scope of an action instead of checking it.** `git add -A`
+published the owner's marketing plan to a public repository, because the command
+was chosen for convenience and nobody looked at what it was staging. This is the
+same shape as verifying the mechanism rather than the outcome, moved outside the
+pipeline: the action was believed rather than observed.
 
 **The remedy that works:** check the artifact, not the code that makes it. Read
 the rendered page, count the rows in the database, compare the number against
