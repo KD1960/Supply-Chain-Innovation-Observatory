@@ -102,7 +102,50 @@ looks the way it does.
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
 
-## 4a. What changed recently
+## 4a. What the library can and cannot license (2026-09-03)
+
+ASU Library answered a set of questions about text and data mining of licensed
+resources; the business librarian replied with the electronic-resources and
+licensing librarians copied. **Read this before adding any source that sits
+behind a subscription.** The full record, including the exact clauses, is in
+`docs/abi-inform-retired-2026-09-03.md`; the reply and the open questions are in
+`correspondence/` (gitignored — email is not method).
+
+The general answer: **ASU's business database licences forbid text and data
+mining.** The Economist Intelligence Unit is the only business-related exception
+the librarian knew of, and avoiding this restriction is a large part of why ASU
+subscribes to TDM Studio at all. Most licences forbid automated retrieval even
+of metadata alone.
+
+| Source | Answer | What it meant here |
+|---|---|---|
+| **ProQuest / ABI/INFORM** | No TDM, and the librarian reads the clause as covering metadata. TDM Studio is the only sanctioned route, and ABI/INFORM is in it (not the Financial Times) | **Retired.** 13 observations removed, trade press gone as a family |
+| **Scopus** | Elsevier gives academic researchers free API keys; the library is not involved. Quotas and throttling at dev.elsevier.com. Anything outside the API violates the terms | Move to the API. Key not yet requested; measured as worth building, `docs/scopus-vs-openalex-2026-09-03.md` |
+| **Web of Science** | ASU terminated the subscription 2020-12-31. No access at all | Closed |
+| **Factiva** | ASU does not subscribe | Closed. The earlier rejection stands for a second reason |
+| **NexisUni** | Programmatic access prohibited without written permission; no API subscription. Even manual downloading can get ASU cut off if the vendor deems it excessive | Closed |
+| **Lightcast** | Not a library resource — ask career services | Open, and not a library question |
+
+**Still open with the library**, in the reply draft:
+
+1. Whether a human-run Scopus export, matched locally, is acceptable until the
+   API key is in place — or whether that should stop now too.
+2. Whether the API key covers what this project does: retrieve, match locally,
+   publish counts plus titles and links.
+3. Whether TDM Studio can serve a recurring quarterly pull, or is built for
+   one-off projects.
+4. Whether publishing aggregate counts with titles and links is acceptable for
+   a licensed source generally.
+
+**The standing rule this produces:** a subscription source is not added until
+its licence has been checked, and the answer is written down with the condition
+that would change it — the same discipline this project already applies to
+sources it rejects on measurement. What this project publishes helps its case
+and does not settle it: observations store title, url and matched pattern, and
+the evidence pages publish a title and a link. No abstract or full text is ever
+published.
+
+## 4b. What changed recently
 
 Full reasoning is in the commit messages, which are long on purpose, and in
 `docs/`. In brief:
