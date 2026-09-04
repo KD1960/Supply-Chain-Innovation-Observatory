@@ -129,6 +129,17 @@ in the session's process looked at what was being staged. This is the same
 family as the project's other failures — an action whose scope was assumed
 rather than checked — and it is the first one that reached the public internet.
 
+**1a. And then it happened again, in the commit that wrote this review.** A
+second `git add -A` published `docs/KD project assessment 20260904.docx`, saved
+into `docs/` the same morning. The paragraph above was already written when the
+command ran. The 09-03 review recorded that "the defect the previous review
+named twice was reproduced by the person writing about it"; this is the same
+sentence one review later, and it is the strongest evidence in this document
+that naming a failure does not prevent it. The owner elected to leave both files
+up. The standing rule now in §4 of STATUS — stage what you mean to commit, never
+`git add -A` — is what has to do the work instead, because the description
+plainly did not.
+
 **2. The top of the pick-up list was an action the licence forbade, and it was
 recommended twice** before the library answered. That was not knowable at the
 time. What is knowable, and was not recorded anywhere until 2026-09-03, is that

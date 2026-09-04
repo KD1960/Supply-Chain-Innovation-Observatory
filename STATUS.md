@@ -106,11 +106,15 @@ looks the way it does.
 - **Standing instruction from the owner:** plain correctness bugs inherited from
   the plan get fixed without asking and reported in the summary; genuine
   judgment calls go to the owner.
-- **Stage what you mean to commit.** `git add -A` on 2026-09-03 committed and
-  pushed the owner's marketing and distribution plan to the public repository,
-  because it happened to be untracked. The owner elected to leave it up. The
-  repository is public: a commit is a publication, and staging everything is
-  not the same as choosing what to publish.
+- **Stage what you mean to commit. Never `git add -A`.** Name the paths you
+  changed. On 2026-09-03 `git add -A` published the owner's marketing and
+  distribution plan to the public repository because it happened to be
+  untracked, and on 2026-09-04 it did the same to a `.docx` assessment saved
+  into `docs/` that morning — in the commit that wrote the review describing the
+  first incident. The owner elected to leave both up and set this rule. The
+  repository is public: a commit is a publication, and staging everything is not
+  the same as choosing what to publish. An untracked file you notice gets
+  mentioned to the owner, not committed.
 
 ## 4a. What the library can and cannot license (2026-09-03)
 
