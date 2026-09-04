@@ -643,3 +643,16 @@ def test_the_export_window_matches_the_report_window():
 def test_a_quarter_ends_on_the_last_day_of_its_last_month():
     assert supplemental.period_bounds("2026-Q3") == ("2026-07-01", "2026-09-30")
     assert supplemental.period_bounds("2026-Q4") == ("2026-10-01", "2026-12-31")
+
+
+def test_the_cli_help_does_not_name_a_retired_source(capsys):
+    """The flag's own help said "Scopus, Lens and ABI/INFORM" after ABI/INFORM
+    was retired, which is the pipeline telling a person to run an export its
+    licence forbids."""
+    from observatory import run
+    import pytest as _pytest
+    with _pytest.raises(SystemExit):
+        run.main(["--help"])
+    printed = capsys.readouterr().out.lower()
+    assert "abi_inform" not in printed
+    assert "abi/inform" not in printed

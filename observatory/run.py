@@ -423,11 +423,11 @@ def main(argv=None) -> int:
     parser.add_argument("--write-status", action="store_true",
                         help="rewrite STATUS section 2 from the database, then exit")
     parser.add_argument("--export-queries", default=None, metavar="YYYY-Qn",
-                        help="print the queries a human pastes into Scopus, Lens "
-                             "and ABI/INFORM for a period, then exit")
+                        help="print the queries a human pastes into the "
+                             "human-fetched databases for a period, then exit")
     parser.add_argument("--source", default=None, metavar="NAME",
                         help="with --export-queries, print only this source's "
-                             "query (lens, scopus, abi_inform)")
+                             "query, e.g. lens or scopus")
     parser.add_argument("--split", action="store_true",
                         help="with --export-queries, break a source's query into "
                              "one export per journal or code, for when a single "
