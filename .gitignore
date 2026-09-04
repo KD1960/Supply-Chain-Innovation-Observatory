@@ -7,3 +7,6 @@ __pycache__/
 .superpowers/
 supply_chain_observatory.egg-info/
 .DS_Store
+
+# Email drafts and replies. Correspondence does not belong in a public repo.
+correspondence/
