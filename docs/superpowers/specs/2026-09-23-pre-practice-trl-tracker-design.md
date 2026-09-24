@@ -19,7 +19,7 @@ were necessary:
 3. The estimand is a **Technology Readiness Level (TRL)**, as a point or range
    estimate with evidence behind it, not a count of documents (§5).
 
-The assistant reads "TLR" in the direction as TRL. Kevin to confirm.
+Kevin confirmed on 2026-09-24 that "TLR" in the direction means TRL.
 
 ## 2. Design constraints
 
@@ -41,31 +41,31 @@ The assistant reads "TLR" in the direction as TRL. Kevin to confirm.
 - **C5. No LLM in the weekly collection run.** The offline, quarterly,
   pinned-model claim extraction is the sanctioned exception, as in the DAI
   spec. Standing rules 1, 3, 4 and 5 from STATUS §8 stay in force.
-- **C6. Membership before measurement.** A technology is tracked only after
-  Kevin has ruled it pre-practice on the sort sheet
-  (`docs/audit/tech-practice-sort-2026-09-23.xlsx`).
+- **C6. Membership is the owner's ruling.** A technology is tracked only
+  because Kevin ruled it pre-practice on the sort sheet
+  (`docs/audit/tech-practice-sort-2026-09-23.xlsx`, all 51 rows ruled
+  2026-09-24). There is no numeric adoption screen; the sheet is the rule.
 
 ## 3. Pre-practice versus in-practice
 
-**Pre-practice:** a technology not yet in routine commercial operation across
-the relevant population, or in operation at fewer than about 15% of relevant
-firms or sites. Operationally: best-evidenced TRL ≤ 8, **or** current adoption
-below the threshold. Kevin sets the threshold and the denominator per
-technology (US firms, global firms, sites, or sales share).
+**Pre-practice:** a technology Kevin judges not yet in routine commercial
+operation across the population it applies to. The working sign is a
+best-evidenced TRL of 8 or below, but the ruling is his, made on the sort
+sheet, and no adoption percentage is computed or required.
 
-**In-practice:** proven in routine commercial operation (TRL 9) **and** above
-the adoption threshold. Not tracked here.
+**In-practice:** proven in routine, widespread commercial operation (TRL 9)
+by his judgment. Not tracked here.
 
-**Graduation:** when a tracked technology reaches TRL 9 and crosses the
-threshold, it leaves this tracker and, if the in-practice dashboard exists,
-enters it. Graduation is itself a reported event. **Stall and retreat** are
+**Graduation:** when the tracker's estimate reaches TRL 9 and holds for two
+quarters, the technology is flagged for Kevin's ruling; he decides whether
+it leaves the tracker and, if the in-practice dashboard exists, enters it.
+Graduation is itself a reported event. **Stall and retreat** are
 also events: a technology can move down a level (Nikola, Takeoff, TradeLens).
 
-**Sort of the current 51 lexicon entries:** assistant's guess with evidence in
-the sheet above, yellow columns for Kevin's ruling. Rough tally of the guess:
-20 pre-practice, 4 borderline pre-practice, 21 in-practice or borderline, 5
-retire or split, 1 split. Expect a tracked list of roughly 22–26 after ruling,
-plus additions (§7).
+**Sort of the current 51 lexicon entries:** Kevin confirmed every assistant
+call on 2026-09-24, with the two "redefine or split" rows ruled plain retires.
+Tracked list: the 24 rows marked pre-practice or pre-practice (borderline),
+plus the pre-practice half of `tms_ai`, plus any additions from §7.
 
 ## 4. Theory: decoupling source from stage
 
@@ -148,8 +148,8 @@ permit internal analysis and mining, which the ASU library licences do not):
    the deeper, costlier option ($20k+).
 3. **Interact Analysis, with LogisticsIQ as a second opinion.** Installed
    base and shipment figures for warehouse automation, AMRs, mobile robots,
-   electrification. These are the adoption numbers behind the 15% screen and
-   the TRL 9 test. Bought per report ($5–15k each) or as a subscription.
+   electrification. These are the hard numbers behind the TRL 9 test and
+   the graduation flag. Bought per report ($5–15k each) or as a subscription.
 4. **Gartner for Supply Chain Leaders (Hype Cycle and Magic Quadrant
    reports).** Not for mining; for calibration. Gartner's "years to
    mainstream" and hype-cycle position are an independent expert estimate to
@@ -204,9 +204,9 @@ only after this tracker has produced one quarter.
 
 ## 10. Assistant's suggestions on the plan
 
-1. **Confirm TRL and the threshold.** TRL is a maturity scale, not an adoption
-   scale; the 15% screen is what keeps adoption in view. Both are needed and
-   they are different axes. Consider reporting both.
+1. **TRL is a maturity scale, not an adoption scale.** With no adoption
+   screen, the tracker says how proven a technology is, not how widely it is
+   used. Say so plainly in the report so readers do not confuse the two.
 2. **Ask the stakeholders one question before building:** what decision they
    would make differently with a TRL estimate versus what Gartner already
    gives them. The answer sets the evidence standard (§4 weights) and whether
@@ -227,8 +227,6 @@ only after this tracker has produced one quarter.
 
 ## 11. Open questions for Kevin
 
-- TLR = TRL?
-- Adoption threshold and denominator (firms, sites, or sales; US or global)?
 - Budget size and cadence?
 - Which of the borderline rows in the sheet go which way?
 - Is the quarterly offline model narrative (§5) acceptable under rule 1?
