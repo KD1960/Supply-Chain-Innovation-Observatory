@@ -1,7 +1,8 @@
 # Pre-practice technology tracker: design (DRAFT for owner review)
 
-Date: 2026-09-23. Author: assistant, from Kevin Dooley's eight-point direction
-of the same day. **Status: draft. Nothing here is approved until Kevin says so.**
+Date: 2026-09-23, revised 2026-09-24 from Kevin Dooley's spec comments.
+Author: assistant, from his eight-point direction. **Status: draft pending
+Kevin's final approval.**
 It supersedes the Disclosed Adoption Index spec of 2026-09-04 as the project's
 direction; that spec and the `phase0` branch are parked, not deleted (§9).
 
@@ -30,7 +31,11 @@ Kevin confirmed on 2026-09-24 that "TLR" in the direction means TRL.
   source that permits mining (§6). The `sources.yaml` entries marked
   `format: ris` from library databases are frozen, not run.
 - **C2. Paid content is allowed**, within the licence's mining terms. This
-  reverses the 2026-08 "free sources only" rule. Each paid source must have a
+  reverses the 2026-08 "free sources only" rule. **Phase 1 runs on free
+  sources only**; funds are planned but not yet allocated, and paid sources
+  are added when they arrive, opportunistically. The raw-before-parse rule
+  makes that safe: a new source is added and history is rebuilt, never
+  rescored by hand. Each paid source must have a
   written licence note in `sources.yaml` stating what the terms permit
   (mining, internal analysis, quoting, redistribution) and the report may use
   only what they permit. Links to paid content are not required in the report;
@@ -167,8 +172,16 @@ Near misses: PatSnap or Derwent (patents; Lens's own institutional plan is
 cheaper), Statista (secondary, weak provenance), IDC or ARC Advisory (like
 Gartner, narrower).
 
-Vendors are named as options, not endorsed; Kevin's budget size decides the
-order. The assistant's minimum set is 1, 2 and 3.
+Vendors are named as options, not endorsed. Kevin's order (2026-09-24):
+Crunchbase first, because it is cheap and can be bought soon; the news
+mining licence next. Note on item 1: trade press is not mainly in-practice
+evidence. Pilots, first customer sites and product launches are reported
+there and almost nowhere else, so it is the main source for the TRL 5–8
+band. Its in-practice reporting is simply not used here.
+
+**Rough costs of the in-practice candidates in §8**, all needing quotes:
+Enlyft $5–15k/yr; Lightcast academic $10–30k/yr; HG Insights $25–50k+/yr;
+6sense and Revelio Labs $50k+/yr.
 
 ## 7. Candidates to add (Kevin decides)
 
@@ -178,6 +191,12 @@ AMRs, which are in-practice), intelligent simulation (the successor framing of
 digital twins), AI-native transportation management (the pre-practice half of
 the `tms_ai` split), and autonomous rail vehicles (the concrete item under the
 vague `rail_intermodal_tech`).
+
+**Measurability gate (Kevin, 2026-09-24):** a candidate is added only after a
+one-quarter probe on the current sources shows it produces claims reliably,
+with a floor Kevin sets once the first probe reports (the assistant's opening
+proposal is ten distinct claims per quarter from at least two source types).
+A candidate that fails the probe is logged with the count, not added.
 
 ## 8. The in-practice dashboard (separate, conditional)
 
@@ -207,26 +226,27 @@ only after this tracker has produced one quarter.
 1. **TRL is a maturity scale, not an adoption scale.** With no adoption
    screen, the tracker says how proven a technology is, not how widely it is
    used. Say so plainly in the report so readers do not confuse the two.
-2. **Ask the stakeholders one question before building:** what decision they
-   would make differently with a TRL estimate versus what Gartner already
-   gives them. The answer sets the evidence standard (§4 weights) and whether
-   the narrative section (§5) is the real product.
+2. **The value case, per Kevin:** not everyone can spend $25k on Gartner, and
+   a tracker run for a while may catch Gartner's blind spots. Report the
+   Gartner comparison when a Gartner source is available; do not wait for it.
 3. **Measure first, again.** Before any code: hand-place ten technologies on
    the TRL scale from 20 claims each, using the parked extractor, and see if
    two readers agree within one level. If they cannot, no weights table will.
-4. **Buy the mining licence first (§6 item 1).** It is the purchase that
-   changes the constraint set; the others refine.
-5. **Cut the list.** Twenty-some pre-practice technologies with real evidence
-   beat 48 with thin counts. Retire the non-technologies in the sheet.
+4. **Start on free sources now; add paid later** (Kevin, 2026-09-24; see C2).
+5. **The list is cut.** Done on the sort sheet.
 6. **Keep stall and retreat as first-class outcomes.** The surprise readers
    want is as often "this went backwards" as "this arrived".
-7. **Decide publication of the parked brainstorm and DAI spec** before any
-   push; the repo is public and `main` has not been pushed since the pivot.
-8. **Budget.** State a number and whether it is one-off or annual; §6's
-   ranking changes at roughly $15k (items 1–2 only), $40k (1–3, 5) and above.
+7. **Before the next push, decide what becomes public.** The repository is
+   public and `main` has not been pushed since 2026-09-04. The unpushed
+   commits include the DAI brainstorm and spec, this spec and the sort sheet,
+   all of which quote or summarize Kevin's 09-04 assessment. A push publishes
+   them. Options: push as is, or move the assessment quotations and the
+   parked DAI documents to `correspondence/` (gitignored) first.
 
-## 11. Open questions for Kevin
+## 11. Decisions taken 2026-09-24
 
-- Budget size and cadence?
-- Which of the borderline rows in the sheet go which way?
-- Is the quarterly offline model narrative (§5) acceptable under rule 1?
+- Budget: planned, not allocated; proceed on free sources, add paid
+  opportunistically.
+- Borderline rows: ruled on the sheet.
+- Quarterly offline model narrative (§5): **approved** under rule 1.
+- Publication of unpushed documents (§10 item 7): still Kevin's to decide.
