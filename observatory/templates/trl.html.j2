@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supply Chain Innovation Observatory &middot; Technology Readiness &middot; {{ period_display }}</title>
+<style>
+  :root{
+    --ground:#F6F7F9; --surface:#FFFFFF; --sunk:#EDEFF3;
+    --ink:#12171C; --body:#2B333B; --muted:#5C6874; --rule:#DCE1E6;
+    --accent:#A85B12; --rise:#1E6E5E; --fall:#94402C;
+    --display:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+    --serif:Charter,"Iowan Old Style",Georgia,serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0E1317; --surface:#161C22; --sunk:#121820;
+      --ink:#E4E9ED; --body:#C3CCD5; --muted:#8A97A3; --rule:#262E36;
+      --accent:#D08A3C; --rise:#4FA890; --fall:#C97155;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0E1317; --surface:#161C22; --sunk:#121820;
+    --ink:#E4E9ED; --body:#C3CCD5; --muted:#8A97A3; --rule:#262E36;
+    --accent:#D08A3C; --rise:#4FA890; --fall:#C97155;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--body);font-family:var(--serif);
+       font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 80px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 80px}
+  header{border-bottom:2px solid var(--ink);padding:48px 0 20px;margin-bottom:36px}
+  .eyebrow{font-family:var(--display);font-size:11px;font-weight:650;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--accent)}
+  h1{font-family:var(--display);font-weight:800;letter-spacing:-.03em;line-height:1.05;
+     font-size:clamp(32px,6vw,52px);color:var(--ink);margin:12px 0 0}
+  section{margin:48px 0 0;max-width:64ch}
+  h2{font-family:var(--display);font-weight:750;letter-spacing:-.02em;color:var(--ink);
+     font-size:24px;margin:0 0 6px}
+  p{margin:0 0 14px}
+  a{color:var(--accent)}
+  .meta{font-family:var(--display);font-size:13px;color:var(--muted);margin:18px 0 0}
+  .note{background:var(--sunk);border-left:3px solid var(--fall);padding:14px 18px;
+        margin:18px 0 0;font-size:14.5px}
+  .trl{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--accent);
+       white-space:nowrap}
+  .trl small{font-weight:400;color:var(--muted)}
+  .counts{font-family:var(--display);font-size:12px;letter-spacing:.06em;
+          text-transform:uppercase;color:var(--muted)}
+  blockquote{margin:14px 0 0;padding:12px 16px;background:var(--surface);
+             border:1px solid var(--rule);border-left:3px solid var(--accent);border-radius:3px}
+  blockquote p{margin:0 0 6px;color:var(--ink)}
+  blockquote footer{margin:0;padding:0;border:0;font-family:var(--display);font-size:12.5px;
+                    color:var(--muted)}
+  .contrary{margin:14px 0 0;color:var(--fall);font-size:14.5px}
+  footer{margin:60px 0 0;padding:20px 0 0;border-top:1px solid var(--rule);
+         font-size:13.5px;color:var(--muted)}
+  /* The lockup is supplied as artwork on white. On a dark ground it would sit
+     in a white box, so it gets its own plate rather than a filter, which would
+     wash the maroon. */
+  .brand{margin:0 0 22px}
+  .brand img{display:block;height:58px;width:auto;max-width:100%}
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]) .brand img{background:#FFFFFF;padding:8px 10px;
+      border-radius:3px}
+  }
+  :root[data-theme="dark"] .brand img{background:#FFFFFF;padding:8px 10px;border-radius:3px}
+  .credit{margin:26px 0 0;padding-top:18px;border-top:1px solid var(--rule);
+          font-size:13.5px;color:var(--body)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand">
+    <img src="{{ brand_logo }}"
+         alt="W. P. Carey School of Business, Arizona State University &mdash; NASPO Department of Supply Chain Management">
+  </div>
+  <div class="eyebrow">Produced by the Center for Supply Chain Innovation, Technology, &amp; Infrastructure</div>
+  <h1>Pre-practice supply chain technologies: readiness, {{ period_display }}</h1>
+  <p class="meta">As of {{ as_of }} · weights v{{ weights_version }} · prompt {{ prompt_versions|join(", ") }} · TRL is a maturity scale, not an adoption scale.</p>
+</header>
+<main>
+  {% for note in notes %}<p class="note">{{ note }}</p>{% endfor %}
+  <section id="movers">
+    <h2>What moved</h2>
+    <ul>
+      {% for t in movers.up %}<li><strong>{{ t.name }}</strong> up to TRL {{ t.point }}{% if not t.held %} (floor){% endif %}</li>{% endfor %}
+      {% for t in movers.retreated %}<li><strong>{{ t.name }}</strong> retreated{% if t.contrary %}: “{{ t.contrary.quote }}”{% endif %}</li>{% endfor %}
+      {% if not movers.up and not movers.retreated %}<li>No level changes this period.</li>{% endif %}
+    </ul>
+  </section>
+  {% for t in technologies %}
+  <section class="tech" id="{{ t.id }}">
+    <h2>{{ t.name }} <span class="trl">{% if t.point is not none %}TRL {{ t.point }}{% if not t.held %} (floor){% endif %} <small>(range {{ t.low }}–{{ t.high }})</small>{% else %}not estimated{% endif %}</span></h2>
+    <p class="counts">{{ t.n_claims }} claim{{ "" if t.n_claims == 1 else "s" }}, {{ t.n_verified }} with verified quotes.</p>
+    {% for c in t.top %}
+    <blockquote><p>“{{ c.quote }}”</p><footer>{{ c.actor }} ({{ c.actor_type }}), {{ c.claim_type }}, {{ c.setting }} · {{ c.source }} {{ c.doc_date }} · <a href="{{ c.url }}">source</a> · claim {{ c.claim_id }}</footer></blockquote>
+    {% endfor %}
+    {% if t.contrary %}<p class="contrary">Contrary: “{{ t.contrary.quote }}” — {{ t.contrary.actor }}, {{ t.contrary.doc_date }}</p>{% endif %}
+  </section>
+  {% endfor %}
+</main>
+<footer>
+  <p class="credit">Created and produced by Dr. Kevin Dooley. For inquiries,
+  email <a href="mailto:kevin.dooley@asu.edu">kevin.dooley@asu.edu</a>.</p>
+</footer>
+</div>
+</body>
+</html>

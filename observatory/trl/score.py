@@ -38,6 +38,9 @@ class TRLEstimate:
     contrary: dict | None = None
     n_claims: int = 0
     n_verified: int = 0
+    # True when some level reached the support threshold; False when the point is
+    # the fallback -- the lowest band any claim evidences -- or there is no point.
+    held: bool = False
 
 
 def load_weights(path: Path | None = None) -> Weights:
@@ -99,4 +102,4 @@ def estimate(claims: list[dict], as_of: dt.date, w: Weights) -> TRLEstimate:
                 if schema.BAND[c["claim_type"]][0] <= point <= schema.BAND[c["claim_type"]][1]]
     top = [c for _, c in sorted(at_point, key=lambda x: -x[0])[:3]]
     return TRLEstimate(point, low, high, support, top, contrary[1] if contrary else None,
-                       len(claims), n_verified)
+                       len(claims), n_verified, bool(held))

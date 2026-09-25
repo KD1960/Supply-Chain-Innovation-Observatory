@@ -65,3 +65,12 @@ def test_weights_table_is_complete_over_the_closed_sets():
     from observatory.trl import schema
     assert set(W.actor) == set(schema.ACTOR_TYPES)
     assert set(W.source) == set(schema.SOURCE_TYPES)
+
+
+def test_held_says_whether_the_point_reached_the_threshold_or_is_the_floor():
+    # Five user-firm pilots clear the threshold (see the average test above); one
+    # university paper does not, so its point is the lowest band it evidences.
+    held = score.estimate([claim("pilots", cid=f"a{i}") for i in range(5)], AS_OF, W)
+    floor = score.estimate([claim("proposes", actor="university", src="paper")], AS_OF, W)
+    assert held.held is True and floor.held is False and floor.point is not None
+    assert score.estimate([], AS_OF, W).held is False

@@ -412,6 +412,8 @@ def main(argv=None) -> int:
     parser.add_argument("--only", default=None, help="run a single collector by name")
     parser.add_argument("--quarter", default=None, metavar="YYYY-Qn",
                         help="write the quarterly report for a quarter, e.g. 2026-Q2")
+    parser.add_argument("--trl-report", default=None, metavar="YYYY-Qn",
+                        help="write the TRL page from data/trl/claims-<period>.jsonl")
     parser.add_argument("--annual", default=None, metavar="YYYY",
                         help="write the annual report for a calendar year, e.g. 2026")
     parser.add_argument("--import-manual", action="store_true",
@@ -458,6 +460,13 @@ def main(argv=None) -> int:
     if args.export_queries:
         supplemental.print_queries(args.export_queries, watchlist,
                                    only=args.source, split=args.split)
+        return 0
+
+    # Reads claims and weights, touches no database. The import is local so the
+    # weekly path never loads `trl`.
+    if args.trl_report:
+        from .trl import report
+        print(report.render(args.trl_report))
         return 0
 
     conn = store.connect()
