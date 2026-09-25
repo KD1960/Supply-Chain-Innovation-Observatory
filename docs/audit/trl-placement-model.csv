@@ -1,0 +1,11 @@
+tech_id,reader_trl,reader_note
+supply_chain_digital_twin,4,claude-opus-5-5; stop_reason=end_turn
+agentic_procurement,4,claude-opus-5-5; stop_reason=end_turn
+delivery_drones,3,claude-opus-5-5; stop_reason=end_turn
+cv_inspection,5,claude-opus-5-5; stop_reason=end_turn
+supply_chain_llm,7,claude-opus-5-5; stop_reason=end_turn
+autonomous_trucking,6,claude-opus-5-5; stop_reason=end_turn
+sidewalk_delivery_robots,2,claude-opus-5-5; stop_reason=end_turn
+additive_spares,3,claude-opus-5-5; stop_reason=end_turn
+electric_trucks,3,claude-opus-5-5; stop_reason=end_turn
+humanoid_logistics,4,claude-opus-5-5; stop_reason=end_turn
