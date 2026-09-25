@@ -113,6 +113,11 @@ lists:
 sources:
   lens:
     name: Lens.org
+    frozen: true
+    frozen_reason: >-
+      Library licence forbids text mining and the report may not depend on
+      manual library exports (spec 2026-09-23, constraint C1). Reversal
+      condition: a licence or API agreement that permits mining, recorded here.
     family: patents
     signal: patents
     stage: experiment
@@ -165,6 +170,11 @@ sources:
 
   scopus:
     name: Scopus
+    frozen: true
+    frozen_reason: >-
+      Library licence forbids text mining and the report may not depend on
+      manual library exports (spec 2026-09-23, constraint C1). Reversal
+      condition: a licence or API agreement that permits mining, recorded here.
     family: research
     signal: journal_papers
     stage: idea
@@ -192,6 +202,13 @@ sources:
 
   abi_inform:
     name: ProQuest ABI/INFORM
+    frozen: true
+    frozen_reason: >-
+      Library licence forbids text mining and the report may not depend on
+      manual library exports (spec 2026-09-23, constraint C1). Reversal
+      condition: a licence or API agreement that permits mining, recorded here.
+      Already excluded from --export-queries via `retired` below; `frozen` is
+      set too so it reads consistently alongside scopus and lens.
     # ASU Library, 2026-09-03, from the licensing librarian: Clarivate's terms
     # say a subscriber "shall not perform any text or data mining or indexing
     # of the Products or any underlying data", and in the librarian's reading

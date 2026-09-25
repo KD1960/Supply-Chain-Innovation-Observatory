@@ -1,9 +1,24 @@
+import dataclasses
 import textwrap
 
 import pytest
 
-from observatory import manual, store
+from observatory import manual, store, supplemental
 from observatory.matcher import Technology, Watchlist
+
+
+def _unfreeze(monkeypatch, source_id):
+    """Lift the freeze (spec C1) on one registry source for a test's duration.
+
+    lens is the only source that declares CPC evidence, and it is frozen, so a
+    test of evidence flowing through the *import pipeline* -- as opposed to
+    `classification_evidence` called directly -- has nowhere else to get that
+    data from. The production registry is never touched.
+    """
+    real = supplemental.load()
+    unfrozen = dataclasses.replace(real.sources[source_id], frozen=False)
+    patched = dataclasses.replace(real, sources={**real.sources, source_id: unfrozen})
+    monkeypatch.setattr(supplemental, "load", lambda path=None: patched)
 
 
 def tech(tech_id="wr", pattern="warehouse robot(s|ics)?"):
@@ -41,7 +56,7 @@ RIS = textwrap.dedent("""\
     """)
 
 META = textwrap.dedent("""\
-    source: scopus
+    source: wos
     exported: 2026-08-20
     query: TITLE-ABS-KEY("warehouse robot")
     records: 2
@@ -49,8 +64,13 @@ META = textwrap.dedent("""\
     """)
 
 
-def write_export(tmp_path, name="scopus-2026.ris", body=RIS, meta=META):
-    directory = tmp_path / "scopus"
+def write_export(tmp_path, name="wos-2026.ris", body=RIS, meta=META):
+    # `wos` -- not a source in the registry, unlike scopus, lens and
+    # abi_inform, all now frozen or retired (spec C1). These generic-mechanics
+    # tests are about the importer, not about any one licensed database, and a
+    # fixture that trips the frozen guard first would be testing the wrong
+    # refusal.
+    directory = tmp_path / "wos"
     directory.mkdir(parents=True, exist_ok=True)
     (directory / name).write_text(body)
     (directory / f"{name}.meta.yaml").write_text(meta)
@@ -107,7 +127,7 @@ def test_import_writes_observations_for_matching_records_only(tmp_path, conn):
     assert written == 1
     rows = conn.execute("SELECT * FROM observations").fetchall()
     assert len(rows) == 1
-    assert rows[0]["source"] == "scopus"
+    assert rows[0]["source"] == "wos"
     assert rows[0]["url"] == "https://doi.org/10.1000/abc123"
 
 
@@ -250,9 +270,10 @@ def test_the_applicant_becomes_the_entity():
     assert manual.parse_csv(text)[0]["venue"] == "AMAZON TECH INC"
 
 
-def test_classification_evidence_is_recorded_as_the_matched_pattern(tmp_path):
+def test_classification_evidence_is_recorded_as_the_matched_pattern(tmp_path, monkeypatch):
     """A count has to be traceable to what produced it. Here that is a
     classification code, not a regex."""
+    _unfreeze(monkeypatch, "lens")
     export = tmp_path / "lens.csv"
     export.write_text(_lens_row("Rack system", "Racks.", "B65G1/1378"))
     (tmp_path / "lens.csv.meta.yaml").write_text(
@@ -265,7 +286,8 @@ def test_classification_evidence_is_recorded_as_the_matched_pattern(tmp_path):
     assert ("warehouse_robotics", "cpc:B65G1/137") in [(r[0], r[1]) for r in rows]
 
 
-def test_text_and_classification_evidence_do_not_double_count(tmp_path):
+def test_text_and_classification_evidence_do_not_double_count(tmp_path, monkeypatch):
+    _unfreeze(monkeypatch, "lens")
     export = tmp_path / "lens.csv"
     export.write_text(_lens_row(
         "Automated storage and retrieval for a warehouse",
@@ -628,18 +650,20 @@ def test_every_export_of_a_source_counts_towards_its_corpus(tmp_path):
     it. record_corpus replaces per key, so each file wiped the last: 2,607
     records were recorded as 40. A denominator that small makes every rate for
     that family roughly sixty times too large."""
+    # `wos` -- not a source in the registry, unlike scopus, which is frozen
+    # (spec C1); this test is about corpus tracking, not about Scopus itself.
     from observatory import matcher, store
     for n, ids in enumerate([range(1, 21), range(21, 41), range(41, 61)], start=1):
         body = "".join(
             f"TY  - JOUR\nTI  - Paper {i}\nAN  - {i}\nY1  - 2026/07/01/\nER  -\n"
             for i in ids)
-        (tmp_path / f"scopus-{n}.ris").write_text(body)
-        (tmp_path / f"scopus-{n}.ris.meta.yaml").write_text(
-            f"source: scopus\nexported: 2026-08-29\nquery: q{n}\nrecords: {len(list(ids))}\n")
+        (tmp_path / f"wos-{n}.ris").write_text(body)
+        (tmp_path / f"wos-{n}.ris.meta.yaml").write_text(
+            f"source: wos\nexported: 2026-08-29\nquery: q{n}\nrecords: {len(list(ids))}\n")
     conn = store.connect(":memory:")
     store.init_schema(conn)
     manual.import_exports(conn, matcher.load_watchlist(), tmp_path)
-    assert store.corpus_between(conn, "2026-07-01", "2026-09-30") == {"scopus": 60}
+    assert store.corpus_between(conn, "2026-07-01", "2026-09-30") == {"wos": 60}
 
 
 # --- a source whose licence no longer permits this ---------------------------
@@ -660,3 +684,28 @@ def test_an_export_from_a_retired_source_is_refused_with_the_reason(tmp_path):
     message = str(raised.value)
     assert "abi_inform" in message
     assert "retired" in message.lower()
+
+
+# --- a source frozen by spec C1 -----------------------------------------------
+#
+# Scopus, ProQuest ABI/INFORM and Lens are library-licensed, and the owner
+# decided the report may no longer depend on hand exports from them (spec
+# 2026-09-24, constraint C1). Unlike a retired source, a frozen one is not an
+# error to fix and re-run -- the file is simply not imported, and `--import-
+# manual` says so rather than raising.
+
+
+def test_import_exports_refuses_a_frozen_source(tmp_path, capsys):
+    export_file = tmp_path / "scopus-2026-Q3.ris"
+    export_file.write_text("TY  - JOUR\nTI  - A paper\nER  -\n")
+    (tmp_path / "scopus-2026-Q3.ris.meta.yaml").write_text(
+        "source: scopus\nexported: 2026-09-24\nquery: q\nrecords: 1\n")
+    from observatory import matcher
+
+    # conn=None: the point is that a frozen source is refused before anything
+    # is imported, so the database is never touched.
+    written = manual.import_exports(conn=None, watchlist=matcher.load_watchlist(),
+                                    root=tmp_path)
+    out = capsys.readouterr().out
+    assert "frozen" in out and "scopus" in out
+    assert written == 0

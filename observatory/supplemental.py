@@ -67,6 +67,13 @@ class Source:
     # Kept in the registry rather than deleted, because a source removed
     # without its reason is a source somebody adds again next year.
     retired: str = ""
+    # A source the owner may not ask a human to export by hand (spec C1):
+    # library-licensed databases whose terms forbid text or data mining.
+    # Unlike `retired`, the source stays wired up -- ready to run the moment
+    # the reversal condition in `frozen_reason` is met -- it is just never
+    # asked for and never imported meanwhile.
+    frozen: bool = False
+    frozen_reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -84,6 +91,12 @@ def load(path: Path | None = None) -> Registry:
     }
     return Registry(version=int(raw.get("version", 0)), sources=sources,
                     lists=raw.get("lists") or {})
+
+
+def frozen_sources(registry: Registry | None = None) -> set[str]:
+    """Sources the owner may not ask a human to export by hand (spec C1)."""
+    registry = registry or load()
+    return {source_id for source_id, source in registry.sources.items() if source.frozen}
 
 
 def _rendered_lists(registry: Registry) -> dict[str, str]:
@@ -447,7 +460,8 @@ def export_queries(period: str, watchlist, registry: Registry | None = None,
             f"{', '.join(sorted(registry.sources))}"
         )
     wanted = ([registry.sources[only]] if only
-              else [source for source in registry.sources.values() if not source.retired])
+              else [source for source in registry.sources.values()
+                    if not source.retired and not source.frozen])
     start, end = period_bounds(period)
     entries = []
     for source in wanted:
@@ -562,20 +576,27 @@ def print_queries(period: str, watchlist, registry: Registry | None = None,
     query nobody recorded cannot be reproduced, and an export that cannot be
     reproduced is not evidence.
     """
+    registry = registry or load()
     entries = export_queries(period, watchlist, registry, only, split)
+    # Read from the registry and the period directly rather than entries[0]:
+    # every source can be frozen or retired at once, as scopus, lens and
+    # abi_inform are under spec C1, leaving entries empty on the default
+    # sheet -- and the header still has to print rather than crash.
+    start, end = period_bounds(period)
     print(f"\nSupplemental exports for {period}  "
-          f"(registry v{entries[0]['registry_version']}, "
-          f"lexicon v{entries[0]['lexicon_version']})")
+          f"(registry v{registry.version}, "
+          f"lexicon v{watchlist.version})")
     # Calendar, not ISO weeks. These are the dates the report counts, and the
     # two disagreed by three days at every quarter edge until 2026-09-01.
-    print(f"Covering {entries[0]['start']} to {entries[0]['end']}, "
-          f"the same window the report counts.")
+    print(f"Covering {start} to {end}, the same window the report counts.")
     # Named rather than quietly absent. Someone who has run this sheet before
     # will look for the missing source, and "it is not here" has to come with
     # the reason and the way back.
-    for source in (() if only else (registry or load()).sources.values()):
+    for source in (() if only else registry.sources.values()):
         if source.retired:
             print(f"\nNOT OFFERED -- {source.name} is retired. {source.retired}")
+        elif source.frozen:
+            print(f"\nNOT OFFERED -- {source.name} is frozen. {source.frozen_reason}")
     by_source = collections.Counter(entry["source"] for entry in entries)
     for source_id, pieces in by_source.items():
         if pieces > 1:

@@ -27,25 +27,28 @@ def _watchlist():
 
 
 def test_missing_exports_names_every_file_the_sheet_asked_for(tmp_path):
+    # Asked for by name: lens, scopus and abi_inform are all frozen or retired
+    # (spec C1), so the default sheet asks for nothing and nothing on it can be
+    # missing. The check itself is still exercised against a named source.
     watchlist = _watchlist()
-    expected = supplemental.export_queries("2026-Q3", watchlist, split=True)
+    expected = supplemental.export_queries("2026-Q3", watchlist, split=True, only="lens")
     assert expected, "the sheet asks for nothing; the fixture is wrong"
 
-    missing = supplemental.missing_exports("2026-Q3", watchlist, root=tmp_path)
+    missing = supplemental.missing_exports("2026-Q3", watchlist, root=tmp_path, only="lens")
     assert len(missing) == len(expected)
     assert {row["filename"] for row in missing} == {row["filename"] for row in expected}
 
 
 def test_a_file_that_arrived_is_not_reported_missing(tmp_path):
     watchlist = _watchlist()
-    expected = supplemental.export_queries("2026-Q3", watchlist, split=True)
+    expected = supplemental.export_queries("2026-Q3", watchlist, split=True, only="lens")
     landed = expected[0]["filename"]
     directory = tmp_path / "2026-Q3"
     directory.mkdir(parents=True)
     (directory / landed).write_text("")
 
     missing = {row["filename"] for row in
-               supplemental.missing_exports("2026-Q3", watchlist, root=tmp_path)}
+               supplemental.missing_exports("2026-Q3", watchlist, root=tmp_path, only="lens")}
     assert landed not in missing
     assert len(missing) == len(expected) - 1
 
@@ -83,10 +86,16 @@ def test_journal_of_commerce_is_not_asked_for():
                 if "Journal of Commerce" in row["query"]]
 
 
-def test_import_says_what_never_arrived(tmp_path, capsys):
+def test_import_reports_nothing_missing_once_every_source_is_frozen_or_retired(tmp_path, capsys):
     """Said out loud on the run that ingests them, not left in a file nobody
-    opens. Silent truncation is this project's oldest failure mode, and an
-    export nobody ran is the same shape."""
+    opens -- but lens, scopus and abi_inform are now all frozen or retired
+    (spec C1), so the sheet asks for nothing and nothing can be missing from
+    it. This used to pin scopus appearing as 'never arrived' while the
+    retired abi_inform did not, for the reason abi_inform's own retirement
+    note gives: asking a person for an export the licence forbids is worse
+    than not asking, and a standing reminder for it would outlive anyone's
+    memory of why it stopped. Freezing scopus and lens puts them under the
+    same rule."""
     from observatory import store
 
     conn = store.connect(":memory:")
@@ -97,12 +106,7 @@ def test_import_says_what_never_arrived(tmp_path, capsys):
         manual_import.import_exports(conn, _watchlist(), root=tmp_path,
                                      period="2026-Q3")
         printed = capsys.readouterr().out
-        assert "never arrived" in printed
-        assert "scopus" in printed
-        # Not the retired source. Asking a person for an export the licence
-        # forbids is worse than not asking, and a standing reminder for it
-        # would outlive anyone's memory of why it stopped.
-        assert "abi_inform" not in printed
+        assert "never arrived" not in printed
     finally:
         conn.close()
 
@@ -129,12 +133,13 @@ def test_a_split_source_is_still_checked_piece_by_piece(tmp_path):
     watchlist = _watchlist()
     directory = tmp_path / "2026-Q3"
     directory.mkdir(parents=True)
-    expected = [e for e in supplemental.export_queries("2026-Q3", watchlist, split=True)
-                if e["source"] == "scopus"]
+    expected = [e for e in supplemental.export_queries(
+        "2026-Q3", watchlist, split=True, only="scopus") if e["source"] == "scopus"]
     (directory / expected[0]["filename"]).write_text("")
     (directory / f"{expected[0]['filename']}.meta.yaml").write_text(
         "source: scopus\nexported: 2026-08-29\nquery: x\nrecords: 1\n")
 
-    missing = [row for row in supplemental.missing_exports("2026-Q3", watchlist, root=tmp_path)
+    missing = [row for row in supplemental.missing_exports(
+        "2026-Q3", watchlist, root=tmp_path, only="scopus")
                if row["source"] == "scopus"]
     assert len(missing) == len(expected) - 1

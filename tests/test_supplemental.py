@@ -74,11 +74,11 @@ def test_a_query_referring_to_an_unknown_list_is_an_error_not_a_broken_string():
 
 
 def _offered():
-    """The sources still collected. A retired one keeps its registry entry and
-    its query -- the machinery has to work the day the licence answer changes
-    -- but it is not put in front of a person to export."""
+    """The sources still collected. A retired or frozen one keeps its registry
+    entry and its query -- the machinery has to work the day the licence
+    answer changes -- but it is not put in front of a person to export."""
     return [source for source in supplemental.load().sources.values()
-            if not source.retired]
+            if not source.retired and not source.frozen]
 
 
 def test_a_retired_source_is_named_on_the_sheet_with_its_reason(capsys):
@@ -93,7 +93,7 @@ def test_export_queries_returns_one_entry_per_source():
     entries = supplemental.export_queries("2026-Q2", _watchlist())
     assert {entry["source"] for entry in entries} == {
         source_id for source_id, source in supplemental.load().sources.items()
-        if not source.retired}
+        if not source.retired and not source.frozen}
     for entry in entries:
         assert entry["query"].strip()
         assert entry["format"] in ("ris", "csv")
@@ -131,11 +131,13 @@ def _watchlist(extra=None):
 
 # --- the printed sheet -----------------------------------------------------
 
-def test_the_sheet_shows_the_query_for_every_source(capsys):
-    supplemental.print_queries("2026-Q2", _watchlist())
+def test_the_sheet_shows_the_query_for_every_offered_source(capsys):
+    """Every source in the registry is frozen or retired (spec C1), so
+    printing the sheet unfiltered shows no query; the per-source rendering
+    is still checked by asking for one by name, as elsewhere in this file."""
+    supplemental.print_queries("2026-Q2", _watchlist(), only="lens")
     printed = capsys.readouterr().out
-    for source in _offered():
-        assert source.name in printed
+    assert "Lens.org" in printed
     assert "G06Q10/08" in printed
 
 
@@ -143,28 +145,28 @@ def test_the_sheet_records_what_the_sidecar_needs(capsys):
     """An export nobody can reproduce is not evidence. Everything the sidecar
     requires has to be on the sheet the person is looking at."""
     from observatory import manual
-    supplemental.print_queries("2026-Q2", _watchlist())
+    supplemental.print_queries("2026-Q2", _watchlist(), only="lens")
     printed = capsys.readouterr().out.lower()
     for field in manual.REQUIRED_META:
         assert field in printed, f"sidecar needs {field} but the sheet never says so"
 
 
 def test_the_sheet_names_where_the_export_goes(capsys):
-    supplemental.print_queries("2026-Q2", _watchlist())
+    supplemental.print_queries("2026-Q2", _watchlist(), only="lens")
     assert "data/manual/2026-Q2" in capsys.readouterr().out
 
 
 def test_the_sheet_says_the_lens_syntax_is_unverified(capsys):
     """Shipping an unverified query silently is how a wrong number gets a
     plausible provenance."""
-    supplemental.print_queries("2026-Q2", _watchlist())
+    supplemental.print_queries("2026-Q2", _watchlist(), only="lens")
     printed = capsys.readouterr().out.lower()
     assert "unverified" in printed or "verify" in printed
 
 
 def test_the_cli_flag_prints_the_sheet(capsys):
     from observatory import run
-    run.main(["--export-queries", "2026-Q2"])
+    run.main(["--export-queries", "2026-Q2", "--source", "lens"])
     assert "Lens.org" in capsys.readouterr().out
 
 
@@ -349,7 +351,11 @@ def test_a_single_year_period_asks_for_one_year():
 
 
 def test_splitting_scopus_gives_one_query_per_journal():
-    entries = supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+    # Asked for by name: scopus is frozen (spec C1) and no longer offered on
+    # the default sheet, and this test is about the batching, which the
+    # source still describes.
+    entries = supplemental.export_queries("2026-Q2", _watchlist(), split=True,
+                                          only="scopus")
     issns = supplemental.load().lists["issn"]["items"]
     scopus = [e for e in entries if e["source"] == "scopus"]
     assert len(scopus) == len(issns)
@@ -375,8 +381,15 @@ def test_a_split_query_still_carries_the_period():
 
 
 def test_without_splitting_there_is_one_query_per_source():
-    entries = supplemental.export_queries("2026-Q2", _watchlist())
-    assert len(entries) == len(_offered())
+    # _offered() now names no source -- lens, scopus and abi_inform are all
+    # frozen or retired (spec C1) -- so the default sheet is checked against
+    # that emptiness directly, and each source's own query is still checked
+    # by name via `only=`, the pattern already used for the retired source.
+    assert supplemental.export_queries("2026-Q2", _watchlist()) == []
+    assert _offered() == []
+    for source_id in ("lens", "scopus", "abi_inform"):
+        entries = supplemental.export_queries("2026-Q2", _watchlist(), only=source_id)
+        assert len(entries) == 1
 
 
 def test_trade_press_splits_by_publication():
@@ -397,7 +410,9 @@ def test_trade_press_splits_by_publication():
 
 
 def test_a_source_with_nothing_to_split_on_is_left_whole():
-    entries = supplemental.export_queries("2026-Q2", _watchlist(), split=True)
+    # lens is frozen (spec C1); asked for by name, as elsewhere in this file.
+    entries = supplemental.export_queries("2026-Q2", _watchlist(), split=True,
+                                          only="lens")
     assert len([e for e in entries if e["source"] == "lens"]) == 1
 
 
@@ -552,8 +567,10 @@ def test_each_batch_gets_its_own_filename():
 
 
 def test_a_source_with_no_term_limit_is_not_batched():
-    entries = [e for e in supplemental.export_queries("2026-Q2", _watchlist(), split=True)
-               if e["source"] == "scopus"]
+    # scopus is frozen (spec C1); asked for by name, as elsewhere in this file.
+    entries = [e for e in supplemental.export_queries(
+        "2026-Q2", _watchlist(), split=True, only="scopus")
+        if e["source"] == "scopus"]
     assert len(entries) == len(supplemental.load().lists["issn"]["items"])
 
 
@@ -643,6 +660,17 @@ def test_the_export_window_matches_the_report_window():
 def test_a_quarter_ends_on_the_last_day_of_its_last_month():
     assert supplemental.period_bounds("2026-Q3") == ("2026-07-01", "2026-09-30")
     assert supplemental.period_bounds("2026-Q4") == ("2026-10-01", "2026-12-31")
+
+
+def test_frozen_sources_are_named_and_excluded_from_export_queries():
+    """Scopus, Lens and ABI/INFORM are library-licensed and the owner decided
+    the report may no longer depend on hand exports from them (spec C1). A
+    frozen source produces no query sheet: the owner must not be asked to
+    export it."""
+    frozen = supplemental.frozen_sources()
+    assert {"scopus", "abi_inform", "lens"} <= frozen
+    entries = supplemental.export_queries("2026-Q3", _watchlist())
+    assert not any(entry["source"] in frozen for entry in entries)
 
 
 def test_the_cli_help_does_not_name_a_retired_source(capsys):

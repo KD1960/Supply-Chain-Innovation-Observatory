@@ -556,14 +556,17 @@ def test_rebuild_replays_manual_exports_too(conn, monkeypatch, tmp_path):
     """rebuild() clears the derived tables and replays data/raw. A manual
     export lives outside data/raw, so without this it would be wiped by the
     next rebuild and nobody would be told."""
-    manual_root = tmp_path / "manual" / "scopus"
+    # `wos` -- not a source in the registry, unlike scopus, which is frozen
+    # (spec C1); this test is about rebuild() preserving manual imports, not
+    # about Scopus itself.
+    manual_root = tmp_path / "manual" / "wos"
     manual_root.mkdir(parents=True)
     (manual_root / "x.ris").write_text(
         "TY  - JOUR\nTI  - Driverless truck corridor study\nPY  - 2026\n"
         "DA  - 2026/04/15\nDO  - 10.1/a\nER  -\n"
     )
     (manual_root / "x.ris.meta.yaml").write_text(
-        'source: scopus\nexported: 2026-08-20\nquery: "driverless truck"\nrecords: 1\n'
+        'source: wos\nexported: 2026-08-20\nquery: "driverless truck"\nrecords: 1\n'
     )
     monkeypatch.setattr(run.config, "MANUAL_DIR", tmp_path / "manual")
     monkeypatch.setattr(run.manual.config, "MANUAL_DIR", tmp_path / "manual")
@@ -571,12 +574,12 @@ def test_rebuild_replays_manual_exports_too(conn, monkeypatch, tmp_path):
 
     run.manual.import_exports(conn, watchlist)
     assert conn.execute(
-        "SELECT COUNT(*) AS n FROM observations WHERE source='scopus'"
+        "SELECT COUNT(*) AS n FROM observations WHERE source='wos'"
     ).fetchone()["n"] == 1
 
     run.rebuild(conn, watchlist, collectors=())
     assert conn.execute(
-        "SELECT COUNT(*) AS n FROM observations WHERE source='scopus'"
+        "SELECT COUNT(*) AS n FROM observations WHERE source='wos'"
     ).fetchone()["n"] == 1
 
 

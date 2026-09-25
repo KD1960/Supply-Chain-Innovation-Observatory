@@ -468,6 +468,20 @@ def import_exports(conn, watchlist, root: Path | None = None, session=None,
     _report_missing(watchlist, directory, period)
     exports = read_exports(directory)
 
+    # A frozen source (spec C1) stays readable by `read_exports` -- the audit
+    # sampler recovers evidence for observations already in the database from
+    # exports still sitting on disk -- but nothing frozen is ever imported.
+    frozen = supplemental.frozen_sources()
+    kept = []
+    for meta, records in exports:
+        source = str(meta["source"])
+        if source in frozen:
+            print(f"{source}: frozen (see sources.yaml); "
+                  f"{meta.get('_filename') or 'export'} not imported")
+            continue
+        kept.append((meta, records))
+    exports = kept
+
     # One resolver pass across every export, before any of them is matched. A
     # bibliographic record that carries only a year cannot be placed in a week,
     # and placing it on January 1st is what put all 2,607 records of one Scopus
