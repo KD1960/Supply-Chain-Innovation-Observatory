@@ -4,19 +4,9 @@ output auditable without trusting it."""
 
 from __future__ import annotations
 
-import re
-import unicodedata
+from ..textnorm import normalize
 
-_QUOTES = {"“": '"', "”": '"', "‘": "'", "’": "'", "–": "-", "—": "-",
-           "\u00a0": " "}   # NFKC already maps the non-breaking space; listed so nobody wonders
-_WS = re.compile(r"\s+")
-
-
-def normalize(text: str) -> str:
-    text = unicodedata.normalize("NFKC", text or "")
-    for src, dst in _QUOTES.items():
-        text = text.replace(src, dst)
-    return _WS.sub(" ", text).strip()
+__all__ = ["normalize", "verify_quote"]
 
 
 def verify_quote(quote: str, text: str) -> bool:

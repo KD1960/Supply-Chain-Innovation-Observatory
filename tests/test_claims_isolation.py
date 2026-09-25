@@ -50,3 +50,10 @@ def test_no_module_outside_claims_imports_the_claims_package():
 
 def test_claims_package_exists():
     assert (CLAIMS / "__init__.py").exists()
+
+
+def test_trl_package_never_imports_claims_or_anthropic():
+    trl = PACKAGE / "trl"
+    offenders = [p for p in trl.rglob("*.py")
+                 if any(n == "anthropic" or "claims" in n.split(".") for n in _imports(p))]
+    assert offenders == []

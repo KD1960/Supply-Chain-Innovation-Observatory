@@ -1,0 +1,6 @@
+id,name,family,lexicon v10 status,assistant call,adoption guess (current, relevant firms),TRL point (assistant),TRL low,TRL high,confidence,evidence / reasoning (assistant),Kevin: confirm? (Y/N),Kevin: your call,Kevin: notes
+delivery_drones,Delivery drones,logistics,v10,pre-practice,,,,,,,,,
+erp,ERP,software,v10,in-practice,,,,,,,,,
+piece_picking,Piece picking robots,warehouse,v10,pre-practice,,,,,,,,,
+operations_research,Operations research,planning,v10,retire,,,,,,,,,
+additive_spares,Additive spares,manufacturing,v10,pre-practice (borderline),,,,,,,,,
