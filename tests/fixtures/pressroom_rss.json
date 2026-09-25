@@ -1,0 +1,11 @@
+{
+ "vendor": "berkshiregrey",
+ "kind": "rss",
+ "url": "https://www.berkshiregrey.com/feed/",
+ "fetched_week": "2026-W39",
+ "listing": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\"><channel>\n<title>Berkshire Grey</title>\n<link>https://www.berkshiregrey.com</link>\n<description>News</description>\n<item>\n<title>Berkshire Grey Deploys Robotic Picking at Acme DC</title>\n<link>https://www.berkshiregrey.com/news/acme-dc/</link>\n<pubDate>Tue, 16 Sep 2026 14:00:00 +0000</pubDate>\n<description><![CDATA[Acme Logistics has gone live with robotic piece-picking at its Ohio distribution center.]]></description>\n</item>\n<item>\n<title>Our Q3 e-book</title>\n<link>https://www.berkshiregrey.com/ebook/</link>\n<pubDate>Mon, 01 Sep 2026 10:00:00 +0000</pubDate>\n</item>\n</channel></rss>\n",
+ "pages": {
+  "https://www.berkshiregrey.com/news/acme-dc/": "<html><body><p>Berkshire Grey today announced that Acme Logistics has gone live with robotic piece-picking at its Ohio distribution center, the first of three sites planned for 2027.</p><p>Short.</p><p>The system handles 1,200 picks per hour across 40,000 SKUs in a warehouse the company opened in 2024.</p></body></html>"
+ },
+ "notes": []
+}

@@ -1,0 +1,27 @@
+# Vendor newsrooms the pressroom collector reads weekly. kind: rss | sitemap | html | links:<path>.
+# chosen_for is provenance (why the newsroom is on the list); the matcher decides what an item evidences.
+# Newsrooms that could not be read on 2026-09-25 are listed at the bottom with the reason, not fetched.
+version: 1
+newsrooms:
+  - {vendor: aurora, url: "https://ir.aurora.tech/news-events/press-releases", kind: html, chosen_for: [autonomous_trucking]}
+  - {vendor: kodiak, url: "https://kodiak.ai/news", kind: html, chosen_for: [autonomous_trucking]}
+  - {vendor: plus, url: "https://plus.ai/news-and-insights", kind: html, chosen_for: [autonomous_trucking]}
+  - {vendor: wing, url: "https://wing.com/news", kind: "links:/news/", chosen_for: [delivery_drones]}
+  - {vendor: agility, url: "https://www.agilityrobotics.com/content", kind: html, chosen_for: [humanoid_logistics]}
+  - {vendor: figure, url: "https://www.figure.ai/news", kind: html, chosen_for: [humanoid_logistics]}
+  - {vendor: apptronik, url: "https://apptronik.com/company/press-releases", kind: html, chosen_for: [humanoid_logistics]}
+  - {vendor: circularise, url: "https://www.circularise.com/blogs", kind: html, chosen_for: [digital_product_passport]}
+  - {vendor: averydennison, url: "https://news.averydennison.com/rss", kind: html, chosen_for: [digital_product_passport, item_level_rfid]}
+  - {vendor: gs1us, url: "https://www.gs1us.org/industries-and-insights/media-center/press-releases", kind: html, chosen_for: [gs1_2d]}
+  - {vendor: daimlertruck, url: "https://www.daimlertruck.com/en/newsroom", kind: html, chosen_for: [electric_trucks, hydrogen_trucks]}
+  - {vendor: volvotrucks_us, url: "https://www.volvotrucks.us/sitemap.xml", kind: sitemap, chosen_for: [electric_trucks]}
+  - {vendor: righthand, url: "https://righthandrobotics.com/the-latest?q=news", kind: html, chosen_for: [piece_picking]}
+  - {vendor: berkshiregrey, url: "https://www.berkshiregrey.com/feed/", kind: rss, chosen_for: [piece_picking, warehouse_robotics]}
+  - {vendor: symbotic, url: "https://www.symbotic.com/post-sitemap.xml", kind: sitemap, chosen_for: [warehouse_robotics]}
+  - {vendor: locus, url: "https://locusrobotics.com/feed", kind: rss, chosen_for: [warehouse_robotics]}
+not_reachable_2026_09_25:
+  - {vendor: zipline, url: "https://www.flyzipline.com/newsroom", reason: JavaScript shell}
+  - {vendor: flytrex, url: "https://www.flytrex.com/news", reason: JavaScript shell}
+  - {vendor: tesla, url: "https://ir.tesla.com/press", reason: 403 Akamai}
+  - {vendor: gs1, url: "https://www.gs1.org/news-events/news", reason: 403}
+  - {vendor: covariant, url: "https://covariant.ai/news/", reason: 404}

@@ -1,0 +1,11 @@
+{
+ "vendor": "wing",
+ "kind": "links:/news/",
+ "url": "https://wing.com/news",
+ "fetched_week": "2026-W39",
+ "listing": "<html><body><nav><a href=\"/about\">About</a></nav>\n<section><a href=\"/news/world-cup-deliveries\">Delivering throughout the tournament</a></section>\n</body></html>\n",
+ "pages": {
+  "https://wing.com/news/world-cup-deliveries": "<html><head><title>Delivering throughout the tournament</title></head><body><p>Published August 7, 2026</p><p>Wing is making drone deliveries in the World Cup host cities this summer, working with the DHS and FAA on airspace access for the tournament's fan zones.</p></body></html>"
+ },
+ "notes": []
+}
