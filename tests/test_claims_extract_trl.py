@@ -6,8 +6,9 @@ from observatory.trl.documents import DocText
 
 
 class FakeStream:
-    def __init__(self, payload):
+    def __init__(self, payload, stop_reason="end_turn"):
         self.payload = payload
+        self.stop_reason = stop_reason
 
     def __enter__(self):
         return self
@@ -17,22 +18,25 @@ class FakeStream:
 
     def get_final_message(self):
         usage = SimpleNamespace(input_tokens=100, output_tokens=20, cache_read_input_tokens=0, cache_creation_input_tokens=0)
-        return SimpleNamespace(stop_reason="end_turn", usage=usage,
-                               content=[SimpleNamespace(type="text", text=json.dumps(self.payload))],
-                               to_json=lambda: "{}")
+        text = json.dumps(self.payload)
+        return SimpleNamespace(stop_reason=self.stop_reason, usage=usage,
+                               content=[SimpleNamespace(type="text", text=text)],
+                               to_json=lambda: json.dumps({"stop_reason": self.stop_reason,
+                                                           "content": [{"type": "text", "text": text}]}))
 
 
 class FakeClient:
     """Stands in for anthropic.Anthropic: the code calls client.messages.stream(...)."""
 
-    def __init__(self, payload):
+    def __init__(self, payload, stop_reason="end_turn"):
         self.payload = payload
+        self.stop_reason = stop_reason
         self.calls = []
         self.messages = SimpleNamespace(stream=self.stream)
 
     def stream(self, **kw):
         self.calls.append(kw)
-        return FakeStream(self.payload)
+        return FakeStream(self.payload, self.stop_reason)
 
 
 def test_one_document_yields_verified_claim_rows(tmp_path):
@@ -61,3 +65,44 @@ def test_an_unverifiable_quote_is_kept_but_marked(tmp_path):
 def test_cost_estimate_refuses_above_the_ceiling():
     docs = [DocText("hn", f"hn:{i}", "2026-09-01", "T", None, "x" * 40000, i) for i in range(50)]
     assert extract_trl.estimate_dollars(docs, "claude-sonnet-5") > 1.0
+
+
+TECHS = [("delivery_drones", "Delivery drones")]
+DOC = DocText("hn", "hn:1", "2026-09-01", "T", "http://u", "Walmart is piloting drone delivery.", 1)
+
+
+def test_the_raw_response_is_kept_even_when_the_output_fails_the_schema():
+    bad = {"claims": [{"tech_id": "delivery_drones", "claim_type": "invented", "actor_type": "user_firm",
+                       "actor": "W", "setting": "one_site", "quantity": "", "quote": "q", "source_type": "forum_post"}]}
+    raw: dict = {}
+    try:
+        extract_trl.extract_document(FakeClient(bad), "claude-sonnet-5", TECHS, DOC, "2026-Q3", raw=raw)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("an invalid claim_type must raise")
+    assert raw["response"]["stop_reason"] == "end_turn"
+    assert "invented" in raw["response"]["content"][0]["text"]
+
+
+def test_a_refusal_row_records_the_stop_reason_and_keeps_the_raw():
+    raw: dict = {}
+    rows = extract_trl.extract_document(FakeClient({}, stop_reason="refusal"), "claude-sonnet-5", TECHS, DOC,
+                                        "2026-Q3", raw=raw)
+    assert rows[0]["refused"] is True and rows[0]["stop_reason"] == "refusal"
+    assert raw["response"]["stop_reason"] == "refusal"
+
+
+def test_raw_record_falls_back_when_the_message_has_no_to_json():
+    msg = SimpleNamespace(stop_reason="max_tokens", content=[SimpleNamespace(type="text", text='{"claims": [')],
+                          usage=SimpleNamespace(input_tokens=5, output_tokens=8000,
+                                                cache_read_input_tokens=0, cache_creation_input_tokens=0))
+    rec = extract_trl.raw_record(msg)
+    assert rec["stop_reason"] == "max_tokens" and rec["text"] == '{"claims": [' and rec["usage"]["output_tokens"] == 8000
+
+
+def test_a_document_listed_under_two_technologies_is_read_once():
+    a = DocText("hn", "hn:1", "2026-09-01", "T", None, "x", 1)
+    b = DocText("hn", "hn:1", "2026-09-01", "T", None, "x", 2)
+    c = DocText("arxiv", "hn:1", "2026-09-01", "T", None, "x", 3)
+    assert extract_trl.unique_docs([a, b, c]) == [a, c]

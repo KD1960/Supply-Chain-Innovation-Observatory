@@ -5,8 +5,10 @@ system prompt, refusals recorded. The only sanctioned model call (spec C5).
          [--limit 5] [--max-dollars 20] [--tech delivery_drones]
 
 Writes data/trl/claims-<period>.jsonl (one row per claim, or per refusal or
-error), data/trl/raw-<period>-<model>/<source>-<doc_id hash>.json (the rows
-for each document) and data/trl/usage-<period>-<model>.json (token totals).
+error), data/trl/raw-<period>-<model>/<source>-<doc_id hash>.json (the
+model's raw response for each document, with the parsed rows beside it)
+and data/trl/usage-<period>-<model>.json (token totals, rewritten after
+every document).
 
 The claims file is opened in APPEND mode: a re-run of the same period adds
 rows to what is there. To re-read a period from scratch, delete
@@ -59,14 +61,47 @@ def _add_usage(total: dict | None, message) -> None:
     total["requests"] = total.get("requests", 0) + 1
 
 
+def raw_record(message) -> dict:
+    """What the model actually returned, kept for audit (C4): the SDK's own
+    JSON when the message offers it, else the text, stop reason and usage."""
+    to_json = getattr(message, "to_json", None)
+    if callable(to_json):
+        return json.loads(to_json())
+    usage = getattr(message, "usage", None)
+    return {
+        "stop_reason": getattr(message, "stop_reason", None),
+        "text": next((b.text for b in message.content if b.type == "text"), ""),
+        "usage": {f: getattr(usage, f, None) for f in USAGE_FIELDS},
+    }
+
+
+def unique_docs(docs: list[documents.DocText]) -> list[documents.DocText]:
+    """One read per document. A document tagged for several tracked
+    technologies appears once per technology in texts_for; the system prompt
+    already lists them all, so a second read would duplicate claims and cost."""
+    seen: set[tuple[str, str]] = set()
+    out = []
+    for d in docs:
+        if (d.source, d.doc_id) not in seen:
+            seen.add((d.source, d.doc_id))
+            out.append(d)
+    return out
+
+
 def extract_document(client, model: str, techs: list[tuple[str, str]], doc: documents.DocText,
-                     period: str, usage: dict | None = None) -> list[dict]:
+                     period: str, usage: dict | None = None, raw: dict | None = None) -> list[dict]:
+    """Claim rows for one document. When `raw` is given, raw["response"] is
+    filled with the model's response BEFORE any parsing, so it survives a
+    schema failure or truncated output."""
     system = trl_prompt.system(techs)
     fmt = schema.response_schema([t for t, _ in techs])
     message = _read(client, model, system, trl_prompt.user(doc), fmt)
     _add_usage(usage, message)
+    if raw is not None:
+        raw["response"] = raw_record(message)
     if message.stop_reason == "refusal":
-        return [{"refused": True, "source": doc.source, "doc_id": doc.doc_id, "period": period}]
+        return [{"refused": True, "stop_reason": message.stop_reason, "source": doc.source,
+                 "doc_id": doc.doc_id, "period": period, "model": model}]
     body = next((b.text for b in message.content if b.type == "text"), "")
     claims = schema.validate(json.loads(body), [t for t, _ in techs])
     rows = []
@@ -87,7 +122,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--period", required=True, metavar="YYYY-Qn")
     p.add_argument("--model", default="claude-sonnet-5")
-    p.add_argument("--limit", type=int, default=None, help="documents per technology")
+    p.add_argument("--limit", type=int, default=None, help="first N per technology (raw-file order), not newest")
     p.add_argument("--max-dollars", type=float, default=20.0)
     p.add_argument("--tech", default=None, help="one tech_id only")
     args = p.parse_args(argv)
@@ -105,6 +140,7 @@ def main(argv=None) -> int:
     for tid in ids:
         found = list(documents.texts_for(conn, tid, weeks, COLLECTORS))
         docs.extend(found[: args.limit] if args.limit else found)
+    docs = unique_docs(docs)
     est = estimate_dollars(docs, args.model)
     print(f"{args.period} / {args.model}: {len(docs)} documents, ~${est:.2f} before caching")
     if est > args.max_dollars:
@@ -121,24 +157,31 @@ def main(argv=None) -> int:
     usage: dict = json.loads(usage_path.read_text()) if usage_path.exists() else {}
     client = anthropic.Anthropic()
     n = 0
-    with open(out_path, "a", encoding="utf8") as out:
-        for doc in docs:
-            try:
+    try:
+        with open(out_path, "a", encoding="utf8") as out:
+            for doc in docs:
+                raw: dict = {}
                 try:
-                    rows = extract_document(client, args.model, techs, doc, args.period, usage)
-                except anthropic.RateLimitError as e:
-                    time.sleep(int(e.response.headers.get("retry-after", "60")))
-                    rows = extract_document(client, args.model, techs, doc, args.period, usage)
-            except (anthropic.APIStatusError, anthropic.APIConnectionError, ValueError, json.JSONDecodeError) as e:
-                print(f"{doc.source} {doc.doc_id}: {type(e).__name__}: {e} -- recorded, skipped")
-                rows = [{"error": str(e), "source": doc.source, "doc_id": doc.doc_id, "period": args.period}]
-            key = hashlib.sha1(doc.doc_id.encode()).hexdigest()[:10]
-            (raw_dir / f"{doc.source}-{key}.json").write_text(json.dumps(rows, ensure_ascii=False))
-            for r in rows:
-                out.write(json.dumps(r, ensure_ascii=False) + "\n")
-                n += 1
-    usage_path.write_text(json.dumps(usage, indent=2))
-    print(f"{out_path}: {n} rows appended")
+                    try:
+                        rows = extract_document(client, args.model, techs, doc, args.period, usage, raw)
+                    except anthropic.RateLimitError as e:
+                        time.sleep(int(e.response.headers.get("retry-after", "60")))
+                        rows = extract_document(client, args.model, techs, doc, args.period, usage, raw)
+                except (anthropic.APIStatusError, anthropic.APIConnectionError, ValueError) as e:
+                    # ValueError covers json.JSONDecodeError and schema.validate failures.
+                    print(f"{doc.source} {doc.doc_id}: {type(e).__name__}: {e} -- recorded, skipped")
+                    rows = [{"error": f"{type(e).__name__}: {e}", "source": doc.source, "doc_id": doc.doc_id,
+                             "period": args.period, "model": args.model}]
+                key = hashlib.sha1(doc.doc_id.encode()).hexdigest()[:10]
+                record = {"source": doc.source, "doc_id": doc.doc_id, "response": raw.get("response"), "rows": rows}
+                (raw_dir / f"{doc.source}-{key}.json").write_text(json.dumps(record, ensure_ascii=False))
+                for r in rows:
+                    out.write(json.dumps(r, ensure_ascii=False) + "\n")
+                    n += 1
+                usage_path.write_text(json.dumps(usage, indent=2))
+    finally:
+        usage_path.write_text(json.dumps(usage, indent=2))  # totals survive a crash mid-run
+        print(f"{out_path}: {n} rows appended")
     print(f"usage ({usage_path.name}, cumulative): {json.dumps(usage)}")
     return 0
 
