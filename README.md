@@ -2,22 +2,22 @@
 
 Which supply chain technologies are being **built** rather than talked about.
 
-The Observatory tracks technologies moving from idea to experimentation,
-investment, deployment and diffusion, from observable traces in publicly
-accessible data. Nothing here is a survey or an opinion: every number is a
-count of documents that a stored pattern matched, and every count can be
-traced back to the document that produced it.
+The Observatory tracks supply chain technologies from observable traces in
+publicly accessible data. Nothing here is a survey or an opinion: every number
+can be traced back to the documents that produced it.
 
 **The deliverable is now a pre-practice technology tracker.** For each
 technology the owner rules pre-practice, it estimates a Technology Readiness
 Level (1 to 9) as a point and a range, inferred from claims a pinned model
 extracts offline once a quarter, each with a verified quote, and scored by a
-published weights table rather than read off the source type. Phase 1 is built
-on branch `trl` (`python -m observatory.run --trl-report 2026-Q3` writes
-`output/trl-2026-Q3.html`), and its numbers are untested until the owner's
+published weights table rather than read off the source type. It is built
+(Phase 1): `python -m observatory.run --trl-report 2026-Q3` writes
+`output/trl-2026-Q3.html`, and its numbers are untested until the owner's
 placement check is in; see
 [the spec](docs/superpowers/specs/2026-09-23-pre-practice-trl-tracker-design.md)
-and `STATUS.md`.
+and `STATUS.md`. The count report described below, which counts documents a
+stored lexicon pattern matched and stages them by source, is now the
+instrument page, not the deliverable.
 
 **Collection runs weekly. Reporting is quarterly.** The two cadences are
 deliberately different and neither should be changed into the other — see
@@ -25,7 +25,13 @@ deliberately different and neither should be changed into the other — see
 
 ## What it produces
 
-Per reporting period, all written by one command:
+The deliverable is `output/trl-<period>.html`, written by
+`python -m observatory.run --trl-report <period>` from the claims that
+`python -m observatory.claims.extract_trl --period <period>` extracts (offline,
+paid; see `STATUS.md` §3).
+
+The count report, the instrument page, is written per reporting period by one
+command:
 
 | File | What it is |
 |---|---|
@@ -48,7 +54,8 @@ ranking of technologies, and it is not the deliverable.
 ## Run
 
     python -m observatory.run                     # the weekly run; this is what cron does
-    python -m observatory.run --quarter 2026-Q2   # the deliverable
+    python -m observatory.run --trl-report 2026-Q3   # the deliverable: the TRL page
+    python -m observatory.run --quarter 2026-Q2   # the count report (instrument page)
     python -m observatory.run --annual 2026
 
 Other forms:

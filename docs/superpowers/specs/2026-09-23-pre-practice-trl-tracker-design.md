@@ -251,4 +251,4 @@ Status 2026-09-24: Phase 1 built on branch `trl`; see STATUS.md.
   opportunistically.
 - Borderline rows: ruled on the sheet.
 - Quarterly offline model narrative (§5): **approved** under rule 1.
-- Publication of unpushed documents (§10 item 7): still Kevin's to decide.
+- Publication: Kevin ruled on 2026-09-24 that everything may be pushed; main was pushed the same day.

@@ -87,8 +87,9 @@ the claims behind it. How stage is inferred:
   recency, from a published table the owner edits
   (`observatory/trl/weights.yaml`, version 1). The **point is the highest level
   whose support (that level and above) reaches the threshold**, 0.5. It is
-  never an average: a hundred papers cannot lift a technology past 3, and one
-  verified multi-site operation can set it at 8.
+  never an average: a hundred papers that only propose or simulate cannot
+  lift a technology past 3 (a paper describing a prototype reaches the 4–5
+  band), and one verified multi-site operation can set it at 8.
 - When no level reaches the threshold, the point falls back to the lowest band
   floor among the technology's claims, and the page marks it "(floor)". Most
   points today are floors (§5).
@@ -132,7 +133,8 @@ drift test runs here too, and a Monday cron run can make it fail again until
 **2026-Q3 closes on 2026-09-30.** Count scores for it are withheld until the
 quarter is complete and collected. The TRL claims for 2026-Q3 were extracted on
 2026-09-24, before the quarter closed; a final Q3 read would delete the claims
-file and re-run after 09-30 (§3). The Q3 manual exports on disk
+file and re-run after 09-30 (§3). 2026-Q2 is the most recent fully scored
+period. The Q3 manual exports on disk
 (`data/manual/2026-Q3/`) were taken 08-28 and 09-01 and stop there, and Scopus
 and Lens are now frozen (§4), so they cannot be re-run.
 
@@ -267,9 +269,11 @@ looks the way it does.
 - **C5. A model only offline.** The model is called in exactly two places: the
   quarterly claim extraction (`observatory/claims/extract_trl.py`) and the
   placement check's model reader (`docs/experiments/trl/placement_model.py`),
-  both by explicit command. `tests/test_claims_isolation.py` fails if anything
-  outside `observatory/claims/` imports `anthropic`, if the weekly path imports
-  `observatory.claims`, or if `observatory/trl/` imports either.
+  both by explicit command. `tests/test_claims_isolation.py` fails if any
+  module in `observatory/` outside `claims/` imports `anthropic` or
+  `observatory.claims`, or if `observatory/trl/` imports either. It scans only
+  the `observatory` package, so the scripts under `docs/experiments/` are not
+  covered.
 - **Pinned model, recorded on every claim**, with the prompt version. A change
   to the prompt string is a change to the instrument and bumps the version
   (`trl-1` now). No fallback model on a refusal; refusals are recorded as rows.
@@ -407,15 +411,18 @@ evidence (pilots, first sites, purchases) and it is frozen. Three free
 candidates were probed over five technologies and eight weeks, pass line three
 pilot-band documents per technology: **GDELT 1 of 5** (delivery drones only,
 and its nine titles are four underlying events), **GlobeNewswire 0 of 5, PR
-Newswire 0 of 5**. No GDELT collector was built. The page carries the standing
-line "Pilot-band evidence is not collected until a mineable news source is
-licensed." GDELT gives titles only, never text, and 429'd twice during the
+Newswire 0 of 5**. No GDELT collector was built. The page carries the note
+"Pilot-band evidence (TRL 5-8) is collected only from sources that permit
+mining; see the probe report for what that covers this period."
+(`observatory/trl/report.py`). GDELT gives titles only, never text, and 429'd twice during the
 probe; the press-release sites take no date parameter. The `humanoid_logistics`
 and `gs1_2d` queries probably undercounted.
-**Reversal condition:** a mining licence for news and trade press (spec §6
-item 1), or a free source that passes three or more pilot-band documents per
-technology per eight weeks for at least three of the five probe technologies,
-with phrase-anchored queries and a real date filter.
+**Reversal condition** (the probe report's own): re-run the probe with
+phrase-anchored queries for `humanoid_logistics` and `gs1_2d`, and with either
+a licensed news source (spec §6 item 1) or a genuinely date-filtered
+press-release search. If a source then clears three or more pilot-band
+documents per technology over a trailing eight weeks for at least three of the
+five technologies, add its collector.
 
 **(b) The placement check — preliminary; the gate is not decided**
 (`docs/trl-placement-2026-09-24.md`). The question is whether two readers,
@@ -438,12 +445,13 @@ the plan. **Until the owner reads it, the tracker's numbers mean nothing
 tested.**
 
 **What the placement exposed about the weights table** (the owner's to rule,
-§7 item 2): with research-band sources weighing 0.3–0.5 and university actors
-0.3, labs 0.3, no research-only evidence can ever reach 0.5, so the tracker
-will read the floor for any technology whose evidence is all academic, which on
-free sources is nearly all of them. Either the threshold should scale with the
-band, or the fallback should say "insufficient evidence" rather than print a
-number.
+§7 item 2): no single research-setting claim comes near the 0.5 threshold (the
+observed maximum is 0.186), so a level is held only when many claims add up.
+That happened for three technologies at levels 1–2 (digital twin 2, delivery
+drones 2, agentic procurement 1); at levels 4 and above it rarely will on free
+sources, and then the fallback prints the floor. Either the threshold should
+scale with the band, or the fallback should say "insufficient evidence" rather
+than print a number.
 
 **The page opens with its weakest estimate.** `supply_chain_llm` sorts first at
 "TRL 7 (floor)" from a single arXiv claim ("production-deployed" system, actor
@@ -495,12 +503,13 @@ had no DNS record on 2026-09-03). Semantic Scholar (429s unauthenticated).
 
 ### Known defects, unfixed
 
-- **The suite writes into the production run log.**
+- **The suite writes into the run log.**
   `test_a_future_week_never_takes_latest_html` (`tests/test_failures_durable.py`)
-  redirects `OUTPUT_DIR` but not `RUN_LOG_PATH`, so every full suite run on the
-  live data appends two fake rows to `data/run_log.jsonl`; the audit counted 140.
-  The `trl` worktree's `data/` is symlinked to the main checkout's, so running
-  the suite here does the same.
+  redirects `OUTPUT_DIR` but not `RUN_LOG_PATH`, so every full suite run in the
+  main checkout appends two fake rows to the production `data/run_log.jsonl`;
+  the audit counted 140. In the `trl` worktree only `observatory.db`, `raw` and
+  `manual` are symlinks; `data/run_log.jsonl` is a local file, so suite runs
+  here do not touch the production log.
 - `collected_quarters` counts a week as collected if any `source_runs` row
   exists, without `store.COLLECTED_STATUSES`.
 - `adoption_new` is hardcoded to 0 (`metrics.py`); `media_articles` and
@@ -595,14 +604,17 @@ do.
    `docs/trl-placement-2026-09-24.md`, and the report is finished. **The
    go/no-go on the weights table is the owner's.**
 2. **Owner: the weights and threshold question the placement exposed.**
-   Research-only evidence never reaches 0.5, so the point is a floor for most
-   technologies on free sources. Options: a threshold per band, re-weighted
+   No single research-setting claim comes near 0.5 (maximum 0.186), so a level
+   is held only when many claims add up, which at levels 4 and above rarely
+   happens on free sources; the point is then the floor. Options: a threshold per band, re-weighted
    research sources, or a fallback that says "insufficient evidence" instead of
    printing the floor. This interacts with item 1: the one permitted revision
    after a fail should address it.
 3. **Owner: rule on Lens.** It is free, not a library resource, and the only
    patent source; it is frozen because C1's wording names "Lens via library".
-   Unfreezing needs its licence checked and written into `sources.yaml`.
+   Unfreezing needs its licence checked and written into `sources.yaml`. The
+   `lens` entry's `frozen_reason` says "Library licence forbids text mining",
+   which is not true of Lens; its wording waits on this ruling.
 4. **Owner: `supply_chain_llm`'s "TRL 7 (floor)".** One arXiv claim, actor
    unclear, tops the page. Rule on sort order (held estimates above floors?)
    and on whether actor-unclear operation-band claims should count.
@@ -631,7 +643,8 @@ do.
    otherwise miss a week of arXiv.
 10. **Stop the suite writing into `data/run_log.jsonl`** (one `monkeypatch` in
     `test_a_future_week_never_takes_latest_html`), then mark or strip the fake
-    rows. This task's own suite runs added more.
+    rows in the main checkout's log. Runs in the `trl` worktree write to a
+    local log and add none.
 11. **Enforce C1 on the count report**, or retire the count report, before any
     count report is published again (§5).
 12. **Owner: the calendar.** The marketing plan's positioning, findings layer,
@@ -711,7 +724,10 @@ past Phase 0 on the parked index.
 - **Measurability gate for candidates:** added only after a one-quarter probe
   shows they produce claims reliably, with a floor the owner sets after the
   first probe.
-- **Pushing is fine.**
+- **Everything may be pushed** (2026-09-24, in chat: "push is fine, nothing
+  to hide; so push"). `main` was pushed the same day; commits through
+  `64db06b` are public. `trl` and `phase0` are still unpushed, pending the
+  merge decision.
 - **"TLR" in the direction means TRL.**
 
 ## 9. Published artifacts
