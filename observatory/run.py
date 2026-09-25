@@ -466,7 +466,11 @@ def main(argv=None) -> int:
     # weekly path never loads `trl`.
     if args.trl_report:
         from .trl import report
-        print(report.render(args.trl_report))
+        try:
+            print(report.render(args.trl_report))
+        except report.ClaimsMissing as error:
+            print(f"refusing: {error}", file=sys.stderr)
+            return 1
         return 0
 
     conn = store.connect()

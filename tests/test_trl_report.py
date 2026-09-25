@@ -55,3 +55,23 @@ def test_the_page_says_trl_is_maturity_not_adoption_and_carries_the_lockup(tmp_p
     assert "TRL is a maturity scale, not an adoption scale" in html
     assert 'src="data:image/png;base64,' in html and 'alt="W. P. Carey School of Business' in html
     assert "not estimated" in html
+
+
+def test_a_missing_claims_file_is_a_named_refusal_not_a_traceback(tmp_path, capsys):
+    import pytest
+    from observatory import run
+    missing = tmp_path / "claims-2099-Q1.jsonl"
+    with pytest.raises(report.ClaimsMissing) as error:
+        report.build_context("2099-Q1", missing)
+    assert str(missing) in str(error.value) and "extract_trl" in str(error.value)
+    assert run.main(["--trl-report", "2099-Q1"]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("refusing: ") and "extract_trl --period 2099-Q1" in err
+
+
+def test_what_moved_counts_the_technologies_with_no_claims(tmp_path, monkeypatch):
+    from observatory import config
+    monkeypatch.setattr(config, "OUTPUT_DIR", tmp_path)
+    ctx = report.build_context("2026-Q3", _claims(tmp_path))
+    html = report.render("2026-Q3", _claims(tmp_path)).read_text()
+    assert f"{len(ctx['movers']['unestimated'])} technologies have no estimate this period" in html

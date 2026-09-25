@@ -21,6 +21,10 @@ NOTES = (
 )
 
 
+class ClaimsMissing(ValueError):
+    """Asked for a period whose claims have not been extracted."""
+
+
 def load_claims(path: Path) -> list[dict]:
     rows = []
     for line in path.read_text(encoding="utf8").splitlines():
@@ -44,6 +48,9 @@ def build_context(period: str, claims_path: Path | None = None, as_of: dt.date |
     # Estimates live beside the claims they came from, so a run on a fixture
     # never overwrites the real period's file.
     directory = claims_path.parent
+    if not claims_path.exists():
+        raise ClaimsMissing(f"no claims file at {claims_path}; extract it first with "
+                            f"python -m observatory.claims.extract_trl --period {period}")
     claims = load_claims(claims_path)
     _, end = quarter.period_bounds(period)
     as_of = as_of or dt.date.fromisoformat(end)
