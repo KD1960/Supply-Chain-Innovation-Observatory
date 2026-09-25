@@ -642,10 +642,13 @@ do.
    (owner~model 6/10 within one; owner~tracker point n=1, not measurable at
    7/10), but owner~tracker span agrees 9/10, and the owner's own notes read as
    a calibrated low placement flagging missing pilot/operation evidence, not
-   disagreement with the scoring. **Owner: rule on this reading** — accept it
-   and keep the weights table at v1 (the report's recommendation: this is a
-   source-coverage gap, not a scoring one), or order the plan's one permitted
-   weights revision anyway. This ruling folds into item 2 below.
+   disagreement with the scoring. **Owner ruled 2026-09-25: keep weights v1.**
+   His words: "the problem is lack of content, we're even missing evidence
+   that might change a 1 into a 2 or 3." So the gap is not only the pilot
+   band (TRL 5–8, the probe's finding); the research band is thin too, with
+   at most 9 claims per technology from the free sources. The next step is
+   his: look into sources and stakeholder ideas before anything else is
+   built. Branch `trl` merged to `main` on his instruction the same day.
 2. **Owner: the weights and threshold question the placement exposed.**
    No single research-setting claim comes near 0.5 (maximum 0.186), so a level
    is held only when many claims add up, which at levels 4 and above rarely
@@ -723,6 +726,10 @@ dashboard (spec §8, only if a third-party evidence base exists); everything
 past Phase 0 on the parked index.
 
 ## 8. Owner decisions already made — do not relitigate
+
+- **2026-09-25:** keep weights v1; the placement gap is content, not scoring;
+  merge `trl` to `main`; the owner investigates sources and stakeholder ideas
+  next, and no further tracker work starts until he returns with them.
 
 - Real code pipeline, not ad-hoc research.
 - ~~Free sources only. No paid data.~~ **Reversed 2026-09-24:** paid content
