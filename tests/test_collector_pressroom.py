@@ -23,7 +23,7 @@ def test_pressrooms_yaml_loads_and_every_kind_is_known():
 
 def test_rss_items_become_documents_with_page_text_and_vendor():
     docs = _docs("pressroom_rss.json")
-    assert [d.date for d in docs] == ["2026-09-16", "2026-09-01"]
+    assert [d.date for d in docs] == ["2026-09-16", "2026-09-15"]
     first = docs[0]
     assert first.doc_id.startswith("pressroom:") and first.entity == "berkshiregrey"
     assert first.url == "https://www.berkshiregrey.com/news/acme-dc/"
@@ -34,7 +34,7 @@ def test_rss_items_become_documents_with_page_text_and_vendor():
 
 def test_html_items_are_dated_from_nearby_text_or_url_and_undatable_links_are_dropped():
     docs = _docs("pressroom_html.json")
-    assert {d.date for d in docs} == {"2026-09-24", "2026-08-14"}
+    assert {d.date for d in docs} == {"2026-09-24", "2026-09-18"}
     assert all("careers" not in d.url for d in docs)
     dtl = next(d for d in docs if "DTL" in d.title)
     assert "Fresno and Los Angeles" in dtl.text and dtl.url == "https://kodiak.ai/news/dtl-first-deliveries"
@@ -68,6 +68,18 @@ def test_an_envelope_with_notes_and_no_listing_yields_nothing():
     env = json.dumps({"vendor": "x", "kind": "html", "url": "https://x/", "fetched_week": "2026-W39",
                       "listing": "", "pages": {}, "notes": ["403"]})
     assert PressroomCollector().parse(env) == []
+
+
+def test_parse_keeps_only_items_dated_inside_the_envelopes_own_window():
+    """A listing carries its whole history; only the run week and its lookback
+    are collected, or every run re-parses and re-counts the same items."""
+    listing = ('<rss><item><title>In window</title><link>https://r.test/new</link>'
+               '<pubDate>Wed, 16 Sep 2026 10:00:00 +0000</pubDate></item>'
+               '<item><title>Years old</title><link>https://r.test/old</link>'
+               '<pubDate>Sun, 05 Jan 2020 10:00:00 +0000</pubDate></item></rss>')
+    env = json.dumps({"vendor": "r", "kind": "rss", "url": "https://r.test/feed", "fetched_week": "2026-W39",
+                      "listing": listing, "pages": {}, "notes": []})
+    assert [d.date for d in PressroomCollector().parse(env)] == ["2026-09-16"]
 
 
 # --- fetch_raw ---------------------------------------------------------------

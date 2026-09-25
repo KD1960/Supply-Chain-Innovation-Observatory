@@ -2,6 +2,11 @@
 and launches. One raw envelope per newsroom per week; parse is pure over it.
 Spec: docs/superpowers/specs/2026-09-25-pressroom-collector-design.md.
 
+Only items dated inside the envelope's own window (its week plus the
+lookback) become documents. History on a listing is not collected: the source
+starts at its first run week, like every other collector, and a weekly run does
+not re-parse and re-count the same items.
+
 The date and HTML helpers came from docs/experiments/trl/probe2.py, which keeps
 its own copies.
 """
@@ -287,9 +292,11 @@ class PressroomCollector(BaseCollector):
         if not env.get("listing"):
             return []
         pages = env.get("pages") or {}
+        monday, sunday = config.week_bounds(env["fetched_week"])
+        start = monday - dt.timedelta(days=config.LOOKBACK_DAYS)
         docs = []
         for item in items_for(env["kind"], env["listing"], env["url"], pages):
-            if item.date is None or not item.url:
+            if item.date is None or not item.url or not start <= item.date <= sunday:
                 continue
             page = pages.get(item.url)
             body = opening_text(page) if page else (item.description or "")

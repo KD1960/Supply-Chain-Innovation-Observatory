@@ -3,7 +3,7 @@
  "kind": "html",
  "url": "https://kodiak.ai/news",
  "fetched_week": "2026-W39",
- "listing": "<html><body><main><h1>News</h1>\n<div class=\"card\"><span class=\"date\">September 24, 2026</span><a href=\"/news/dtl-first-deliveries\">Kodiak AI and DTL Transport Complete First Autonomous Trucking Deliveries Under New California DMV Permit</a></div>\n<div class=\"card\"><a href=\"/news/2026/08/14/dmv-permit\"><h3>Kodiak AI Receives DMV Permit to Test Autonomous Trucks in California</h3></a></div>\n<footer><a href=\"/careers\">Join us</a></footer>\n</main></body></html>\n",
+ "listing": "<html><body><main><h1>News</h1>\n<div class=\"card\"><span class=\"date\">September 24, 2026</span><a href=\"/news/dtl-first-deliveries\">Kodiak AI and DTL Transport Complete First Autonomous Trucking Deliveries Under New California DMV Permit</a></div>\n<div class=\"card\"><a href=\"/news/2026/09/18/dmv-permit\"><h3>Kodiak AI Receives DMV Permit to Test Autonomous Trucks in California</h3></a></div>\n<footer><a href=\"/careers\">Join us</a></footer>\n</main></body></html>\n",
  "pages": {
   "https://kodiak.ai/news/dtl-first-deliveries": "<html><head><title>Kodiak AI and DTL Transport</title></head><body><p>September 24, 2026</p><p>Kodiak AI and DTL Transport completed the first commercial autonomous trucking deliveries in California under the new DMV permit, hauling freight between Fresno and Los Angeles for a supply chain customer.</p></body></html>"
  },

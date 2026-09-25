@@ -2,7 +2,7 @@
  "vendor": "volvotrucks_us",
  "kind": "sitemap",
  "url": "https://www.volvotrucks.us/sitemap.xml",
- "fetched_week": "2026-W39",
+ "fetched_week": "2026-W36",
  "listing": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n<url><loc>https://www.volvotrucks.us/news/press-releases/2026/september/city-harvest-vnr-electric/</loc><lastmod>2026-09-10</lastmod></url>\n<url><loc>https://www.volvotrucks.us/about/</loc></url>\n</urlset>\n",
  "pages": {
   "https://www.volvotrucks.us/news/press-releases/2026/september/city-harvest-vnr-electric/": "<html><body><p>City Harvest begins using Volvo VNR Electric trucks to rescue food across New York City, a first for the food-rescue organization's freight fleet.</p></body></html>"
