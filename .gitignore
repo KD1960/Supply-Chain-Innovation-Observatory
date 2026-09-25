@@ -1,5 +1,6 @@
 .env
 data/
+data/trl/
 output/
 __pycache__/
 *.pyc
