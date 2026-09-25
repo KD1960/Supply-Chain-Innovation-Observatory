@@ -210,6 +210,8 @@ only after this tracker has produced one quarter.
 
 ## 9. What happens to the existing work
 
+Status 2026-09-24: Phase 1 built on branch `trl`; see STATUS.md.
+
 - The count-based Observatory keeps collecting weekly from `main`; its
   reports stop being the deliverable. Its collectors and raw store are the
   input layer for §4.

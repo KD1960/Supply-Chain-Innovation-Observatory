@@ -8,6 +8,17 @@ accessible data. Nothing here is a survey or an opinion: every number is a
 count of documents that a stored pattern matched, and every count can be
 traced back to the document that produced it.
 
+**The deliverable is now a pre-practice technology tracker.** For each
+technology the owner rules pre-practice, it estimates a Technology Readiness
+Level (1 to 9) as a point and a range, inferred from claims a pinned model
+extracts offline once a quarter, each with a verified quote, and scored by a
+published weights table rather than read off the source type. Phase 1 is built
+on branch `trl` (`python -m observatory.run --trl-report 2026-Q3` writes
+`output/trl-2026-Q3.html`), and its numbers are untested until the owner's
+placement check is in; see
+[the spec](docs/superpowers/specs/2026-09-23-pre-practice-trl-tracker-design.md)
+and `STATUS.md`.
+
 **Collection runs weekly. Reporting is quarterly.** The two cadences are
 deliberately different and neither should be changed into the other — see
 [Why collection stays weekly](#why-collection-stays-weekly).
@@ -66,9 +77,12 @@ Ten sources across eight kinds of evidence. Eight are collected automatically:
 | Federal Register | regulation |
 | Hacker News | community |
 
-Two are fetched by a person, because their licences do not permit automated
-retrieval: **Scopus** (research) and **Lens.org** (patents). The pipeline
-generates the exact query so no judgement enters at that step:
+Two were fetched by a person, because their licences do not permit automated
+retrieval: **Scopus** (research) and **Lens.org** (patents). **Both are frozen
+since 2026-09-24** (spec constraint C1: nothing may depend on a manual library
+export). `sources.yaml` records the reason and the reversal condition,
+`--export-queries` lists them as not offered, and `--import-manual` refuses
+their files. The machinery below is kept for when a licence permits mining:
 
     python -m observatory.run --export-queries 2026-Q4 --split
     python -m observatory.run --import-manual
@@ -179,7 +193,9 @@ history under the new patterns:
    week recomputes identically. A test enforces this. The lexicon authoring
    command is the one exception, and it is offline with a human approving the
    merge.
-2. **No paid data sources**, and no licensed source without a licence answer.
+2. **No licensed source without a licence answer.** Paid sources are allowed
+   since 2026-09-24, within their licence's mining terms, each with a licence
+   note in `sources.yaml`; free sources come first.
 3. **Raw before parse.** Responses are written to `data/raw/` before parsing, so
    a parser fix never costs a re-fetch.
 4. **A missing week is not a zero week.** A source that failed leaves its
