@@ -1,0 +1,43 @@
+version: 1
+# Weighted support for a TRL level = sum over claims of
+#   actor[actor_type] * source[source_type] * setting[setting] * recency(doc_date)
+# recency = 0.5 ** (days_old / half_life_days). Unverified quotes weigh 0.
+# The point estimate is the HIGHEST level whose cumulative support (that level
+# and above) reaches support_threshold. Averaging is deliberately absent.
+half_life_days: 365
+# One recent, verified, multi-site claim from a user firm in a press release
+# is enough to hold a level; one startup press release is not. Hand-checked
+# against the weights below: a fresh user-firm/press_release/multiple_sites
+# claim weighs 1.0*0.6*0.9=0.54; a fresh startup/press_release/one_site claim
+# weighs 0.4*0.6*0.7=0.168. 0.5 sits between them.
+support_threshold: 0.5
+# An "abandons" claim subtracts contrary_penalty * its weight from every level
+# in the band it names, so a retreat shows as lowered support, not as silence.
+contrary_penalty: 1.0
+actor:
+  user_firm: 1.0        # the party that would bear the cost of being wrong
+  government: 0.9
+  incumbent_vendor: 0.6
+  startup: 0.4          # announcing is the business model
+  analyst: 0.5
+  university: 0.3
+  unclear: 0.2
+source:
+  filing: 1.0           # attested under liability
+  government_record: 1.0
+  press_release: 0.6
+  trade_article: 0.7
+  paper: 0.5
+  patent: 0.4
+  funding_record: 0.6
+  analyst_note: 0.6
+  code_repository: 0.3
+  job_posting: 0.5
+  forum_post: 0.2
+setting:
+  network_wide: 1.0
+  multiple_sites: 0.9
+  one_site: 0.7
+  test_site: 0.5
+  lab: 0.3
+  unclear: 0.4
