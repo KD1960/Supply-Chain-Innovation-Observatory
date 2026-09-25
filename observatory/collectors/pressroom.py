@@ -133,10 +133,29 @@ def items_from_sitemap(xml: str) -> list[Item]:
     return items
 
 
+CARD_START = re.compile(r"<(?:li|article|div|tr)\b", re.I)
+
+
+def _nearest_date(html: str, lo: int, hi: int, a_start: int, a_end: int) -> dt.date | None:
+    best = None
+    for rx, _ in DATE_RES:
+        for dm in rx.finditer(html, lo, hi):
+            dist = min(abs(dm.start() - a_start), abs(dm.start() - a_end))
+            if best is None or dist < best[0]:
+                best = (dist, dm[0])
+    return parse_date(best[1]) if best else None
+
+
 def items_from_html(html: str, base: str) -> list[Item]:
     """Anchors with a title-length text, dated by a date in their URL, or else by
-    the nearest date string in the markup around them. Undated anchors are dropped."""
-    items, seen = [], set()
+    the nearest date string in their own card. Undated anchors are dropped.
+
+    A card is the span from the anchor's nearest <li>, <article>, <div> or <tr>
+    start tag (after the previous titled anchor) to the next titled anchor's
+    card start, clipped to 900 characters either side. The cards partition the
+    listing, so an undated item cannot borrow a neighbouring card's date: a
+    wrong plausible date is worse than a dropped item."""
+    anchors = []
     for m in re.finditer(r'<a\b[^>]*href="([^"#]+)"[^>]*>(.*?)</a>', html, re.S | re.I):
         title = visible_text(m[2])
         if len(title) < 25 or len(title) > 250:  # an image, "Read more" or whole-card link: take its heading
@@ -144,18 +163,20 @@ def items_from_html(html: str, base: str) -> list[Item]:
             title = visible_text(h[1]) if h else title
         if len(title) < 25 or len(title) > 250:
             continue
+        anchors.append((m, title))
+    starts, prev_end = [], 0
+    for m, _ in anchors:
+        cards = [c.start() for c in CARD_START.finditer(html, prev_end, m.start())]
+        starts.append(cards[-1] if cards else prev_end)
+        prev_end = m.end()
+    starts.append(len(html))
+    items, seen = [], set()
+    for i, (m, title) in enumerate(anchors):
         url = urljoin(base, m[1].replace("&amp;", "&"))
         if url in seen:
             continue
-        d = url_date(url)
-        if d is None:
-            best = None
-            for rx, _ in DATE_RES:
-                for dm in rx.finditer(html, max(0, m.start() - 900), min(len(html), m.end() + 900)):
-                    dist = min(abs(dm.start() - m.start()), abs(dm.start() - m.end()))
-                    if best is None or dist < best[0]:
-                        best = (dist, dm[0])
-            d = parse_date(best[1]) if best else None
+        d = url_date(url) or _nearest_date(html, max(starts[i], m.start() - 900),
+                                           min(starts[i + 1], m.end() + 900), m.start(), m.end())
         if d is None:
             continue
         seen.add(url)
@@ -213,26 +234,34 @@ class PressroomCollector(BaseCollector):
     def fetch_raw(self, session, week: str):
         """One envelope per newsroom, always: a newsroom that is disallowed or
         fails still yields one, with an empty listing and a note, so the raw
-        record says the attempt happened."""
+        record says the attempt happened.
+
+        If no newsroom produced a listing, raise after the last envelope, so
+        run.fetch_week records the source failed for the week (a hole) rather
+        than ok, which would write press_releases = 0 for every technology.
+        Some but not all failing is ok, with the failures in the notes."""
         limiter = http.RateLimiter(self.rate_limit_seconds)
         robots: dict = {}
         monday, sunday = config.week_bounds(week)
         start = monday - dt.timedelta(days=config.LOOKBACK_DAYS)
-        for room in load_pressrooms():
+        rooms = load_pressrooms()
+        listed = 0
+        for room in rooms:
             env = {"vendor": room.vendor, "kind": room.kind, "url": room.url, "fetched_week": week,
                    "listing": "", "pages": {}, "notes": []}
             status = 0
             if not robots_allows(session, room.url, robots, limiter):
                 env["notes"].append("robots.txt disallows the listing; not fetched")
-                yield RawPage(room.url, status, json.dumps(env), "json")
+                yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
                 continue
             try:
                 r = http.fetch(session, room.url, limiter=limiter)
                 status, env["listing"] = r.status, r.text
+                listed += bool(r.text)
             except http.HttpError as e:
                 status = e.status or 0
                 env["notes"].append(f"listing: {e}")
-                yield RawPage(room.url, status, json.dumps(env), "json")
+                yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
                 continue
             wanted = []
             if room.kind.startswith("links:"):
@@ -250,6 +279,8 @@ class PressroomCollector(BaseCollector):
                 except http.HttpError as e:
                     env["notes"].append(f"page {u}: {e}")
             yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
+        if not listed:
+            raise http.HttpError(f"pressroom: none of {len(rooms)} newsrooms returned a listing for {week}")
 
     def parse(self, text: str) -> list[Document]:
         env = json.loads(text)

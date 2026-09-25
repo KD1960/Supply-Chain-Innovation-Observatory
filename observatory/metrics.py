@@ -185,7 +185,7 @@ QUARTERLY_STAGES: dict[str, tuple[str, ...]] = {
     "experiment": ("repos", "patents"),
     "investment": ("federal_awards", "filings"),
     "deployment": ("regulation_docs", "trade_articles", "press_releases"),
-    "diffusion": ("filings", "trade_articles", "press_releases"),
+    "diffusion": ("filings", "trade_articles"),
 }
 
 QUARTERLY_HARD = ("repos", "patents", "filings", "federal_awards", "regulation_docs")

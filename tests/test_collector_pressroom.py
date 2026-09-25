@@ -145,8 +145,10 @@ def test_a_failed_newsroom_still_yields_an_envelope_with_the_status(tmp_path, mo
     rooms = tmp_path / "rooms.yaml"
     rooms.write_text('version: 1\nnewsrooms:\n  - {vendor: t, url: "https://t.test/press", kind: html, chosen_for: [x]}\n')
     monkeypatch.setattr(pressroom, "PRESSROOMS_PATH", rooms)
-    env = json.loads(next(PressroomCollector().fetch_raw(FakeSession({"https://t.test/press": (403, "blocked")}), "2026-W39")).text)
+    page = next(PressroomCollector().fetch_raw(FakeSession({"https://t.test/press": (403, "blocked")}), "2026-W39"))
+    env = json.loads(page.text)
     assert env["listing"] == "" and any("403" in n for n in env["notes"])
+    assert page.status == 403
 
 
 def test_a_robots_txt_that_cannot_be_fetched_means_allow(monkeypatch, no_wait):
@@ -158,3 +160,55 @@ def test_a_robots_txt_that_cannot_be_fetched_means_allow(monkeypatch, no_wait):
             return super().get(url, params, headers, timeout)
 
     assert pressroom.robots_allows(NoRobots({}), "https://n.test/private/x", {}, _NoWait())
+
+
+def _two_rooms(tmp_path, monkeypatch):
+    rooms = tmp_path / "rooms.yaml"
+    rooms.write_text('version: 1\nnewsrooms:\n'
+                     '  - {vendor: a, url: "https://a.test/news", kind: rss, chosen_for: [x]}\n'
+                     '  - {vendor: b, url: "https://b.test/news", kind: rss, chosen_for: [x]}\n')
+    monkeypatch.setattr(pressroom, "PRESSROOMS_PATH", rooms)
+
+
+@pytest.fixture()
+def conn(tmp_path, monkeypatch):
+    from observatory import run, store
+    monkeypatch.setattr(run.base.config, "RAW_DIR", tmp_path / "raw")
+    monkeypatch.setattr(run.base.config, "RUN_LOG_PATH", tmp_path / "run_log.jsonl")
+    monkeypatch.setattr(run.base.config, "DB_PATH", tmp_path / "observatory.db")
+    connection = store.connect(":memory:")
+    store.init_schema(connection)
+    yield connection
+    connection.close()
+
+
+def _status(conn):
+    from observatory import store
+    return {row["name"]: row for row in store.source_statuses(conn)}["pressroom"]
+
+
+def test_every_newsroom_failing_records_the_source_failed_not_ok(tmp_path, monkeypatch, no_wait, conn):
+    """A hole, not a zero: an ok source with no listings would write
+    press_releases = 0 for every technology."""
+    from observatory import run
+    _two_rooms(tmp_path, monkeypatch)
+    session = FakeSession({"https://a.test/news": (403, "blocked")})   # b.test: 404
+    assert run.fetch_week(conn, "2026-W39", [PressroomCollector()], session) == set()
+    assert _status(conn)["status"] == "failed"
+    assert len(list((tmp_path / "raw" / "2026-W39" / "pressroom").iterdir())) == 2   # the envelopes stay
+
+
+def test_one_newsroom_failing_of_two_is_still_ok(tmp_path, monkeypatch, no_wait, conn):
+    from observatory import run
+    _two_rooms(tmp_path, monkeypatch)
+    session = FakeSession({"https://a.test/news": (403, "blocked"), "https://b.test/news": (200, "<rss></rss>")})
+    assert run.fetch_week(conn, "2026-W39", [PressroomCollector()], session) == {"pressroom"}
+    assert _status(conn)["status"] == "ok"
+
+
+def test_an_undated_card_does_not_borrow_its_neighbours_date():
+    html = ('<ul><li><a href="/news/first">A long enough title for the first card here</a>'
+            '<span>September 24, 2026</span></li>'
+            '<li><a href="/news/second">A long enough title for the second card here</a></li></ul>')
+    items = pressroom.items_from_html(html, "https://k.test/news")
+    assert [(i.url, i.date) for i in items] == [("https://k.test/news/first", dt.date(2026, 9, 24))]

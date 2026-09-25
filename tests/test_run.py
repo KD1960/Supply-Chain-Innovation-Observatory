@@ -416,8 +416,8 @@ def test_deferred_sources_are_really_absent():
 
 
 def test_pressroom_is_registered_as_press_releases_at_the_deployment_stage():
-    """Vendor newsrooms (2026-09-25 spec): one count signal, read at deployment
-    weekly and at deployment and diffusion quarterly, mirroring trade_articles."""
+    """Vendor newsrooms (2026-09-25 spec): one count signal, read at the deployment
+    stage weekly and quarterly."""
     from observatory import metrics, normalize
 
     assert [(a.signal, a.method) for a in normalize.signals_for_source("pressroom")] == [
@@ -425,7 +425,8 @@ def test_pressroom_is_registered_as_press_releases_at_the_deployment_stage():
     assert "press_releases" in metrics.SIGNALS_BY_STAGE["deployment"]
     assert metrics.QUARTERLY_SIGNALS["press_releases"] == ("pressroom",)
     assert "press_releases" in metrics.QUARTERLY_STAGES["deployment"]
-    assert "press_releases" in metrics.QUARTERLY_STAGES["diffusion"]
+    # Spec §3: stage deployment only; unlike trade_articles, not diffusion.
+    assert "press_releases" not in metrics.QUARTERLY_STAGES["diffusion"]
 
 
 def test_every_stage_signal_is_produced_by_some_aggregation():

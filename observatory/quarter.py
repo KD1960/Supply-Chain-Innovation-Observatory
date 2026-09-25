@@ -130,7 +130,7 @@ STAGE_FAMILIES: dict[str, tuple[str, ...]] = {
     "experiment": ("code", "patents"),
     "investment": ("money", "filings"),
     "deployment": ("regulation", "trade", "press"),
-    "diffusion": ("filings", "trade", "press", "community"),
+    "diffusion": ("filings", "trade", "community"),
 }
 
 

@@ -738,13 +738,14 @@ def test_research_funding_is_its_own_family():
 
 def test_pressroom_is_its_own_family_at_deployment():
     """A release is the vendor announcing a pilot, a site or an order; a trade
-    article is a journalist reporting. Same stages as trade, separate family,
+    article is a journalist reporting. Deployment only (spec §3), separate family from trade,
     so a vendor's own announcement is not counted as independent coverage."""
     assert quarter.EVIDENCE_FAMILIES["pressroom"] == "press"
     assert quarter.EVIDENCE_FAMILIES["pressroom"] != quarter.EVIDENCE_FAMILIES["abi_inform"]
     assert quarter.FAMILY_STAGE["press"] == "deployment"
     assert "press" in quarter.STAGE_FAMILIES["deployment"]
-    assert "press" in quarter.STAGE_FAMILIES["diffusion"]
+    # Spec §3: stage deployment only; unlike trade, not diffusion.
+    assert "press" not in quarter.STAGE_FAMILIES["diffusion"]
     assert "pressroom" in quarter.SOURCES
 
 
