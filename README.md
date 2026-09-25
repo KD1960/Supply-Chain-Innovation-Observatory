@@ -158,6 +158,10 @@ Interrupting it is safe. Every collector's outcome is recorded per week, so a
 restart refetches only the weeks and collectors that have not recorded a
 success. Because it ends in a full rebuild, it cannot be combined with `--only`.
 
+A rebuild (and so a backfill) does not replay frozen sources (Scopus, Lens):
+their observations are dropped from the database, and the rebuild prints one
+line per source saying how many. That follows from C1 and is intended.
+
 ## Growing the lexicon
 
 The pipeline never edits `watchlist.yaml` itself — deciding whether "dark

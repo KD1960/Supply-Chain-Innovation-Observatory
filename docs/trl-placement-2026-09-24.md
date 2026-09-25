@@ -111,3 +111,60 @@ A second fail stops the plan at this task.
 To finish: fill the CSV, then run `placement.agreement()` on it against
 `data/trl/estimates-2026-Q3.json` and against `docs/audit/trl-placement-model.csv` (read as
 estimates with `point = reader_trl`), and replace the two "pending" rows above.
+
+## Revision after the scoring fix (2026-09-24)
+
+Everything above is the original record and is left as it was. The final branch review found
+that the scorer counted a claim once **per level of its band** when adding up cumulative
+support, so a `proposes` claim (band 1-2) was counted twice at level 1 and every two-level
+claim type (`proposes`, `simulates`, `prototypes`, `pilots`, `sells`, `buys`,
+`demonstrates_in_operation`) was favoured over `operates_at_scale` (band 9 only). Cumulative
+support at level L is now the sum of the weights of the claims whose band reaches L or higher,
+each claim counted once. At the same time the fallback changed: when no level reaches the
+threshold there is **no point**; the page says "insufficient evidence (claims span L-H)"
+instead of printing the lowest band as "TRL n (floor)". This is the new default and the owner
+may reverse it (STATUS §7 item 2).
+
+No new extraction: the same 43 claims (`data/trl/claims-2026-Q3.jsonl`, committed as
+`docs/audit/trl-claims-2026-Q3.jsonl`), weights version 1, `as_of = 2026-09-30`, re-scored by
+`python -m observatory.run --trl-report 2026-Q3`, which rewrote
+`data/trl/estimates-2026-Q3.json`. "Max support" is the cumulative support at the lowest
+evidenced level, i.e. the sum of the weights of all the technology's claims, against the
+threshold of 0.5.
+
+| Technology | Model | Tracker point | Tracker range | Held | Max support | Before the fix |
+|---|---|---|---|---|---|---|
+| supply_chain_digital_twin | 4 | insufficient | 1-5 | no | 0.466 | 2, held |
+| agentic_procurement | 4 | insufficient | 1-5 | no | 0.270 | 1, held |
+| delivery_drones | 3 | 2 | 1-3 | yes | 0.513 | 2, held |
+| cv_inspection | 5 | insufficient | 1-5 | no | 0.233 | 1 (floor) |
+| supply_chain_llm | 7 | insufficient | 7-8 | no | 0.077 | 7 (floor) |
+| autonomous_trucking | 6 | insufficient | 2-5 | no | 0.093 | 2 (floor) |
+| sidewalk_delivery_robots | 2 | insufficient | 1-2 | no | 0.162 | 1 (floor) |
+| additive_spares | 3 | insufficient | 1-3 | no | 0.199 | 1 (floor) |
+| electric_trucks | 3 | insufficient | 1-3 | no | 0.154 | 1 (floor) |
+| humanoid_logistics | 4 | insufficient | 1-5 | no | 0.218 | 1 (floor) |
+
+**One of ten holds a level** (delivery_drones, TRL 2); nine are insufficient evidence; the other
+14 tracked technologies have no claims and are not estimated. Two of the three levels held
+before the fix (digital twin 2, agentic procurement 1) were held only because the double count
+inflated them.
+
+### Agreement, revised
+
+`placement.agreement()` on `data/trl/placement-model.csv` (identical to
+`docs/audit/trl-placement-model.csv`) against the new estimates. The measure skips a technology
+with no tracker point, so the insufficient-evidence ones drop out:
+
+| Pair | n | within one | exact | mean abs diff |
+|---|---|---|---|---|
+| Model vs tracker | 1 | 1 | 0 | 1.0 |
+| Kevin vs tracker | pending | | | |
+| Kevin vs model | pending | | | |
+
+Model vs tracker is now 1 of 1 within one, which says nothing: with nine of ten technologies
+reported as insufficient evidence there is almost nothing to compare. The model reader placed
+all ten at a number; the tracker now declines to for nine of them. Whether "insufficient
+evidence" against a reader's number counts as a disagreement for the gate (the plan's gate is
+"within one level on at least 7 of 10") is the owner's ruling; counted as disagreements, model
+vs tracker is 1 of 10 within one.

@@ -86,13 +86,16 @@ the claims behind it. How stage is inferred:
 - Scoring is deterministic: each claim's weight is actor × source × setting ×
   recency, from a published table the owner edits
   (`observatory/trl/weights.yaml`, version 1). The **point is the highest level
-  whose support (that level and above) reaches the threshold**, 0.5. It is
+  whose cumulative support reaches the threshold**, 0.5; cumulative support at
+  a level is the weight of every claim whose band reaches that level or
+  higher, each claim counted once. It is
   never an average: a hundred papers that only propose or simulate cannot
   lift a technology past 3 (a paper describing a prototype reaches the 4–5
   band), and one verified multi-site operation can set it at 8.
-- When no level reaches the threshold, the point falls back to the lowest band
-  floor among the technology's claims, and the page marks it "(floor)". Most
-  points today are floors (§5).
+- When no level reaches the threshold there is no point: the page says
+  "insufficient evidence" and shows the span of levels the claims evidence.
+  That is 9 of the 10 technologies with claims today (§5). It replaced a
+  "(floor)" fallback on 2026-09-24; the owner may reverse it (§7 item 2).
 
 Source and stage are decoupled: source type is one feature of a claim, never
 the label. **TRL is a maturity scale, not an adoption scale.** The tracker says
@@ -105,7 +108,7 @@ cadences are deliberately different (§6).
 
 | | |
 |---|---|
-| Tests | **803 passing** |
+| Tests | **815 passing** |
 | Lexicon | version **10**, 48 active technologies |
 | Observations | **2,382** |
 | Sources | 10, across 8 evidence families |
@@ -113,8 +116,8 @@ cadences are deliberately different (§6).
 | Precision | **70%** at lexicon v9, one model coder, 120 of 132 judged (`docs/precision-audit-2026-09-02.md`) — not comparable with the earlier 51%; the count lexicon's, not the tracker's |
 | Deliverable | the TRL page, below. The count report (`output/report-<period>.html`) still builds and is no longer the deliverable |
 | TRL tracked set | 24 technologies, the rows the owner ruled pre-practice on `docs/audit/tech-practice-sort-2026-09-23.xlsx` |
-| TRL claims 2026-Q3 | 43 claims over 10 technologies, 43 of 43 quotes verified, from 71 documents; model spend $0.29 with the placement reader (`docs/trl-placement-2026-09-24.md`) |
-| TRL page | `output/trl-2026-Q3.html`: 10 of 24 estimated, 7 of those at the floor; 14 "not estimated" |
+| TRL claims 2026-Q3 | 43 claims over 10 technologies, 43 of 43 quotes verified, from 71 documents; model spend $0.29 with the placement reader (`docs/trl-placement-2026-09-24.md`); a copy of the claims file is committed as `docs/audit/trl-claims-2026-Q3.jsonl` |
+| TRL page | `output/trl-2026-Q3.html`: 1 of 24 holds a level (delivery drones, TRL 2); 9 "insufficient evidence" with their claims' span; 14 "not estimated" (after the scoring fix, `docs/trl-placement-2026-09-24.md`, last section) |
 | TRL weights | version **1**, `observatory/trl/weights.yaml`, threshold 0.5 |
 | TRL prompt | `trl-1` (`observatory/claims/trl_prompt.py`), model `claude-sonnet-5` |
 | Weekly page | collection health only — did the collectors run, what arrived, rising terms |
@@ -431,11 +434,16 @@ and of the tracker. Ten technologies were read for 2026-Q3: **43 claims, none
 above prototypes** except one; 33 of 43 are proposes or simulates, 9
 prototypes, none pilots, sells, buys or operates at scale. **All 43 come from
 papers, NSF awards or GitHub**; no filing, press release or trade article
-produced a claim. The tracker's point is **the floor for 7 of 10**: every claim
-weighs between 0.015 and 0.186 against a threshold of 0.5, so only three
-technologies hold any level. The model reader (`claude-opus-5-5`) is **within
-one level of the tracker on 3 of 10**; it reads each technology at about the
-top of the tracker's own range, while the tracker's point sits at the bottom.
+produced a claim. Every claim weighs between 0.015 and 0.186 against a
+threshold of 0.5. As first run the tracker printed **the floor for 7 of 10**
+and was **within one level of the model reader (`claude-opus-5-5`) on 3 of
+10**. The final branch review then found the scorer counting a two-level-band
+claim twice (fixed, below); re-scored, **only delivery drones holds a level
+(TRL 2, total support 0.513)**; the other nine are "insufficient evidence"
+(total support 0.077 to 0.466). `placement.agreement()` skips a technology with
+no point, so model vs tracker is now **1 of 1 within one** (n = 1, mean abs
+diff 1.0), or 1 of 10 if "insufficient" counts as disagreement, which is the
+owner's to rule. The report's last section has the table.
 **The owner's column is blank.** The pass line, set in the plan: the owner and
 the tracker within one level on at least 7 of 10, **and** the owner and the
 model within one level on at least 7 of 10. On a fail, the weights table is
@@ -447,16 +455,31 @@ tested.**
 **What the placement exposed about the weights table** (the owner's to rule,
 §7 item 2): no single research-setting claim comes near the 0.5 threshold (the
 observed maximum is 0.186), so a level is held only when many claims add up.
-That happened for three technologies at levels 1–2 (digital twin 2, delivery
-drones 2, agentic procurement 1); at levels 4 and above it rarely will on free
-sources, and then the fallback prints the floor. Either the threshold should
-scale with the band, or the fallback should say "insufficient evidence" rather
-than print a number.
+With each claim counted once, that happens for one technology (delivery drones,
+level 2); at levels 4 and above it rarely will on free sources. The threshold
+may need to scale with the band.
 
-**The page opens with its weakest estimate.** `supply_chain_llm` sorts first at
-"TRL 7 (floor)" from a single arXiv claim ("production-deployed" system, actor
-unclear, weight 0.077). Sort order and whether an actor-unclear
-operation-band claim should count at all are open (§7 item 4).
+**Scoring fix at the final branch review (2026-09-24).** Cumulative support
+counted a claim once per level of its band, so every two-level claim type was
+counted twice and was favoured over `operates_at_scale`; that double count is
+what held digital twin at 2 and agentic procurement at 1. Cumulative support at
+level L is now the sum of the weights of the claims whose band reaches L or
+higher, each counted once (`observatory/trl/score.py`, tests in
+`tests/test_trl_score.py`). The floor fallback is gone: with no level held
+there is no point and the page says "insufficient evidence (claims span L–H)";
+held estimates sort first, then insufficient ones by number of claims, then
+unestimated; "what moved" compares only two held levels. `supply_chain_llm`
+(one arXiv claim, actor unclear, weight 0.077) no longer tops the page; it is
+insufficient evidence, span 7–8.
+
+**A rebuild drops the frozen library observations, by decision.** `--rebuild`
+and `--backfill` clear the derived tables and replay raw plus manual exports;
+the replay refuses frozen sources (C1), so the 421 Scopus and 64 Lens
+observations in §2 do not come back. The rebuild prints one line per frozen
+source ("Rebuilding: scopus is frozen (spec C1), not replayed; N observations
+dropped"); `tests/test_run.py::test_rebuild_drops_frozen_sources_and_says_so`.
+This is C1 applied, not a regression; it also removes the library-derived
+observations the count report is not supposed to publish (below).
 
 **Deferred minors from the Phase 1 ledger**, all harmless today: `abi_inform`
 carries both `retired` and `frozen`; `tests/fixtures/trl/sort-sheet.csv` is
@@ -589,7 +612,8 @@ task reports): `frozen_sources()` lives in `observatory/supplemental.py`, not
 the chart module the plan named; an explicitly named frozen source can still
 print its query (as retired `abi_inform` could), only the default sheet drops
 it; the estimates file is written beside the claims file; `TRLEstimate` gained
-a `held` flag so the page can say "(floor)".
+a `held` flag (at the final review it became the switch between a point and
+"insufficient evidence", and gained `cumulative`).
 
 ## 7. Where to pick up
 
@@ -606,18 +630,25 @@ do.
 2. **Owner: the weights and threshold question the placement exposed.**
    No single research-setting claim comes near 0.5 (maximum 0.186), so a level
    is held only when many claims add up, which at levels 4 and above rarely
-   happens on free sources; the point is then the floor. Options: a threshold per band, re-weighted
-   research sources, or a fallback that says "insufficient evidence" instead of
-   printing the floor. This interacts with item 1: the one permitted revision
-   after a fail should address it.
+   happens on free sources; after the scoring fix one technology of ten holds a
+   level. Options: a threshold per band, or re-weighted research sources.
+   **"Insufficient evidence" instead of a floor is now the default**
+   (2026-09-24, at the final branch review): the page prints no level the
+   evidence does not hold and shows the claims' span instead. The owner may
+   reverse it; reversing means restoring a fallback point in `score.estimate`
+   and the "(floor)" label in `observatory/templates/trl.html.j2`. This
+   interacts with item 1: the one permitted revision after a fail should
+   address the threshold, and the owner should rule whether "insufficient"
+   against a reader's number counts as a disagreement for the gate.
 3. **Owner: rule on Lens.** It is free, not a library resource, and the only
    patent source; it is frozen because C1's wording names "Lens via library".
    Unfreezing needs its licence checked and written into `sources.yaml`. The
    `lens` entry's `frozen_reason` says "Library licence forbids text mining",
    which is not true of Lens; its wording waits on this ruling.
-4. **Owner: `supply_chain_llm`'s "TRL 7 (floor)".** One arXiv claim, actor
-   unclear, tops the page. Rule on sort order (held estimates above floors?)
-   and on whether actor-unclear operation-band claims should count.
+4. **Owner: actor-unclear claims.** `supply_chain_llm` rests on one arXiv
+   claim, actor unclear; it no longer tops the page (held estimates now sort
+   first, and it is "insufficient evidence"). Still open: whether
+   actor-unclear operation-band claims should count at all.
 5. **Merge `trl` into `main` after the owner's go**, not before. It is a
    fast-forward today. Copy `data/trl/` into the main checkout's `data/` first;
    it is local to the worktree. `phase0` stays parked; merging it later will
@@ -640,7 +671,13 @@ do.
 9. **Before 2026-Q3 closes on 09-30, fill the arXiv W37 hole and recheck
    EDGAR** from the `main` checkout (`--backfill 3`, then check
    `source_attempts`). It matters to the tracker now: a final Q3 read would
-   otherwise miss a week of arXiv.
+   otherwise miss a week of arXiv. **Know what it does first:** `--backfill`
+   ends in a full rebuild, and a rebuild does not replay frozen sources (C1),
+   so the 421 Scopus and 64 Lens observations leave the database for good and
+   the rebuild prints a line saying so for each (§5). That is intended; the
+   count report's Q2 and earlier numbers that used them will change on the
+   next `--quarter`. Back up `data/observatory.db` first if the old counts
+   must stay reproducible.
 10. **Stop the suite writing into `data/run_log.jsonl`** (one `monkeypatch` in
     `test_a_future_week_never_takes_latest_html`), then mark or strip the fake
     rows in the main checkout's log. Runs in the `trl` worktree write to a
@@ -658,7 +695,8 @@ do.
     justify it; split `quarter.build_context` (826 lines).
 
 **Waiting on the owner:** the placement verdicts (item 1); the weights ruling
-(item 2); Lens (item 3); the page ordering (item 4); the go to merge (item 5);
+and the insufficient-evidence default (item 2); Lens (item 3); actor-unclear
+claims (item 4); the go to merge (item 5);
 funds (item 6); the calendar (item 12).
 
 **Specced, not built, by design:** the Phase 2 items above; the in-practice
@@ -738,7 +776,9 @@ of each period: `output/trl-<period>.html` (the tracker), and the count
 report, its evidence page and `output/charts/`.
 
 The tracker's committed artifacts are under `docs/audit/`: the sort sheet, the
-placement sheet, the blank placement verdicts CSV and the model reader's CSV.
+placement sheet, the blank placement verdicts CSV, the model reader's CSV, and
+a copy of the 2026-Q3 claims (`trl-claims-2026-Q3.jsonl`, the evidence behind
+the page, C4).
 Its gitignored data is under `data/trl/` in the `trl` worktree: the 2026-Q3
 claims, raw model responses per document, usage, estimates, the placement
 reader's raw output, and the probe's raw responses. The model output is not
