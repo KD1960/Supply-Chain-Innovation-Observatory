@@ -1,26 +1,51 @@
 # Press-room collector: first run, 2026-09-25
 
 The collector built on branch `pressroom` (spec
-`docs/superpowers/specs/2026-09-25-pressroom-collector-design.md`) ran once,
-for the current week only, against the production database. Nothing else was
-fetched and nothing was rebuilt.
+`docs/superpowers/specs/2026-09-25-pressroom-collector-design.md`) ran for the
+current week only, against the production database. Nothing else was fetched
+and nothing was rebuilt.
 
     python -m observatory.run --only pressroom --week 2026-W39
+    # after the fix below, on the same raw files:
+    python -m observatory.run --only pressroom --week 2026-W39 --skip-fetch
 
-Output: `2026-W39: 3 new observations, 48 signals, 48 scored, 25 of 194 rising
-candidates`. The run also printed `! failed: edgar` and `~ returned nothing:
-federalregister, nsf, usaspending`; those are the week's statuses recorded by
-Monday's cron run, which the render reads back, not anything this run did.
-The fetch took under two minutes (first raw file 19:44:52 UTC, last 19:46:44).
-Before the run the database held 2,382 observations; after, 2,513.
+The run window is 2026-09-14 to 2026-09-27 (the week plus the seven-day
+lookback). The fetch took under two minutes (first raw file 19:44:52 UTC,
+last 19:46:44). The run also printed `! failed: edgar` and `~ returned
+nothing: federalregister, nsf, usaspending`; those are the week's statuses
+from Monday's cron run, which the render reads back, not anything this run
+did.
+
+## What went wrong on the first pass
+
+The first run parsed **780 documents dated back to 2002** and wrote **131
+observations**. A newsroom listing carries its whole visible history (Volvo's
+sitemap, Circularise's blog index), and `parse()` returned every dated item
+on it, each filed under its own week. So 128 of the 131 observations landed
+in weeks with no `pressroom` run, where they never reach a signal but do
+count in totals, and the `corpus` table recorded all 780 documents under
+2026-W39, which every later weekly run would have recorded again. Other
+collectors avoid this because their queries are date-bounded.
+
+**The fix** (commit 67e0c2d): `parse()` computes the window from the
+envelope's own `fetched_week`, exactly as `fetch_raw` does, and drops items
+outside it. History on a listing is not collected; the source starts at its
+first run week, like every other collector. Then the first pass was purged
+(a copy of the database was taken first) and replayed from the saved raw:
+
+    DELETE FROM observations WHERE source='pressroom';     -- 131 rows
+    DELETE FROM corpus WHERE source='pressroom';           -- 473 rows, 780 documents
+    DELETE FROM weekly_signals WHERE signal='press_releases';  -- 48 rows
+
+The `source_runs` row (2026-W39 ok) was kept: `--skip-fetch` replays only
+sources recorded ok, and a fresh fetch would overwrite the week's raw files.
+Observations went 2,513 before the purge, 2,382 after, 2,385 after the replay.
+
+## Counts (the clean run)
 
 Every number below was read from `data/raw/2026-W39/pressroom/*.json`, from
 `parse()` over those files, or from the `observations`, `corpus`,
-`source_runs`, `source_attempts` and `raw_fetch` tables, filtered to source
-`pressroom`. The run window is 2026-09-14 to 2026-09-27 (the week plus the
-seven-day lookback).
-
-## Counts
+`source_runs` and `weekly_signals` tables for source `pressroom`.
 
 | | |
 |---|---|
@@ -28,122 +53,83 @@ seven-day lookback).
 | Newsrooms with a non-empty listing | 16 of 16, every one HTTP 200 |
 | Notes recorded (403, robots, page errors) | 0 |
 | Item pages fetched | 26 |
-| Dated documents parsed (`corpus`, source `pressroom`) | 780 |
-| of which dated inside the run window | 19 |
-| of which dated in 2026-Q3 | 81 |
-| Observations inserted | 131, over 129 documents |
-| of which dated inside the run window | 3 (all `autonomous_trucking`: Aurora 1, Kodiak 2) |
-| of which dated in 2026-Q3 | 21 |
+| Documents parsed (`corpus`, 2026-W39) | 19, over 8 dates (09-15 2, 09-17 3, 09-18 1, 09-21 2, 09-22 2, 09-23 5, 09-24 3, 09-25 1) |
+| Newsrooms with at least one in-window document | 9 of 16 |
+| Observations | 3, all 2026-W39, all `autonomous_trucking` |
+| `press_releases` signal rows | 48, one per active technology |
 | Source status for 2026-W39 | `ok` |
-
-**By technology:** autonomous_trucking 45, electric_trucks 33,
-digital_product_passport 27, delivery_drones 6, piece_picking 4,
-minerals_traceability 4, warehouse_robotics 3, blockchain_traceability 3,
-hydrogen_trucks 2, microfulfillment 1, last_mile_delivery 1, gs1_2d 1,
-green_logistics 1.
-
-**Documents by year of their own date:** 2002 1, 2018 6, 2019 3, 2020 29,
-2021 25, 2022 99, 2023 109, 2024 124, 2025 190, 2026 194. A listing page
-carries its whole visible history, and `parse()` returns every dated item on
-it, not only the ones inside the window; each is filed under its own week.
-So this first run is, in effect, a backfill of whatever the listings show.
 
 ## Per newsroom
 
-"Documents" is what `parse()` returned (dated items); "in window" is the
-subset dated 2026-09-14 to 09-27; "pages" is item pages fetched.
+| Newsroom | Kind | Status | Pages fetched | Documents in window | Observations |
+|---|---|---|---:|---:|---:|
+| aurora | html | 200 | 1 | 1 | 1 |
+| kodiak | html | 200 | 3 | 3 | 2 |
+| plus | html | 200 | 0 | 0 | 0 |
+| wing | links:/news/ | 200 | 7 | 0 | 0 |
+| agility | html | 200 | 3 | 3 | 0 |
+| figure | html | 200 | 1 | 1 | 0 |
+| apptronik | html | 200 | 0 | 0 | 0 |
+| circularise | html | 200 | 2 | 2 | 0 |
+| averydennison | html | 200 | 1 | 1 | 0 |
+| gs1us | html | 200 | 1 | 1 | 0 |
+| daimlertruck | html | 200 | 6 | 6 | 0 |
+| volvotrucks_us | sitemap | 200 | 0 | 0 | 0 |
+| righthand | html | 200 | 0 | 0 | 0 |
+| berkshiregrey | rss | 200 | 1 | 1 | 0 |
+| symbotic | sitemap | 200 | 0 | 0 | 0 |
+| locus | rss | 200 | 0 | 0 | 0 |
+| **Total** | | | **26** | **19** | **3** |
 
-| Newsroom | Kind | Status | Documents | In window | Pages | Observations |
-|---|---|---|---:|---:|---:|---:|
-| aurora | html | 200 | 10 | 1 | 1 | 6 |
-| kodiak | html | 200 | 7 | 3 | 3 | 4 |
-| plus | html | 200 | 98 | 0 | 0 | 36 |
-| wing | links:/news/ | 200 | 7 | 0 | 7 | 7 |
-| agility | html | 200 | 24 | 3 | 3 | 0 |
-| figure | html | 200 | 21 | 1 | 1 | 0 |
-| apptronik | html | 200 | 13 | 0 | 0 | 0 |
-| circularise | html | 200 | 179 | 2 | 2 | 33 |
-| averydennison | html | 200 | 48 | 1 | 1 | 0 |
-| gs1us | html | 200 | 70 | 1 | 1 | 2 |
-| daimlertruck | html | 200 | 9 | 6 | 6 | 0 |
-| volvotrucks_us | sitemap | 200 | 200 (of 486 entries; 286 undated, dropped) | 0 | 0 | 35 |
-| righthand | html | 200 | 62 | 0 | 0 | 4 |
-| berkshiregrey | rss | 200 | 10 | 1 | 1 | 1 |
-| symbotic | sitemap | 200 | 12 | 0 | 0 | 1 |
-| locus | rss | 200 | 10 | 0 | 0 | 2 |
-| **Total** | | | **780** | **19** | **26** | **131** |
-
-Wing's seven pages are all out of window: a `links:` listing is undated, so
-its first links are fetched to learn their dates.
+Wing's `links:` listing is undated, so its first links are fetched to learn
+their dates. All seven were dated correctly (09-04, 08-07, 07-29, 07-16,
+06-08, 05-11, 03-23) and none falls in the window, so zero documents is the
+right answer.
 
 ## What matched, read by hand
 
-All 131 titles and matched patterns were read. A **false positive** here is
-an observation whose document is not about the technology it was matched to:
-the pattern hit a company's self-description in a notice about something
-else. Five:
+All three match `autonomous truck(s|ing)?`:
 
-| Date | Newsroom | Technology | Title | Why |
-|---|---|---|---|---|
-| 2026-07-29 | aurora | autonomous_trucking | Arrow McLaren Adds Autonomous Trucking Pioneer Aurora as Official Partner | a racing sponsorship; the match is Aurora's descriptor |
-| 2026-09-23 | aurora | autonomous_trucking | Aurora to Host Analyst & Investor Day on September 23, 2026 | an event notice; "autonomous trucking industry" in its first paragraph |
-| 2024-12-04 | plus | autonomous_trucking | Driverless Truck AI Technology Leader Plus Named to the Inc. 2024 Best in Business List | an award list; descriptor |
-| 2026-09-03 | plus | autonomous_trucking | PlusAI ... to Become Publicly Listed Through Business Combination with Texas Ventures Acquisition III Corp | a SPAC listing; descriptor |
-| 2026-09-04 | wing | delivery_drones | Building the future: Wing's technical leadership | an engineering hire; "global leader in residential drone delivery" |
+| Date | Newsroom | Title | Reading |
+|---|---|---|---|
+| 2026-09-24 | kodiak | Kodiak AI and DTL Transport Complete First Autonomous Trucking Deliveries Under New California DMV Permit | **pilot-band**: a named customer, first deliveries, a permit |
+| 2026-09-21 | kodiak | PrePass and Kodiak AI Collaborate to Advance Safe, Scalable Driverless Trucking Nationwide | an initiative with no site: a passing mention, not pilot-band |
+| 2026-09-23 | aurora | Aurora to Host Analyst & Investor Day on September 23, 2026 | **false positive**: a corporate notice; the match is "autonomous trucking industry" in the company's description of itself |
 
-One of the three in-window observations (the Aurora investor-day notice) is
-one of these.
+In-window items that matched nothing, for the record: Kodiak's
+Dallas-Houston launch lane, Agility's Digit 5 humanoid, Daimler's eActros 600
+expedition and Girteka order, Avery Dennison's Bluetooth label range. Which
+technologies an item evidences is the lexicon's decision, not the
+collector's.
 
-**On topic but not evidence of use.** A larger group is about the right
-technology and says nothing about a pilot, order or deployment: 25 of
-Circularise's 33 are explainer blog posts (the other 8 name a partner or a
-trial: LyondellBasell, ScaleAQ, Teijin, Samsonite, Honda and three more);
-12 of Plus's 36 carry the listing's own "Events", "Insights" or "In the News"
-label (a state-fair weekend, a conference, a Red Bull stunt, a podcast);
-Locus's 2, Symbotic's 1 and Berkshire Grey's 1 are explainers or an ebook.
-The count instrument counts these; the TRL extraction should read them as
-`proposes` at most, or produce no claim.
+**The first pass's hand read, for what it is worth.** Over the 131 historical
+observations, five were false positives of the same kind (a sponsorship, an
+event notice, an award, a SPAC listing, a hire, each matched on a company's
+self-description), and a larger group was on topic but not evidence of use
+(25 of Circularise's 33 were explainer blog posts). The same pattern will
+recur in the weekly flow.
 
-**Other defects seen while reading:**
+## Known defects, not fixed here
 
+- **Mojibake on Wing's pages** ("Wingâs" for "Wing’s"): a UTF-8 page
+  decoded as Latin-1 somewhere between the fetch and the parse. Check
+  `Response.text` encoding in `observatory/http.py` and the envelope's JSON
+  round-trip.
 - Volvo's sitemap gives titles as URL slugs (lower case, no punctuation) and
   month-level dates, set to the 1st of the month.
-- Plus's titles carry the listing's date and category as a prefix ("August
-  22, 2023 Press Releases ...") and undecoded `&#39;`. One Plus row is dated
-  2026-05-07 while its title says May 26, 2026: a wrong date from the card.
-- Wing's pages show mojibake (`Wingâs` for `Wing’s`): UTF-8 read as Latin-1.
-- Wing and Papa Johns' drone-delivery pilot matched `last_mile_delivery`
-  only; its title says "delivery by drone", which the `delivery_drones`
-  patterns do not cover.
-- Missed in window, for the record: Kodiak's "Dallas-Houston As Long-Haul
-  Driverless Launch Lane", Agility's "Digit 5 Humanoid Robot", Daimler's
-  eActros 600 expedition. None matched; the lexicon, not the collector,
-  decides that.
+- Plus's listing titles carry the card's date and category as a prefix and
+  an undecoded `&#39;`; on the first pass one Plus item took a date from the
+  wrong card (dated 05-07, titled May 26).
 
-## What a normal week will yield
+## What the weekly yield is
 
-This run's 131 is a one-off: listings carry years of history, and every dated
-item on them was filed under its own week. From next week the same items are
-already in the database (`INSERT OR IGNORE` on the URL-derived id), so the
-weekly yield is what is new inside the window, which this run measured at 19
-documents and 3 matched observations over fourteen days.
-
-RSS feeds carry about 10 items (Berkshire Grey 10, Locus 10), so a feed
-newsroom adds at most a handful a week; HTML listings carry more (up to 179
-for Circularise), but only the pages of in-window items are fetched, so their
-weekly contribution is also the handful dated in the window, matched mostly
-on the title and first paragraph.
-
-## Concerns for the owner
-
-- **The `corpus` table will re-count the same documents every week.** It
-  records every document `parse()` returns, per run week, and the listings
-  return the same 780 each time. A rate that divides by the press corpus
-  will be wrong until `parse()` keeps only in-window items or the corpus
-  write deduplicates. Not fixed here.
-- **128 of the 131 observations sit in weeks where `pressroom` has no
-  `source_runs` row**, so they never reach a weekly signal (the hole rule),
-  but they do count in the §2 total, and a 2026-Q3 TRL read would have the 21
-  dated in Q3 to read (18 of them from before the run window).
-- Five false positives in 131 (about 4%) is a hand read by the assistant,
-  not an audit.
+**This is the flow: 19 documents and 3 matched observations in a fortnight's
+window, one of them pilot-band, one a passing mention, one a false positive.**
+RSS feeds carry about ten items, so a feed newsroom adds a handful a week;
+HTML listings carry more, but only in-window items are parsed and only their
+pages fetched, so they add the same handful. The list is small (16
+newsrooms, most chosen for one or two technologies), and the pilot-band
+claims the tracker needs will come from these items accumulating over time.
+The yield is judged over a quarter: the reversal condition in STATUS §5 (c)
+retires the source if two consecutive quarters yield under 10 matched
+observations.

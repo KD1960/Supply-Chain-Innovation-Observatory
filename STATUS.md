@@ -108,11 +108,11 @@ cadences are deliberately different (§6).
 
 | | |
 |---|---|
-| Tests | **832 passing** |
+| Tests | **833 passing** |
 | Lexicon | version **10**, 48 active technologies |
-| Observations | **2,513** |
+| Observations | **2,385** |
 | Sources | 11, across 9 evidence families |
-| By source | github 828, arxiv 530, scopus 421, openalex 250, edgar 132, pressroom 131, hn 67, lens 64, nsf 40, usaspending 29, federalregister 21 |
+| By source | github 828, arxiv 530, scopus 421, openalex 250, edgar 132, hn 67, lens 64, nsf 40, usaspending 29, federalregister 21, pressroom 3 |
 | Precision | **70%** at lexicon v9, one model coder, 120 of 132 judged (`docs/precision-audit-2026-09-02.md`) — not comparable with the earlier 51%; the count lexicon's, not the tracker's |
 | Deliverable | the TRL page, below. The count report (`output/report-<period>.html`) still builds and is no longer the deliverable |
 | TRL tracked set | 24 technologies, the rows the owner ruled pre-practice on `docs/audit/tech-practice-sort-2026-09-23.xlsx` |
@@ -530,18 +530,20 @@ pilot band. **Licence:** press releases are issued for redistribution; the
 report quotes with attribution and links the release. **Robots:** read once
 per host per run and obeyed; a 403, a disallow or a JavaScript shell is
 recorded in the raw envelope, never evaded. **First run** (2026-W39 only, no
-rebuild): 16 of 16 newsrooms answered, 0 notes, 26 item pages, 780 dated
-documents, 131 observations. Only 19 documents and 3 observations are dated
-inside the run window; the rest are the listings' history back to 2002, each
-filed under its own week, so 128 of the 131 sit in weeks with no `pressroom`
-run and never reach a signal. 21 are dated in 2026-Q3. A hand read found 5
-false positives (a company descriptor matched in a sponsorship, an event
-notice, an award, a SPAC listing and a hire) and a larger group on topic but
-not evidence of use (25 of Circularise's 33 are explainers). Open defect: the
-`corpus` table records all 780 again on every weekly run, so any rate over
-the press corpus is wrong until `parse()` keeps only in-window items or the
-corpus write deduplicates. **Reversal condition:** retire the source if two
-consecutive quarters yield under 10 matched observations.
+rebuild): 16 of 16 newsrooms answered, 0 notes, 26 item pages, **19
+documents and 3 observations**, all autonomous trucking: one pilot-band
+(Kodiak and DTL's first deliveries under the California permit), one passing
+mention, one false positive (Aurora's investor-day notice, matched on the
+company's description of itself). 9 of 16 newsrooms had an in-window item.
+That is the weekly flow, and the list is small. A first pass had parsed
+every dated item on each listing (780 documents back to 2002, 131
+observations, 128 of them in weeks with no `pressroom` run, and a `corpus`
+row every later week would have repeated); `parse()` now keeps only items
+inside the envelope's own window, and that pass was purged and replayed from
+the saved raw. History on a listing is not collected. Known defect, unfixed:
+Wing's pages come through as mojibake (UTF-8 read as Latin-1). **Reversal
+condition:** retire the source if two consecutive quarters yield under 10
+matched observations.
 
 ### The count pipeline
 
@@ -679,14 +681,14 @@ do.
    sources: probe 2 (`docs/trl-probe2-2026-09-25.md`) ranked vendor press
    rooms first, the owner said "build the press-room collector", and it was
    built and run once on branch `pressroom` the same day (§5 (c)): 16 of 16
-   newsrooms answered, 3 in-window observations, all autonomous trucking,
-   plus 128 from the listings' history. Next: merge `pressroom` after the
-   owner's look, let two or three Monday runs show the real weekly yield,
-   fix the corpus re-count (§5 (c)) before any rate uses it, and look at
-   why the three humanoid newsrooms and Avery Dennison answered and matched
-   nothing (Agility's "Digit 5 Humanoid Robot" release was in window: a
-   lexicon question, not a collector one). Branch `trl` merged to `main` on his
-   instruction the same day.
+   newsrooms answered, 19 in-window documents, 3 observations (one
+   pilot-band, all autonomous trucking). Next: merge `pressroom` after the
+   owner's look, then judge the yield over a quarter (the reversal condition
+   in §5 (c)); fix Wing's mojibake; and look at why the three humanoid
+   newsrooms and Avery Dennison answered and matched nothing (Agility's
+   "Digit 5 Humanoid Robot" release was in window: a lexicon question, not
+   a collector one). Branch `trl` merged to `main` on his instruction the
+   same day.
 2. **Owner: the weights and threshold question the placement exposed.**
    No single research-setting claim comes near 0.5 (maximum 0.186), so a level
    is held only when many claims add up, which at levels 4 and above rarely
