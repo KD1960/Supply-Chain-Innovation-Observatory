@@ -75,6 +75,10 @@ EVIDENCE_FAMILIES: dict[str, str] = {
     # either: money committed to an idea is not a paper published about one.
     "nsf": "research funding",
     "hn": "community",
+    # Vendor newsrooms: pilots, first sites, orders and launches, announced by
+    # the vendor. Its own family, not "trade": a release is the vendor speaking,
+    # a trade article is a journalist reporting.
+    "pressroom": "press",
 }
 
 # Documents a family must supply before it counts towards diversity. One
@@ -112,6 +116,7 @@ FAMILY_STAGE = {
     "research funding": "idea",
     "regulation": "deployment",
     "trade": "deployment",
+    "press": "deployment",
     "filings": "diffusion",
     "community": "attention",
 }
@@ -124,8 +129,8 @@ STAGE_FAMILIES: dict[str, tuple[str, ...]] = {
     "idea": ("research", "research funding"),
     "experiment": ("code", "patents"),
     "investment": ("money", "filings"),
-    "deployment": ("regulation", "trade"),
-    "diffusion": ("filings", "trade", "community"),
+    "deployment": ("regulation", "trade", "press"),
+    "diffusion": ("filings", "trade", "press", "community"),
 }
 
 

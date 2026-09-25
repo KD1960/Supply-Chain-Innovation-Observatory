@@ -12,14 +12,15 @@ import datetime as dt
 import hashlib
 import json
 import re
+import urllib.robotparser
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import yaml
 
-from .. import config
-from .base import BaseCollector, Document
+from .. import config, http
+from .base import BaseCollector, Document, RawPage
 
 PRESSROOMS_PATH = config.ROOT / "pressrooms.yaml"
 MAX_ITEM_PAGES = 15
@@ -186,6 +187,21 @@ def items_for(kind: str, listing: str, base: str, pages: dict) -> list[Item]:
     return items_from_html(listing, base)
 
 
+def robots_allows(session, url: str, cache: dict, limiter) -> bool:
+    """Read <scheme>://<host>/robots.txt once per host per run and obey it. A
+    robots.txt that cannot be fetched (404, 403, network error) means allow."""
+    host = "{0.scheme}://{0.netloc}".format(urlparse(url))
+    if host not in cache:
+        rp = urllib.robotparser.RobotFileParser()
+        try:
+            r = http.fetch(session, host + "/robots.txt", limiter=limiter)
+            rp.parse(r.text.splitlines())
+        except http.HttpError:
+            rp.parse([])            # no robots file: allow
+        cache[host] = rp
+    return cache[host].can_fetch(config.user_agent(), url)
+
+
 def _doc_id(url: str) -> str:
     return "pressroom:" + hashlib.sha1(url.encode("utf8")).hexdigest()[:16]
 
@@ -193,6 +209,47 @@ def _doc_id(url: str) -> str:
 class PressroomCollector(BaseCollector):
     name = "pressroom"
     rate_limit_seconds = 2.0
+
+    def fetch_raw(self, session, week: str):
+        """One envelope per newsroom, always: a newsroom that is disallowed or
+        fails still yields one, with an empty listing and a note, so the raw
+        record says the attempt happened."""
+        limiter = http.RateLimiter(self.rate_limit_seconds)
+        robots: dict = {}
+        monday, sunday = config.week_bounds(week)
+        start = monday - dt.timedelta(days=config.LOOKBACK_DAYS)
+        for room in load_pressrooms():
+            env = {"vendor": room.vendor, "kind": room.kind, "url": room.url, "fetched_week": week,
+                   "listing": "", "pages": {}, "notes": []}
+            status = 0
+            if not robots_allows(session, room.url, robots, limiter):
+                env["notes"].append("robots.txt disallows the listing; not fetched")
+                yield RawPage(room.url, status, json.dumps(env), "json")
+                continue
+            try:
+                r = http.fetch(session, room.url, limiter=limiter)
+                status, env["listing"] = r.status, r.text
+            except http.HttpError as e:
+                status = e.status or 0
+                env["notes"].append(f"listing: {e}")
+                yield RawPage(room.url, status, json.dumps(env), "json")
+                continue
+            wanted = []
+            if room.kind.startswith("links:"):
+                wanted = links_under(env["listing"], room.url, room.kind.split(":", 1)[1])
+            else:
+                for it in items_for(room.kind, env["listing"], room.url, {}):
+                    if it.url and it.date and start <= it.date <= sunday:
+                        wanted.append(it.url)
+            for u in wanted[:MAX_ITEM_PAGES]:
+                if not robots_allows(session, u, robots, limiter):
+                    env["notes"].append(f"robots.txt disallows {u}")
+                    continue
+                try:
+                    env["pages"][u] = http.fetch(session, u, limiter=limiter).text
+                except http.HttpError as e:
+                    env["notes"].append(f"page {u}: {e}")
+            yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
 
     def parse(self, text: str) -> list[Document]:
         env = json.loads(text)

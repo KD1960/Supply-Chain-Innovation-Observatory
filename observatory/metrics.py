@@ -58,7 +58,7 @@ SIGNALS_BY_STAGE: dict[str, tuple[str, ...]] = {
     "idea": ("arxiv_papers", "hn_points"),
     "experiment": ("patents", "gh_repos_new", "gh_commits", "gh_stars_delta"),
     "investment": ("fed_obligated", "edgar_filings"),
-    "deployment": ("fed_awards", "fedreg_docs", "media_deploy"),
+    "deployment": ("fed_awards", "fedreg_docs", "media_deploy", "press_releases"),
     "diffusion": ("edgar_filers", "media_articles"),
 }
 
@@ -177,14 +177,15 @@ QUARTERLY_SIGNALS: dict[str, tuple[str, ...]] = {
     "federal_awards": ("usaspending",),
     "research_grants": ("nsf",),
     "community_posts": ("hn",),
+    "press_releases": ("pressroom",),
 }
 
 QUARTERLY_STAGES: dict[str, tuple[str, ...]] = {
     "idea": ("research_papers", "research_grants"),
     "experiment": ("repos", "patents"),
     "investment": ("federal_awards", "filings"),
-    "deployment": ("regulation_docs", "trade_articles"),
-    "diffusion": ("filings", "trade_articles"),
+    "deployment": ("regulation_docs", "trade_articles", "press_releases"),
+    "diffusion": ("filings", "trade_articles", "press_releases"),
 }
 
 QUARTERLY_HARD = ("repos", "patents", "filings", "federal_awards", "regulation_docs")

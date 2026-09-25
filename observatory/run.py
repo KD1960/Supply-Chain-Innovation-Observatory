@@ -24,6 +24,7 @@ from .collectors.github import GithubCollector
 from .collectors.hn import HackerNewsCollector
 from .collectors.nsf import NsfCollector
 from .collectors.openalex import OpenAlexCollector
+from .collectors.pressroom import PressroomCollector
 from .collectors.usaspending import UsaspendingCollector
 
 COLLECTORS = (
@@ -35,6 +36,7 @@ COLLECTORS = (
     UsaspendingCollector(),
     EdgarCollector(),
     GithubCollector(),
+    PressroomCollector(),
 )
 
 

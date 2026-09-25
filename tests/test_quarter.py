@@ -736,6 +736,18 @@ def test_research_funding_is_its_own_family():
     assert quarter.FAMILY_STAGE["money"] == "investment"
 
 
+def test_pressroom_is_its_own_family_at_deployment():
+    """A release is the vendor announcing a pilot, a site or an order; a trade
+    article is a journalist reporting. Same stages as trade, separate family,
+    so a vendor's own announcement is not counted as independent coverage."""
+    assert quarter.EVIDENCE_FAMILIES["pressroom"] == "press"
+    assert quarter.EVIDENCE_FAMILIES["pressroom"] != quarter.EVIDENCE_FAMILIES["abi_inform"]
+    assert quarter.FAMILY_STAGE["press"] == "deployment"
+    assert "press" in quarter.STAGE_FAMILIES["deployment"]
+    assert "press" in quarter.STAGE_FAMILIES["diffusion"]
+    assert "pressroom" in quarter.SOURCES
+
+
 def test_research_funding_is_not_folded_into_research():
     """An NSF award is money committed, not a paper published. Folding it in
     with arXiv and Scopus would count the funding of an idea and the publishing
