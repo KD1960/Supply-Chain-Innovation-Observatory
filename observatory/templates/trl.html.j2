@@ -85,18 +85,20 @@
   <section id="movers">
     <h2>What moved</h2>
     <ul>
-      {% for t in movers.up %}<li><strong>{{ t.name }}</strong> up to TRL {{ t.point }}{% if not t.held %} (floor){% endif %}</li>{% endfor %}
-      {% for t in movers.retreated %}<li><strong>{{ t.name }}</strong> retreated{% if t.contrary %}: “{{ t.contrary.quote }}”{% endif %}</li>{% endfor %}
-      {% if not movers.up and not movers.retreated %}<li>No level changes this period.</li>{% endif %}
+      {% for t in movers.up %}<li><strong>{{ t.name }}</strong> up {{ t.moved }} to TRL {{ t.point }}</li>{% endfor %}
+      {% for t in movers.retreated %}<li><strong>{{ t.name }}</strong> retreated {{ -t.moved }} to TRL {{ t.point }}</li>{% endfor %}
+      {% if not movers.up and not movers.retreated %}<li>No level changes this period (a change is counted only between two held levels).</li>{% endif %}
+      {% for t in movers.contrary %}<li><strong>{{ t.name }}</strong>: contrary claim “{{ t.contrary.quote }}”</li>{% endfor %}
+      {% if movers.insufficient %}<li>{{ movers.insufficient|length }} technologies have claims but insufficient evidence to hold any level.</li>{% endif %}
       {% if movers.unestimated %}<li>{{ movers.unestimated|length }} technologies have no estimate this period (no claims, or none with a verified quote).</li>{% endif %}
     </ul>
   </section>
   {% for t in technologies %}
   <section class="tech" id="{{ t.id }}">
-    <h2>{{ t.name }} <span class="trl">{% if t.point is not none %}TRL {{ t.point }}{% if not t.held %} (floor){% endif %} <small>(range {{ t.low }}–{{ t.high }})</small>{% else %}not estimated{% endif %}</span></h2>
+    <h2>{{ t.name }} <span class="trl">{% if t.held %}TRL {{ t.point }} <small>(range {{ t.low }}–{{ t.high }})</small>{% elif t.low is not none %}insufficient evidence <small>(claims span {{ t.low }}–{{ t.high }})</small>{% else %}not estimated{% endif %}</span></h2>
     <p class="counts">{{ t.n_claims }} claim{{ "" if t.n_claims == 1 else "s" }}, {{ t.n_verified }} with verified quotes.</p>
     {% for c in t.top %}
-    <blockquote><p>“{{ c.quote }}”</p><footer>{{ c.actor }} ({{ c.actor_type }}), {{ c.claim_type }}, {{ c.setting }} · {{ c.source }} {{ c.doc_date }} · <a href="{{ c.url }}">source</a> · claim {{ c.claim_id }}</footer></blockquote>
+    <blockquote><p>“{{ c.quote }}”</p><footer>{{ c.actor }} ({{ c.actor_type }}), {{ c.claim_type }}, {{ c.setting }} · {% if c.title %}<cite>{{ c.title }}</cite> · {% endif %}{% if c.url %}<a href="{{ c.url }}">{{ c.source }}</a>{% else %}{{ c.source }} {{ c.doc_id }}{% endif %} {{ c.doc_date }} · claim {{ c.claim_id }}</footer></blockquote>
     {% endfor %}
     {% if t.contrary %}<p class="contrary">Contrary: “{{ t.contrary.quote }}” — {{ t.contrary.actor }}, {{ t.contrary.doc_date }}</p>{% endif %}
   </section>

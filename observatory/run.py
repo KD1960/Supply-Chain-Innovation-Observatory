@@ -348,7 +348,21 @@ def rebuild(conn, watchlist, collectors=COLLECTORS) -> list[Path]:
     only through a neighbour's lookback has no raw directory of its own, and
     counting directories alone would leave it uncounted for the same reason.
     """
+    # Frozen sources (spec C1: Scopus, Lens, ABI/INFORM) are never replayed, so
+    # their observations do not survive a rebuild. That is the decision, not an
+    # accident: counted here and said once per source, so nobody learns it from
+    # a by-source table that quietly lost a row.
+    frozen = sorted(supplemental.frozen_sources())
+    dropped = {
+        source: conn.execute("SELECT COUNT(*) FROM observations WHERE source = ?",
+                             (source,)).fetchone()[0]
+        for source in frozen
+    }
     store.clear_derived(conn)
+    for source, n in dropped.items():
+        if n:
+            print(f"Rebuilding: {source} is frozen (spec C1), not replayed; "
+                  f"{n} observations dropped")
     raw_weeks = sorted(path.name for path in config.RAW_DIR.glob("*-W*") if path.is_dir())
 
     # Licensed exports live outside data/raw and clear_derived has just wiped

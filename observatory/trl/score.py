@@ -15,6 +15,7 @@ from . import schema
 WEIGHTS_PATH = Path(__file__).with_name("weights.yaml")
 LEVELS = tuple(range(1, 10))
 UNDATED_AGE_DAYS = 365 * 2  # an undated document is treated as two years old
+CONTRARY_LEVELS = (7, 8, 9)  # the levels an "abandons" claim dents, whatever its setting
 
 
 @dataclass(frozen=True)
@@ -38,9 +39,12 @@ class TRLEstimate:
     contrary: dict | None = None
     n_claims: int = 0
     n_verified: int = 0
-    # True when some level reached the support threshold; False when the point is
-    # the fallback -- the lowest band any claim evidences -- or there is no point.
+    # True when some level reached the support threshold. When False, `point` is
+    # None ("insufficient evidence") and `low`/`high` still give the span of
+    # levels the claims evidence; no level is printed that the evidence does not hold.
     held: bool = False
+    # Cumulative support per level, as the threshold sees it (each claim once).
+    cumulative: dict = field(default_factory=dict)
 
 
 def load_weights(path: Path | None = None) -> Weights:
@@ -68,6 +72,7 @@ def estimate(claims: list[dict], as_of: dt.date, w: Weights) -> TRLEstimate:
     support = {level: 0.0 for level in LEVELS}
     weighted: list[tuple[float, dict]] = []
     contrary: tuple[float, dict] | None = None
+    contrary_total = 0.0
     n_verified = 0
     for claim in claims:
         weight = claim_weight(claim, as_of, w)
@@ -75,10 +80,12 @@ def estimate(claims: list[dict], as_of: dt.date, w: Weights) -> TRLEstimate:
         if weight == 0.0:
             continue
         if claim["claim_type"] == "abandons":
-            # The band it contradicts is the one its setting would otherwise evidence:
-            # treat it as an operation-level claim withdrawn.
-            for level in range(7, 10):
+            # An "abandons" claim always dents levels 7-9, whatever its own setting:
+            # contrary_penalty * its weight comes off the displayed support at each of
+            # 7, 8 and 9, and off the cumulative support at 7, 8 and 9 (below).
+            for level in CONTRARY_LEVELS:
                 support[level] -= w.contrary_penalty * weight
+            contrary_total += w.contrary_penalty * weight
             if contrary is None or weight > contrary[0]:
                 contrary = (weight, claim)
             continue
@@ -89,17 +96,29 @@ def estimate(claims: list[dict], as_of: dt.date, w: Weights) -> TRLEstimate:
     if not weighted:
         return TRLEstimate(None, None, None, support, [], contrary[1] if contrary else None,
                            len(claims), n_verified)
-    # Cumulative support from the top: a level is held if it, or anything above it, is evidenced enough.
-    cumulative, running = {}, 0.0
-    for level in reversed(LEVELS):
-        running += max(0.0, support[level])
-        cumulative[level] = running
+    # Cumulative support at level L: the weights of the claims whose band reaches
+    # L or higher, each claim counted ONCE however many levels its band spans,
+    # less the contrary weight at levels 7-9. `support` (per level) is for display.
+    cumulative = {}
+    for level in LEVELS:
+        total = sum(wt for wt, c in weighted if schema.BAND[c["claim_type"]][1] >= level)
+        if level in CONTRARY_LEVELS:
+            total -= contrary_total
+        cumulative[level] = max(0.0, total)
     held = [level for level in LEVELS if cumulative[level] >= w.support_threshold]
-    point = max(held) if held else min(schema.BAND[c["claim_type"]][0] for _, c in weighted)
+    point = max(held) if held else None
     evidenced = [level for level in LEVELS if support[level] > 0]
-    low, high = min(evidenced), max(evidenced)
-    at_point = [(wt, c) for wt, c in weighted
-                if schema.BAND[c["claim_type"]][0] <= point <= schema.BAND[c["claim_type"]][1]]
-    top = [c for _, c in sorted(at_point, key=lambda x: -x[0])[:3]]
+    if evidenced:
+        low, high = min(evidenced), max(evidenced)
+    else:  # every positive level was cancelled by contrary claims
+        low = min(schema.BAND[c["claim_type"]][0] for _, c in weighted)
+        high = max(schema.BAND[c["claim_type"]][1] for _, c in weighted)
+    # The claims shown: the heaviest at the held point, or, with no level held,
+    # the heaviest overall.
+    shown = weighted if point is None else [
+        (wt, c) for wt, c in weighted
+        if schema.BAND[c["claim_type"]][0] <= point <= schema.BAND[c["claim_type"]][1]]
+    shown = shown or weighted  # a point reached only below contrary-dented levels
+    top = [c for _, c in sorted(shown, key=lambda x: -x[0])[:3]]
     return TRLEstimate(point, low, high, support, top, contrary[1] if contrary else None,
-                       len(claims), n_verified, bool(held))
+                       len(claims), n_verified, bool(held), cumulative)

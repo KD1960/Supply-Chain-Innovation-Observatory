@@ -106,3 +106,66 @@ def test_a_document_listed_under_two_technologies_is_read_once():
     b = DocText("hn", "hn:1", "2026-09-01", "T", None, "x", 2)
     c = DocText("arxiv", "hn:1", "2026-09-01", "T", None, "x", 3)
     assert extract_trl.unique_docs([a, b, c]) == [a, c]
+
+
+def _stub_main(monkeypatch, trl_dir, client):
+    """Everything main() touches outside itself: the SDK, the output directory,
+    the corpus and the tracked set. No network, no database."""
+    import sys
+    import types
+
+    from observatory import config, store
+    from observatory.trl import documents, tracked
+
+    stub = types.ModuleType("anthropic")
+    stub.Anthropic = lambda *a, **k: client
+    for name in ("RateLimitError", "APIStatusError", "APIConnectionError"):
+        setattr(stub, name, type(name, (Exception,), {}))
+    monkeypatch.setitem(sys.modules, "anthropic", stub)
+    monkeypatch.setattr(extract_trl, "TRL_DIR", trl_dir)
+    monkeypatch.setattr(config, "load_dotenv", lambda *a, **k: None)
+    monkeypatch.setattr(store, "connect", lambda *a, **k: None)
+    monkeypatch.setattr(tracked, "tracked_ids", lambda *a, **k: ("delivery_drones",))
+    text = "Walmart is piloting drone delivery at 34 stores."
+    docs = [DocText("hn", "hn:1", "2026-09-01", "T1", "http://u/1", text, 1),
+            DocText("hn", "hn:2", "2026-09-02", "T2", None, text, 2)]
+    monkeypatch.setattr(documents, "texts_for", lambda conn, tid, weeks, collectors: iter(docs))
+
+
+PAYLOAD = {"claims": [{"tech_id": "delivery_drones", "claim_type": "pilots", "actor_type": "user_firm",
+                       "actor": "Walmart", "setting": "multiple_sites", "quantity": "34 stores",
+                       "quote": "Walmart is piloting drone delivery at 34 stores.", "source_type": "forum_post"}]}
+
+
+def test_main_writes_claims_raw_and_usage_and_a_rerun_appends(tmp_path, monkeypatch):
+    from observatory.trl import report
+    trl_dir = tmp_path / "trl"
+    client = FakeClient(PAYLOAD)
+    _stub_main(monkeypatch, trl_dir, client)
+
+    assert extract_trl.main(["--period", "2026-Q3", "--max-dollars", "5"]) == 0
+    claims_path = trl_dir / "claims-2026-Q3.jsonl"
+    rows = [json.loads(line) for line in claims_path.read_text().splitlines()]
+    assert [r["doc_id"] for r in rows] == ["hn:1", "hn:2"] and all(r["quote_verified"] for r in rows)
+    raw = sorted((trl_dir / "raw-2026-Q3-claude-sonnet-5").glob("hn-*.json"))
+    assert len(raw) == 2
+    for path in raw:
+        record = json.loads(path.read_text())
+        assert record["response"]["stop_reason"] == "end_turn" and len(record["rows"]) == 1
+    usage = json.loads((trl_dir / "usage-2026-Q3-claude-sonnet-5.json").read_text())
+    assert usage["requests"] == 2 and usage["input_tokens"] == 200
+    assert len(client.calls) == 2
+
+    assert extract_trl.main(["--period", "2026-Q3", "--max-dollars", "5"]) == 0
+    assert len(claims_path.read_text().splitlines()) == 4  # appended, as documented
+    assert len(report.load_claims(claims_path)) == 2  # and the report counts each claim once
+    usage = json.loads((trl_dir / "usage-2026-Q3-claude-sonnet-5.json").read_text())
+    assert usage["requests"] == 4  # cumulative across runs
+
+
+def test_main_refuses_above_the_ceiling_and_creates_nothing(tmp_path, monkeypatch):
+    trl_dir = tmp_path / "trl"
+    client = FakeClient(PAYLOAD)
+    _stub_main(monkeypatch, trl_dir, client)
+    assert extract_trl.main(["--period", "2026-Q3", "--max-dollars", "0"]) == 2
+    assert not trl_dir.exists() and client.calls == []

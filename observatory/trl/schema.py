@@ -15,8 +15,9 @@ from ..textnorm import normalize
 
 CLAIM_TYPES = ("proposes", "simulates", "prototypes", "pilots", "demonstrates_in_operation",
                "sells", "buys", "operates_at_scale", "abandons")
-# (low, high) TRL each claim type is evidence for. "abandons" is evidence
-# that the level was NOT held: the scorer treats it as a contrary claim.
+# (low, high) TRL each claim type is evidence for. "abandons" has no band of
+# its own: the scorer treats it as a contrary claim that always dents levels
+# 7-9 (score.CONTRARY_LEVELS), whatever its setting.
 BAND = {
     "proposes": (1, 2), "simulates": (2, 3), "prototypes": (4, 5), "pilots": (5, 6),
     "demonstrates_in_operation": (7, 8), "sells": (7, 8), "buys": (7, 8),

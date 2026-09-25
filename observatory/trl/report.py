@@ -16,8 +16,9 @@ TRL_DIR = config.DATA_DIR / "trl"
 NOTES = (
     "Pilot-band evidence (TRL 5-8) is collected only from sources that permit mining; "
     "see the probe report for what that covers this period.",
-    "Estimates marked 'floor' are the lowest band any claim evidences, not a level the evidence "
-    "holds; the placement check of 2026-09-24 found this true for most technologies under weights v1.",
+    "A technology whose claims do not add up to the support threshold at any level is shown as "
+    "'insufficient evidence' with the span of levels its claims evidence; no level is printed "
+    "that the evidence does not hold. See the placement report for the period this was last checked.",
 )
 
 
@@ -26,13 +27,18 @@ class ClaimsMissing(ValueError):
 
 
 def load_claims(path: Path) -> list[dict]:
-    rows = []
+    """Claim rows, one per (claim_id, claim_type), the last occurrence kept.
+    The extraction appends, so a re-run of a period would otherwise count
+    every claim twice."""
+    rows: dict[tuple[str, str], dict] = {}
     for line in path.read_text(encoding="utf8").splitlines():
         if line.strip():
             r = json.loads(line)
             if "claim_id" in r:
-                rows.append(r)
-    return rows
+                key = (r["claim_id"], r.get("claim_type"))
+                rows.pop(key, None)  # re-insert so order follows the last occurrence
+                rows[key] = r
+    return list(rows.values())
 
 
 def _previous(directory: Path, period: str) -> dict:
@@ -41,6 +47,16 @@ def _previous(directory: Path, period: str) -> dict:
         return {}
     data = json.loads(p.read_text())
     return data.get("estimates", data)
+
+
+def _order(t: dict) -> tuple:
+    """Held estimates first (highest level first), then insufficient-evidence
+    ones by number of claims, then technologies with no evidenced level."""
+    if t["held"]:
+        return (0, -t["point"], t["name"])
+    if t["low"] is not None:
+        return (1, -t["n_claims"], t["name"])
+    return (2, 0, t["name"])
 
 
 def build_context(period: str, claims_path: Path | None = None, as_of: dt.date | None = None) -> dict:
@@ -62,8 +78,11 @@ def build_context(period: str, claims_path: Path | None = None, as_of: dt.date |
         mine = [c for c in claims if c["tech_id"] == tid]
         e = score.estimate(mine, as_of, w)
         estimates[tid] = {"point": e.point, "low": e.low, "high": e.high, "held": e.held}
-        before = previous.get(tid, {}).get("point")
-        moved = None if before is None or e.point is None else e.point - before
+        # A move is only a move between two held levels; "insufficient evidence"
+        # in either period has no level to move from or to.
+        prev = previous.get(tid, {})
+        before = prev.get("point") if prev.get("held") else None
+        moved = None if before is None or not e.held else e.point - before
         t = watchlist.by_id(tid)
         techs.append({"id": tid, "name": t.name, "family": t.family, "point": e.point, "low": e.low,
                       "high": e.high, "held": e.held, "n_claims": e.n_claims,
@@ -73,11 +92,13 @@ def build_context(period: str, claims_path: Path | None = None, as_of: dt.date |
     (directory / f"estimates-{period}.json").write_text(json.dumps(
         {"as_of": as_of.isoformat(), "weights_version": w.version, "estimates": estimates}, indent=2))
     movers = {"up": [t for t in techs if (t["moved"] or 0) > 0],
-              "retreated": [t for t in techs if (t["moved"] or 0) < 0 or t["contrary"]],
-              "unestimated": [t for t in techs if t["point"] is None]}
+              "retreated": [t for t in techs if (t["moved"] or 0) < 0],
+              "contrary": [t for t in techs if t["contrary"]],
+              "insufficient": [t for t in techs if not t["held"] and t["low"] is not None],
+              "unestimated": [t for t in techs if t["low"] is None]}
     return {"period": period, "period_display": quarter.period_display(period), "as_of": as_of.isoformat(),
             "weights_version": w.version, "prompt_versions": sorted({c["prompt_version"] for c in claims}),
-            "technologies": sorted(techs, key=lambda t: (-(t["point"] or 0), t["name"])),
+            "technologies": sorted(techs, key=_order),
             "movers": movers, "brand_logo": quarter.brand_logo(), "notes": list(NOTES)}
 
 

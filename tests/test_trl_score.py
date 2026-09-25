@@ -67,10 +67,46 @@ def test_weights_table_is_complete_over_the_closed_sets():
     assert set(W.source) == set(schema.SOURCE_TYPES)
 
 
-def test_held_says_whether_the_point_reached_the_threshold_or_is_the_floor():
+def test_with_no_level_held_there_is_no_point_but_the_span_is_kept():
     # Five user-firm pilots clear the threshold (see the average test above); one
-    # university paper does not, so its point is the lowest band it evidences.
+    # university paper does not, so there is no point, only the span it evidences.
     held = score.estimate([claim("pilots", cid=f"a{i}") for i in range(5)], AS_OF, W)
-    floor = score.estimate([claim("proposes", actor="university", src="paper")], AS_OF, W)
-    assert held.held is True and floor.held is False and floor.point is not None
+    thin = score.estimate([claim("proposes", actor="university", src="paper", cid="p")], AS_OF, W)
+    assert held.held is True and held.point == 6
+    assert thin.held is False and thin.point is None and (thin.low, thin.high) == (1, 2)
+    assert [c["claim_id"] for c in thin.top] == ["p"]
     assert score.estimate([], AS_OF, W).held is False
+
+
+def test_a_two_level_band_claim_is_counted_once():
+    one = claim("sells", cid="s")
+    w = score.claim_weight(one, AS_OF, W)
+    e = score.estimate([one], AS_OF, W)
+    assert abs(e.cumulative[7] - w) < 1e-12 and abs(e.cumulative[1] - w) < 1e-12
+    assert e.support[7] == e.support[8] == w  # per-level support, for display, is unchanged
+
+
+def test_sells_and_operates_at_scale_of_equal_weight_meet_the_threshold_alike():
+    # One user-firm/press_release/one_site claim weighs ~0.40: below 0.5 alone,
+    # above it in pairs. Before the fix a single "sells" claim held level 7 (counted
+    # at 7 and 8) while a single "operates_at_scale" claim held nothing.
+    w = score.claim_weight(claim("sells"), AS_OF, W)
+    assert W.support_threshold / 2 < w < W.support_threshold
+    one_sells = score.estimate([claim("sells", cid="s")], AS_OF, W)
+    one_scale = score.estimate([claim("operates_at_scale", cid="o")], AS_OF, W)
+    assert one_sells.held is False and one_scale.held is False
+    two_sells = score.estimate([claim("sells", cid=f"s{i}") for i in range(2)], AS_OF, W)
+    two_scale = score.estimate([claim("operates_at_scale", cid=f"o{i}") for i in range(2)], AS_OF, W)
+    assert two_sells.held and two_scale.held
+    assert (two_sells.point, two_scale.point) == (8, 9)
+
+
+def test_abandons_dents_levels_seven_to_nine_whatever_its_setting():
+    base = [claim("pilots", cid=f"p{i}") for i in range(3)] + [claim("sells", cid=f"s{i}") for i in range(2)]
+    lab = base + [claim("abandons", setting="lab", cid="x")]
+    a, b = score.estimate(base, AS_OF, W), score.estimate(lab, AS_OF, W)
+    dent = score.claim_weight(claim("abandons", setting="lab", cid="x"), AS_OF, W) * W.contrary_penalty
+    for level in (7, 8, 9):
+        assert abs((a.support[level] - b.support[level]) - dent) < 1e-12
+    for level in range(1, 7):
+        assert a.support[level] == b.support[level] and a.cumulative[level] == b.cumulative[level]

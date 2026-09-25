@@ -1,9 +1,14 @@
 version: 1
-# Weighted support for a TRL level = sum over claims of
+# A claim's weight =
 #   actor[actor_type] * source[source_type] * setting[setting] * recency(doc_date)
 # recency = 0.5 ** (days_old / half_life_days). Unverified quotes weigh 0.
-# The point estimate is the HIGHEST level whose cumulative support (that level
-# and above) reaches support_threshold. Averaging is deliberately absent.
+# Cumulative support at level L = the sum of the weights of the claims whose
+# band (schema.BAND) reaches L or higher, EACH CLAIM COUNTED ONCE however many
+# levels its band spans (a "sells" claim, band 7-8, adds its weight once).
+# The point estimate is the HIGHEST level whose cumulative support reaches
+# support_threshold. Averaging is deliberately absent. When no level reaches
+# it there is no point: the page says "insufficient evidence" and shows the
+# span of levels the claims evidence.
 half_life_days: 365
 # One recent, verified, multi-site claim from a user firm in a press release
 # is enough to hold a level; one startup press release is not. Hand-checked
@@ -11,8 +16,10 @@ half_life_days: 365
 # claim weighs 1.0*0.6*0.9=0.54; a fresh startup/press_release/one_site claim
 # weighs 0.4*0.6*0.7=0.168. 0.5 sits between them.
 support_threshold: 0.5
-# An "abandons" claim subtracts contrary_penalty * its weight from every level
-# in the band it names, so a retreat shows as lowered support, not as silence.
+# An "abandons" claim always dents levels 7, 8 and 9, whatever its own setting
+# or whichever level it was about: contrary_penalty * its weight is subtracted
+# from the support at each of 7, 8 and 9 and from the cumulative support at
+# 7, 8 and 9, so a retreat shows as lowered support, not as silence.
 contrary_penalty: 1.0
 actor:
   user_firm: 1.0        # the party that would bear the cost of being wrong

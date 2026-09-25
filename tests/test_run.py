@@ -583,6 +583,38 @@ def test_rebuild_replays_manual_exports_too(conn, monkeypatch, tmp_path):
     ).fetchone()["n"] == 1
 
 
+def test_rebuild_drops_frozen_sources_and_says_so(conn, monkeypatch, tmp_path, capsys):
+    """Spec C1: a frozen source is never run, so a rebuild does not replay its
+    export even when one is on disk. Its observations are dropped, and the
+    rebuild says which source and how many, rather than losing them silently."""
+    manual_root = tmp_path / "manual" / "scopus"
+    manual_root.mkdir(parents=True)
+    (manual_root / "x.ris").write_text(
+        "TY  - JOUR\nTI  - Driverless truck corridor study\nPY  - 2026\n"
+        "DA  - 2026/04/15\nDO  - 10.1/a\nER  -\n"
+    )
+    (manual_root / "x.ris.meta.yaml").write_text(
+        'source: scopus\nexported: 2026-08-20\nquery: "driverless truck"\nrecords: 1\n'
+    )
+    monkeypatch.setattr(run.config, "MANUAL_DIR", tmp_path / "manual")
+    monkeypatch.setattr(run.manual.config, "MANUAL_DIR", tmp_path / "manual")
+    # Observations imported before the freeze, as the live database holds them.
+    store.upsert_observations(conn, [Observation(
+        source="scopus", week="2026-W16", tech_id="autonomous_trucking", doc_id=f"s{i}",
+        doc_date="2026-04-15", title="Driverless truck corridor study",
+        url=None, entity=None, entity_id=None, amount=None,
+        lat=None, lon=None, matched_pattern="x", raw_ref=None,
+    ) for i in range(3)])
+
+    run.rebuild(conn, matcher.load_watchlist(), collectors=())
+    assert conn.execute(
+        "SELECT COUNT(*) AS n FROM observations WHERE source='scopus'"
+    ).fetchone()["n"] == 0
+    out = capsys.readouterr().out
+    assert "Rebuilding: scopus is frozen (spec C1), not replayed; 3 observations dropped" in out
+    assert "x.ris not imported" in out
+
+
 def test_import_manual_writes_observations_without_fetching(conn, monkeypatch, tmp_path):
     manual_root = tmp_path / "manual" / "wos"
     manual_root.mkdir(parents=True)
