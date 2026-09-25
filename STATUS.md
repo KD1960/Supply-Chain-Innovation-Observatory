@@ -108,11 +108,11 @@ cadences are deliberately different (§6).
 
 | | |
 |---|---|
-| Tests | **815 passing** |
+| Tests | **832 passing** |
 | Lexicon | version **10**, 48 active technologies |
-| Observations | **2,382** |
-| Sources | 10, across 8 evidence families |
-| By source | github 828, arxiv 530, scopus 421, openalex 250, edgar 132, hn 67, lens 64, nsf 40, usaspending 29, federalregister 21 |
+| Observations | **2,513** |
+| Sources | 11, across 9 evidence families |
+| By source | github 828, arxiv 530, scopus 421, openalex 250, edgar 132, pressroom 131, hn 67, lens 64, nsf 40, usaspending 29, federalregister 21 |
 | Precision | **70%** at lexicon v9, one model coder, 120 of 132 judged (`docs/precision-audit-2026-09-02.md`) — not comparable with the earlier 51%; the count lexicon's, not the tracker's |
 | Deliverable | the TRL page, below. The count report (`output/report-<period>.html`) still builds and is no longer the deliverable |
 | TRL tracked set | 24 technologies, the rows the owner ruled pre-practice on `docs/audit/tech-practice-sort-2026-09-23.xlsx` |
@@ -168,6 +168,12 @@ claims); 672 of 677 quotes verified; model spend about $13. The verdicts CSV
     python -m observatory.run --backfill 52          # fetch N trailing weeks, then rebuild
     python -m observatory.run --export-queries 2026-Q4 --split   # prints nothing to run now
     python -m observatory.run --import-manual        # refuses frozen sources' files
+
+**The weekly run includes the press rooms** (collector `pressroom`, since
+2026-09-25). The newsrooms it reads are `pressrooms.yaml` at the repo root;
+adding or dropping one is an edit there, not in code, and the file lists the
+ones that could not be read and why. `--only pressroom` runs it alone for one
+week.
 
 **`--export-queries` now produces no queries.** Every manual source is frozen
 (Scopus, Lens) or retired (ABI/INFORM); the sheet names each one as NOT
@@ -514,6 +520,29 @@ of estimates exists; `estimates-<period>.json` is written each run so it can
 be drawn later); the quarterly model narrative (spec §5, approved); the
 measurability gate for candidates (spec §7); any paid source.
 
+**(c) The press rooms — a new free source, first run 2026-09-25**
+(`docs/pressroom-first-run-2026-09-25.md`). Collector `pressroom` reads 16
+vendor newsrooms listed in `pressrooms.yaml` (listing plus up to 15 in-window
+item pages each, one request every 2 s) and hands title and opening text to
+the same matcher; family `press`, stage `deployment`. Probe 2
+(`docs/trl-probe2-2026-09-25.md`) ranked it first among free sources for the
+pilot band. **Licence:** press releases are issued for redistribution; the
+report quotes with attribution and links the release. **Robots:** read once
+per host per run and obeyed; a 403, a disallow or a JavaScript shell is
+recorded in the raw envelope, never evaded. **First run** (2026-W39 only, no
+rebuild): 16 of 16 newsrooms answered, 0 notes, 26 item pages, 780 dated
+documents, 131 observations. Only 19 documents and 3 observations are dated
+inside the run window; the rest are the listings' history back to 2002, each
+filed under its own week, so 128 of the 131 sit in weeks with no `pressroom`
+run and never reach a signal. 21 are dated in 2026-Q3. A hand read found 5
+false positives (a company descriptor matched in a sponsorship, an event
+notice, an award, a SPAC listing and a hire) and a larger group on topic but
+not evidence of use (25 of Circularise's 33 are explainers). Open defect: the
+`corpus` table records all 780 again on every weekly run, so any rate over
+the press corpus is wrong until `parse()` keeps only in-window items or the
+corpus write deduplicates. **Reversal condition:** retire the source if two
+consecutive quarters yield under 10 matched observations.
+
 ### The count pipeline
 
 **C1 is not enforced on the count report.** 421 Scopus and 64 Lens
@@ -646,9 +675,18 @@ do.
    His words: "the problem is lack of content, we're even missing evidence
    that might change a 1 into a 2 or 3." So the gap is not only the pilot
    band (TRL 5–8, the probe's finding); the research band is thin too, with
-   at most 9 claims per technology from the free sources. The next step is
-   his: look into sources and stakeholder ideas before anything else is
-   built. Branch `trl` merged to `main` on his instruction the same day.
+   at most 9 claims per technology from the free sources. The next step was
+   sources: probe 2 (`docs/trl-probe2-2026-09-25.md`) ranked vendor press
+   rooms first, the owner said "build the press-room collector", and it was
+   built and run once on branch `pressroom` the same day (§5 (c)): 16 of 16
+   newsrooms answered, 3 in-window observations, all autonomous trucking,
+   plus 128 from the listings' history. Next: merge `pressroom` after the
+   owner's look, let two or three Monday runs show the real weekly yield,
+   fix the corpus re-count (§5 (c)) before any rate uses it, and look at
+   why the three humanoid newsrooms and Avery Dennison answered and matched
+   nothing (Agility's "Digit 5 Humanoid Robot" release was in window: a
+   lexicon question, not a collector one). Branch `trl` merged to `main` on his
+   instruction the same day.
 2. **Owner: the weights and threshold question the placement exposed.**
    No single research-setting claim comes near 0.5 (maximum 0.186), so a level
    is held only when many claims add up, which at levels 4 and above rarely
