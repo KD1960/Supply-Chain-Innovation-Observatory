@@ -1,7 +1,7 @@
 # STATUS
 
 Supply Chain Innovation Observatory — state of the project, written for someone
-picking it up cold. Last updated 2026-09-24, on branch `trl`.
+picking it up cold. Last updated 2026-09-25, on branch `pressroom`.
 
 Owner: Kevin Dooley, ASU W. P. Carey.
 
@@ -108,7 +108,7 @@ cadences are deliberately different (§6).
 
 | | |
 |---|---|
-| Tests | **833 passing** |
+| Tests | **844 passing** |
 | Lexicon | version **10**, 48 active technologies |
 | Observations | **2,385** |
 | Sources | 11, across 9 evidence families |
@@ -540,12 +540,26 @@ every dated item on each listing (780 documents back to 2002, 131
 observations, 128 of them in weeks with no `pressroom` run, and a `corpus`
 row every later week would have repeated); `parse()` now keeps only items
 inside the envelope's own window, and that pass was purged and replayed from
-the saved raw. History on a listing is not collected. Known defect, unfixed:
-Wing's pages come through as mojibake (UTF-8 read as Latin-1). **Reversal
+the saved raw. History on a listing is not collected. That fixed the history
+repetition, not the lookback double-count (see "The count pipeline" below).
+Fixed after the first run, not yet exercised on a live fetch: Wing's pages came
+through as mojibake (UTF-8 read as Latin-1; `http.py` now decodes by the
+page's own `<meta charset>` when the header names none, for every collector;
+the W39 raw keeps the mojibake); Volvo's month-only sitemap URLs
+(`/2026/september/`) are now fetched when their month meets the window and
+dated from the page, not the 1st; item pages and robots.txt get one retry, not
+three. **Reversal
 condition:** retire the source if two consecutive quarters yield under 10
 matched observations.
 
 ### The count pipeline
+
+**The corpus double-counts across the 7-day lookback.** A document dated in
+the overlap is fetched by two consecutive weekly runs and recorded in both
+weeks' `corpus` rows; `corpus_between` sums `documents` by `doc_date` across
+weeks, so it counts that document twice. Pre-existing for github and arxiv;
+`pressroom` shares it. The fix belongs in `record_corpus` / `corpus_between`:
+count distinct doc_ids, not per-week sums.
 
 **C1 is not enforced on the count report.** 421 Scopus and 64 Lens
 observations are still in the database and in any count report

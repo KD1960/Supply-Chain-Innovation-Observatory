@@ -17,6 +17,7 @@ import datetime as dt
 import hashlib
 import json
 import re
+from html import unescape
 import urllib.robotparser
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,6 +59,10 @@ class Item:
     url: str
     date: dt.date | None
     description: str = ""
+    # The URL dates only the month (Volvo's /2026/september/): `date` is the
+    # 1st, a placeholder. The item is fetched if its month meets the window and
+    # re-dated from its page; with no page date it is dropped.
+    month_only: bool = False
 
 
 def load_pressrooms(path: Path | None = None) -> list[Newsroom]:
@@ -83,24 +88,41 @@ def parse_date(s: str) -> dt.date | None:
     return None
 
 
-def url_date(url: str) -> dt.date | None:
+def url_date_kind(url: str) -> tuple[dt.date | None, bool]:
+    """The date in a URL, and whether it is month-granular (then the 1st)."""
     m = URL_DATE_RES[0].search(url)
     if m:
         try:
-            return dt.date(int(m[1]), int(m[2]), int(m[3]))
+            return dt.date(int(m[1]), int(m[2]), int(m[3])), False
         except ValueError:
-            return None
+            return None, False
     m = URL_DATE_RES[1].search(url)
-    if m:  # month granularity: first of the month
-        return dt.date(int(m[1]), MONTHS[m[2][:3].lower()], 1)
-    return None
+    if m:  # month granularity: first of the month, a placeholder
+        return dt.date(int(m[1]), MONTHS[m[2][:3].lower()], 1), True
+    return None, False
+
+
+def url_date(url: str) -> dt.date | None:
+    return url_date_kind(url)[0]
+
+
+def _month_end(d: dt.date) -> dt.date:
+    nxt = dt.date(d.year + (d.month == 12), d.month % 12 + 1, 1)
+    return nxt - dt.timedelta(days=1)
+
+
+def in_window(item: Item, start: dt.date, end: dt.date) -> bool:
+    """A dated item inside [start, end]; a month-only item whose month meets it."""
+    if item.date is None:
+        return False
+    if item.month_only:
+        return item.date <= end and _month_end(item.date) >= start
+    return start <= item.date <= end
 
 
 def visible_text(html: str) -> str:
     t = re.sub(r"<script.*?</script>|<style.*?</style>|<noscript.*?</noscript>", " ", html, flags=re.S | re.I)
-    t = re.sub(r"<[^>]+>", " ", t)
-    t = re.sub(r"&nbsp;|&#160;", " ", t)
-    t = re.sub(r"&amp;", "&", t)
+    t = unescape(re.sub(r"<[^>]+>", " ", t))
     return re.sub(r"\s+", " ", t).strip()
 
 
@@ -133,8 +155,11 @@ def items_from_sitemap(xml: str) -> list[Item]:
         if not loc:
             continue
         lm = re.search(r"<lastmod>(.*?)</lastmod>", u)
-        d = url_date(loc[1]) or (parse_date(lm[1]) if lm else None)
-        items.append(Item(loc[1].rstrip("/").rsplit("/", 1)[-1].replace("-", " "), loc[1], d))
+        d, month_only = url_date_kind(loc[1])
+        if d is None and lm:
+            d = parse_date(lm[1])
+        items.append(Item(loc[1].rstrip("/").rsplit("/", 1)[-1].replace("-", " "), loc[1], d,
+                          month_only=month_only))
     return items
 
 
@@ -180,12 +205,16 @@ def items_from_html(html: str, base: str) -> list[Item]:
         url = urljoin(base, m[1].replace("&amp;", "&"))
         if url in seen:
             continue
-        d = url_date(url) or _nearest_date(html, max(starts[i], m.start() - 900),
-                                           min(starts[i + 1], m.end() + 900), m.start(), m.end())
+        d, month_only = url_date_kind(url)
+        if d is None or month_only:   # a card's own day beats a month-only URL
+            near = _nearest_date(html, max(starts[i], m.start() - 900),
+                                 min(starts[i + 1], m.end() + 900), m.start(), m.end())
+            if near is not None:
+                d, month_only = near, False
         if d is None:
             continue
         seen.add(url)
-        items.append(Item(title, url, d))
+        items.append(Item(title, url, d, month_only=month_only))
     return items
 
 
@@ -215,15 +244,20 @@ def items_for(kind: str, listing: str, base: str, pages: dict) -> list[Item]:
 
 def robots_allows(session, url: str, cache: dict, limiter) -> bool:
     """Read <scheme>://<host>/robots.txt once per host per run and obey it. A
-    robots.txt that cannot be fetched (404, 403, network error) means allow."""
+    robots.txt that cannot be fetched (404, 403, network error) means allow;
+    a server error (5xx) means disallow all, as RFC 9309 asks. One retry: a
+    hanging origin costs two timeouts, not four."""
     host = "{0.scheme}://{0.netloc}".format(urlparse(url))
     if host not in cache:
         rp = urllib.robotparser.RobotFileParser()
         try:
-            r = http.fetch(session, host + "/robots.txt", limiter=limiter)
+            r = http.fetch(session, host + "/robots.txt", limiter=limiter, retries=1)
             rp.parse(r.text.splitlines())
-        except http.HttpError:
-            rp.parse([])            # no robots file: allow
+        except (http.HttpError, ValueError) as e:
+            if isinstance(e, http.HttpError) and (e.status or 0) >= 500:
+                rp.parse(["User-agent: *", "Disallow: /"])
+            else:
+                rp.parse([])        # no robots file: allow
         cache[host] = rp
     return cache[host].can_fetch(config.user_agent(), url)
 
@@ -262,26 +296,28 @@ class PressroomCollector(BaseCollector):
             try:
                 r = http.fetch(session, room.url, limiter=limiter)
                 status, env["listing"] = r.status, r.text
+                env["resolved_url"] = r.url or room.url   # after redirects: the base for item hrefs
                 listed += bool(r.text)
             except http.HttpError as e:
                 status = e.status or 0
                 env["notes"].append(f"listing: {e}")
                 yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
                 continue
+            base = env["resolved_url"]
             wanted = []
             if room.kind.startswith("links:"):
-                wanted = links_under(env["listing"], room.url, room.kind.split(":", 1)[1])
+                wanted = links_under(env["listing"], base, room.kind.split(":", 1)[1])
             else:
-                for it in items_for(room.kind, env["listing"], room.url, {}):
-                    if it.url and it.date and start <= it.date <= sunday:
+                for it in items_for(room.kind, env["listing"], base, {}):
+                    if it.url and in_window(it, start, sunday):
                         wanted.append(it.url)
             for u in wanted[:MAX_ITEM_PAGES]:
                 if not robots_allows(session, u, robots, limiter):
                     env["notes"].append(f"robots.txt disallows {u}")
                     continue
-                try:
-                    env["pages"][u] = http.fetch(session, u, limiter=limiter).text
-                except http.HttpError as e:
+                try:   # one retry: a hanging page costs two timeouts, not four
+                    env["pages"][u] = http.fetch(session, u, limiter=limiter, retries=1).text
+                except (http.HttpError, ValueError) as e:
                     env["notes"].append(f"page {u}: {e}")
             yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
         if not listed:
@@ -295,10 +331,16 @@ class PressroomCollector(BaseCollector):
         monday, sunday = config.week_bounds(env["fetched_week"])
         start = monday - dt.timedelta(days=config.LOOKBACK_DAYS)
         docs = []
-        for item in items_for(env["kind"], env["listing"], env["url"], pages):
-            if item.date is None or not item.url or not start <= item.date <= sunday:
+        base = env.get("resolved_url") or env["url"]
+        for item in items_for(env["kind"], env["listing"], base, pages):
+            if not item.url or not in_window(item, start, sunday):
                 continue
             page = pages.get(item.url)
+            if item.month_only:   # the URL gave only the month: the page must give the day
+                day = parse_date(visible_text(page)[:3000]) if page else None
+                if day is None or not start <= day <= sunday:
+                    continue
+                item = Item(item.title, item.url, day, item.description)
             body = opening_text(page) if page else (item.description or "")
             docs.append(Document(doc_id=_doc_id(item.url), date=item.date.isoformat(), title=item.title,
                                  text=body, url=item.url, entity=env["vendor"]))

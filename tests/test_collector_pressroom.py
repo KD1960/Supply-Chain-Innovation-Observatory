@@ -41,8 +41,48 @@ def test_html_items_are_dated_from_nearby_text_or_url_and_undatable_links_are_dr
 
 
 def test_sitemap_items_take_the_date_from_the_url_then_lastmod_and_skip_undated():
+    """The fixture's URL dates only the month (/2026/september/); its page
+    carries the day, which becomes the document's date."""
     docs = _docs("pressroom_sitemap.json")
-    assert len(docs) == 1 and docs[0].date == "2026-09-01" and "City Harvest" in docs[0].text
+    assert len(docs) == 1 and docs[0].date == "2026-09-03" and "City Harvest" in docs[0].text
+
+
+def _month_only_env(page_date):
+    url = "https://v.test/news/2026/september/foo/"
+    listing = f"<urlset><url><loc>{url}</loc></url></urlset>"
+    page = f"<html><body><p>{page_date}</p><p>{'Volvo delivers electric trucks. ' * 4}</p></body></html>"
+    return json.dumps({"vendor": "v", "kind": "sitemap", "url": "https://v.test/sitemap.xml",
+                       "fetched_week": "2026-W39", "listing": listing, "pages": {url: page}, "notes": []})
+
+
+def test_a_month_only_sitemap_item_is_redated_from_its_page():
+    """/2026/september/ once dated every release to the 1st, so one from the
+    20th fell outside every window after the month's first days."""
+    docs = PressroomCollector().parse(_month_only_env("September 20, 2026"))
+    assert [d.date for d in docs] == ["2026-09-20"]
+
+
+def test_a_month_only_sitemap_item_whose_page_date_is_out_of_window_is_dropped():
+    assert PressroomCollector().parse(_month_only_env("September 2, 2026")) == []
+
+
+def test_a_month_only_item_with_no_page_or_no_page_date_is_dropped():
+    env = json.loads(_month_only_env("no date"))
+    assert PressroomCollector().parse(json.dumps(env)) == []
+    env["pages"] = {}
+    assert PressroomCollector().parse(json.dumps(env)) == []
+
+
+def test_in_window_for_a_month_only_item_asks_whether_its_month_meets_the_window():
+    start, end = dt.date(2026, 9, 14), dt.date(2026, 9, 27)
+    sept = pressroom.Item("t", "u", dt.date(2026, 9, 1), month_only=True)
+    june = pressroom.Item("t", "u", dt.date(2026, 6, 1), month_only=True)
+    assert pressroom.in_window(sept, start, end) and not pressroom.in_window(june, start, end)
+    assert not pressroom.in_window(pressroom.Item("t", "u", dt.date(2026, 9, 1)), start, end)
+
+
+def test_visible_text_unescapes_entities():
+    assert pressroom.visible_text("<p>Plus&#39;s &amp; AT&amp;T&nbsp;&rsquo;</p>") == "Plus's & AT&T \u2019"
 
 
 def test_links_kind_dates_each_page_from_its_own_text():
@@ -123,6 +163,7 @@ def no_wait(monkeypatch):
 
 
 def test_fetch_raw_yields_one_envelope_per_newsroom_and_fetches_only_in_window_pages(tmp_path, monkeypatch, no_wait):
+    monkeypatch.setattr(http, "_backoff_seconds", lambda *a, **k: 0)
     rooms = tmp_path / "rooms.yaml"
     rooms.write_text('version: 1\nnewsrooms:\n  - {vendor: k, url: "https://k.test/news", kind: html, chosen_for: [x]}\n')
     monkeypatch.setattr(pressroom, "PRESSROOMS_PATH", rooms)
@@ -132,13 +173,19 @@ def test_fetch_raw_yields_one_envelope_per_newsroom_and_fetches_only_in_window_p
     listing = ('<li><a href="/news/new-item">A long enough title for the new item here</a>'
                '<span>September 24, 2026</span></li>'
                '<li><a href="/news/old-item">A long enough title for the old item here</a>'
-               '<span>January 5, 2020</span></li>')
+               '<span>January 5, 2020</span></li>'
+               '<li><a href="/news/hanging-item">A long enough title for the hanging item here</a>'
+               '<span>September 23, 2026</span></li>')
     session = FakeSession({"https://k.test/news": (200, listing),
-                           "https://k.test/news/new-item": (200, "<p>" + "x" * 100 + "</p>")})
+                           "https://k.test/news/new-item": (200, "<p>" + "x" * 100 + "</p>"),
+                           "https://k.test/news/hanging-item": (503, "")})
     pages = list(PressroomCollector().fetch_raw(session, "2026-W39"))
     assert len(pages) == 1
     env = json.loads(pages[0].text)
     assert set(env["pages"]) == {"https://k.test/news/new-item"}      # the 2020 item is out of window, not fetched
+    # An item page gets one retry, not three: a hanging origin costs two timeouts.
+    assert session.calls.count("https://k.test/news/hanging-item") == 2
+    assert any("hanging-item" in n for n in env["notes"])
     assert "https://k.test/news/old-item" not in session.calls
     assert session.calls.count("https://k.test/robots.txt") == 1     # robots read once per host
 
@@ -172,6 +219,57 @@ def test_a_robots_txt_that_cannot_be_fetched_means_allow(monkeypatch, no_wait):
             return super().get(url, params, headers, timeout)
 
     assert pressroom.robots_allows(NoRobots({}), "https://n.test/private/x", {}, _NoWait())
+
+
+def test_a_robots_txt_server_error_means_disallow(monkeypatch, no_wait):
+    monkeypatch.setattr(http, "_backoff_seconds", lambda *a, **k: 0)
+
+    class BrokenRobots(FakeSession):
+        def get(self, url, params=None, headers=None, timeout=None):
+            if url.endswith("/robots.txt"):
+                self.calls.append(url)
+                return FakeResponse(503, "")
+            return super().get(url, params, headers, timeout)
+
+    session = BrokenRobots({})
+    assert not pressroom.robots_allows(session, "https://s.test/news", {}, _NoWait())
+    assert session.calls.count("https://s.test/robots.txt") == 2          # one retry
+
+
+def test_fetch_raw_fetches_a_month_only_sitemap_item_when_its_month_meets_the_window(tmp_path, monkeypatch, no_wait):
+    rooms = tmp_path / "rooms.yaml"
+    rooms.write_text('version: 1\nnewsrooms:\n  - {vendor: v, url: "https://v.test/sitemap.xml", kind: sitemap}\n')
+    monkeypatch.setattr(pressroom, "PRESSROOMS_PATH", rooms)
+    listing = ("<urlset><url><loc>https://v.test/news/2026/september/foo/</loc></url>"
+               "<url><loc>https://v.test/news/2026/june/bar/</loc></url></urlset>")
+    session = FakeSession({"https://v.test/sitemap.xml": (200, listing),
+                           "https://v.test/news/2026/september/foo/": (200, "<p>September 20, 2026</p>")})
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert set(env["pages"]) == {"https://v.test/news/2026/september/foo/"}
+    assert [d.date for d in PressroomCollector().parse(json.dumps(env))] == ["2026-09-20"]
+
+
+def test_item_hrefs_resolve_against_the_listings_final_url(tmp_path, monkeypatch, no_wait):
+    """A listing that redirects to another host: relative hrefs belong to the
+    host that served the listing, not the one in pressrooms.yaml."""
+    rooms = tmp_path / "rooms.yaml"
+    rooms.write_text('version: 1\nnewsrooms:\n  - {vendor: r, url: "https://old.test/news", kind: html}\n')
+    monkeypatch.setattr(pressroom, "PRESSROOMS_PATH", rooms)
+    listing = ('<li><a href="/news/item">A long enough title for the moved item here</a>'
+               '<span>September 24, 2026</span></li>')
+
+    class Redirecting(FakeSession):
+        def get(self, url, params=None, headers=None, timeout=None):
+            r = super().get(url, params, headers, timeout)
+            if url == "https://old.test/news":
+                r.status_code, r.text, r.url = 200, listing, "https://new.test/news"
+            return r
+
+    session = Redirecting({"https://new.test/news/item": (200, "<p>" + "y" * 100 + "</p>")})
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert env["resolved_url"] == "https://new.test/news"
+    assert set(env["pages"]) == {"https://new.test/news/item"}
+    assert [d.url for d in PressroomCollector().parse(json.dumps(env))] == ["https://new.test/news/item"]
 
 
 def _two_rooms(tmp_path, monkeypatch):

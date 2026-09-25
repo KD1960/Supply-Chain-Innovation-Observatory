@@ -3,6 +3,8 @@ same rate limiting. Collectors never call requests directly."""
 
 from __future__ import annotations
 
+import codecs
+import re
 import time
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -13,6 +15,14 @@ from . import config
 
 TIMEOUT_SECONDS = 60
 RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
+
+# The patterns of requests.utils.get_encodings_from_content, copied because
+# that function is deprecated (it warns, and is slated for removal).
+_DECLARED_ENCODING_RES = [
+    re.compile(r'<meta.*?charset=["\']*(.+?)["\'>]', re.I),
+    re.compile(r'<meta.*?content=["\']*;?charset=(.+?)["\'>]', re.I),
+    re.compile(r'^<\?xml.*?encoding=["\']*(.+?)["\'>]'),
+]
 
 
 class HttpError(RuntimeError):
@@ -124,6 +134,7 @@ def _with_retries(
         last_exception = None
         last_status = raw.status_code
         if raw.status_code == 200:
+            _settle_encoding(raw)
             return Response(
                 # The resolved URL, params and redirects included: raw_fetch is
                 # the traceability record, and the bare endpoint cannot say
@@ -147,6 +158,42 @@ def _with_retries(
     # deliberately kept out of it.
     raise HttpError(f"{url} still failing with status {last_status} after {retries} retries",
                     url=url, status=last_status)
+
+
+def _settle_encoding(raw: Any) -> None:
+    """Decode by the page's own declaration when the header gives no charset.
+
+    For text/* without a charset, requests falls back to ISO-8859-1 (RFC 2616),
+    so a UTF-8 page that declares itself only in <meta charset="utf-8"> comes
+    out as mojibake ("Wingâs" for "Wing’s"; Wing's newsroom,
+    2026-09-25). A charset in the header wins; otherwise a declaration in the
+    first 4 KB of the body; otherwise, only where requests would have used the
+    Latin-1 fallback, the detected encoding. JSON (which requests already
+    decodes as UTF-8) and fakes without a byte body are left alone.
+    """
+    content = getattr(raw, "content", None)
+    if not isinstance(content, bytes):
+        return
+    ctype = raw.headers.get("Content-Type", "").lower()
+    if "charset" in ctype:
+        return
+    declared = None
+    if "json" not in ctype:
+        head = content[:4096].decode("ascii", "ignore")
+        for rx in _DECLARED_ENCODING_RES:
+            for name in rx.findall(head):
+                try:
+                    codecs.lookup(name.strip())
+                except LookupError:
+                    continue
+                declared = name.strip()
+                break
+            if declared:
+                break
+    if declared:
+        raw.encoding = declared
+    elif (getattr(raw, "encoding", None) or "").lower() == "iso-8859-1":
+        raw.encoding = getattr(raw, "apparent_encoding", None) or "utf-8"
 
 
 def _backoff_seconds(raw: Any, attempt: int, limiter: RateLimiter | None = None) -> float:

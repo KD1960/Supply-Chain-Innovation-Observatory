@@ -197,3 +197,34 @@ def test_fetch_post_fails_fast_on_client_error():
     with pytest.raises(http.HttpError):
         http.fetch_post(session, "https://example.test/s", {}, sleep_fn=lambda _: None)
     assert len(session.calls) == 1
+
+
+def _real_response(body: bytes, content_type: str) -> requests.Response:
+    raw = requests.Response()
+    raw.status_code = 200
+    raw._content = body
+    raw.headers["Content-Type"] = content_type
+    raw.encoding = requests.utils.get_encoding_from_headers(raw.headers)   # as requests does
+    raw.url = "https://wing.test/news"
+    return raw
+
+
+def test_a_page_declaring_utf8_only_in_meta_is_decoded_as_utf8_not_latin1():
+    """Wing serves text/html with no charset and <meta charset="utf-8">;
+    requests falls back to ISO-8859-1 for text/*, which gave "Wing\u00e2\u0080\u0099s"."""
+    body = '<html><head><meta charset="utf-8"></head><body>Wing\u2019s drones</body></html>'.encode("utf-8")
+    assert b"Wing\xe2\x80\x99s" in body
+    result = http.fetch(FakeSession([_real_response(body, "text/html")]), "https://wing.test/news")
+    assert "Wing\u2019s" in result.text
+
+
+def test_a_charset_in_the_header_still_wins():
+    body = '<meta charset="utf-8">caf\u00e9'.encode("latin-1")
+    result = http.fetch(FakeSession([_real_response(body, "text/html; charset=ISO-8859-1")]), "https://x.test/")
+    assert "caf\u00e9" in result.text
+
+
+def test_json_without_a_charset_stays_utf8():
+    body = '{"name": "Wing\u2019s"}'.encode("utf-8")
+    result = http.fetch(FakeSession([_real_response(body, "application/json")]), "https://x.test/")
+    assert "Wing\u2019s" in result.text

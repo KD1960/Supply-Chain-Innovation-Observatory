@@ -30,7 +30,11 @@ collectors avoid this because their queries are date-bounded.
 **The fix** (commit 67e0c2d): `parse()` computes the window from the
 envelope's own `fetched_week`, exactly as `fetch_raw` does, and drops items
 outside it. History on a listing is not collected; the source starts at its
-first run week, like every other collector. Then the first pass was purged
+first run week, like every other collector. That fixed the repetition of a
+listing's history into every week's `corpus` row; it did not fix the lookback
+double-count, which remains (a document dated in the 7-day overlap is recorded
+under two weeks, and `corpus_between` sums both; pre-existing for github and
+arxiv, STATUS §5 "The count pipeline"). Then the first pass was purged
 (a copy of the database was taken first) and replayed from the saved raw:
 
     DELETE FROM observations WHERE source='pressroom';     -- 131 rows
@@ -109,17 +113,21 @@ self-description), and a larger group was on topic but not evidence of use
 (25 of Circularise's 33 were explainer blog posts). The same pattern will
 recur in the weekly flow.
 
-## Known defects, not fixed here
+## Known defects
 
-- **Mojibake on Wing's pages** ("Wingâs" for "Wing’s"): a UTF-8 page
-  decoded as Latin-1 somewhere between the fetch and the parse. Check
-  `Response.text` encoding in `observatory/http.py` and the envelope's JSON
-  round-trip.
-- Volvo's sitemap gives titles as URL slugs (lower case, no punctuation) and
-  month-level dates, set to the 1st of the month.
-- Plus's listing titles carry the card's date and category as a prefix and
-  an undecoded `&#39;`; on the first pass one Plus item took a date from the
-  wrong card (dated 05-07, titled May 26).
+- **Mojibake on Wing's pages** ("Wingâs" for "Wing’s"): Wing serves
+  `text/html` with no charset and declares UTF-8 only in `<meta charset>`, so
+  requests decoded it as Latin-1. Fixed after this run in
+  `observatory/http.py` (decode by the page's own declaration when the header
+  names none); the W39 raw files keep the mojibake.
+- Volvo's sitemap gives titles as URL slugs (lower case, no punctuation).
+  Its month-level URL dates, once set to the 1st of the month (so a release
+  from late in a month fell outside every window), are fixed after this run:
+  the item is fetched when its month meets the window and dated from its page.
+- Plus's listing titles carry the card's date and category as a prefix; the
+  undecoded `&#39;` is fixed after this run (`visible_text` unescapes
+  entities). On the first pass one Plus item took a date from the wrong card
+  (dated 05-07, titled May 26).
 
 ## What the weekly yield is
 
