@@ -118,6 +118,7 @@ cadences are deliberately different (§6).
 | TRL tracked set | 24 technologies, the rows the owner ruled pre-practice on `docs/audit/tech-practice-sort-2026-09-23.xlsx` |
 | TRL claims 2026-Q3 | 43 claims over 10 technologies, 43 of 43 quotes verified, from 71 documents; model spend $0.29 with the placement reader (`docs/trl-placement-2026-09-24.md`); a copy of the claims file is committed as `docs/audit/trl-claims-2026-Q3.jsonl` |
 | TRL page | `output/trl-2026-Q3.html`: 1 of 24 holds a level (delivery drones, TRL 2); 9 "insufficient evidence" with their claims' span; 14 "not estimated" (after the scoring fix, `docs/trl-placement-2026-09-24.md`, last section) |
+| TRL placement check | complete 2026-09-25, owner's column filled; gate **FAIL** on the plan's rule (owner~model 6/10 within one, owner~tracker point n=1); owner~tracker span agrees **9/10**; read as source-coverage, not scoring — `docs/trl-placement-2026-09-24.md` §"Owner's reading, 2026-09-25, and the verdict" |
 | TRL weights | version **1**, `observatory/trl/weights.yaml`, threshold 0.5 |
 | TRL prompt | `trl-1` (`observatory/claims/trl_prompt.py`), model `claude-sonnet-5` |
 | Weekly page | collection health only — did the collectors run, what arrived, rising terms |
@@ -427,7 +428,7 @@ press-release search. If a source then clears three or more pilot-band
 documents per technology over a trailing eight weeks for at least three of the
 five technologies, add its collector.
 
-**(b) The placement check — preliminary; the gate is not decided**
+**(b) The placement check — complete 2026-09-25; gate FAILS on the plan's rule**
 (`docs/trl-placement-2026-09-24.md`). The question is whether two readers,
 given the same claims, place a technology within one TRL level of each other
 and of the tracker. Ten technologies were read for 2026-Q3: **43 claims, none
@@ -444,13 +445,27 @@ claim twice (fixed, below); re-scored, **only delivery drones holds a level
 no point, so model vs tracker is now **1 of 1 within one** (n = 1, mean abs
 diff 1.0), or 1 of 10 if "insufficient" counts as disagreement, which is the
 owner's to rule. The report's last section has the table.
-**The owner's column is blank.** The pass line, set in the plan: the owner and
-the tracker within one level on at least 7 of 10, **and** the owner and the
-model within one level on at least 7 of 10. On a fail, the weights table is
-revised once with its reasons in the yaml comments, the estimates recomputed
-without new extraction, and the comparison re-run once; a second fail stops
-the plan. **Until the owner reads it, the tracker's numbers mean nothing
-tested.**
+**The owner's column was filled 2026-09-25** and the check is complete
+(`docs/experiments/trl/placement_final.py`,
+`docs/trl-placement-2026-09-24.md` §"Owner's reading, 2026-09-25, and the
+verdict"). The pass line, set in the plan: the owner and the tracker within
+one level on at least 7 of 10, **and** the owner and the model within one
+level on at least 7 of 10. **Result: FAIL.** Owner vs model is 6 of 10 within
+one (misses: cv_inspection, supply_chain_llm, autonomous_trucking,
+humanoid_logistics, all the model reading a level or more above the owner).
+Owner vs tracker point is not measurable at the gate's 7-of-10 bar: only one
+technology (delivery_drones) has a held point after the scoring fix, so n=1
+(within one). An added measure not in the plan's gate — owner's number
+against the tracker's span, widened by one level either side — agrees on 9 of
+10; the one miss is `supply_chain_llm` (owner 2, span 7-8), the same
+actor-unclear arXiv claim already flagged in item 4 below. The owner placed
+every technology at 2-3 and wrote, on eight of the ten rows, a version of "based
+on evidence but we're missing sources that would suggest 4-6": a calibrated
+low placement, naming the missing pilot/operation evidence himself. Read this
+way the failure is a **source-coverage gap** (no free source reaches the pilot
+band, the same finding as the probe above), not a scoring defect, so the
+report recommends **not** revising the weights and leaves the ruling to the
+owner (§7 item 1).
 
 **What the placement exposed about the weights table** (the owner's to rule,
 §7 item 2): no single research-setting claim comes near the 0.5 threshold (the
@@ -620,13 +635,17 @@ a `held` flag (at the final review it became the switch between a point and
 In value order, the owner's items first because nothing else moves until they
 do.
 
-1. **Owner: fill `docs/audit/trl-placement-verdicts.csv`** (the `reader_trl`
-   column, ten rows), reading `docs/audit/trl-placement-sheet.md` without
-   looking at the tracker's estimates first. Then the assistant runs
-   `placement.agreement()` on it against `data/trl/estimates-2026-Q3.json` and
-   `docs/audit/trl-placement-model.csv`, fills the two pending rows of
-   `docs/trl-placement-2026-09-24.md`, and the report is finished. **The
-   go/no-go on the weights table is the owner's.**
+1. **Done, 2026-09-25.** The owner filled `docs/audit/trl-placement-verdicts.csv`;
+   the check ran (`docs/experiments/trl/placement_final.py`,
+   `docs/trl-placement-2026-09-24.md` §"Owner's reading, 2026-09-25, and the
+   verdict"; §5 above has the numbers). **Result: FAIL** on the plan's rule
+   (owner~model 6/10 within one; owner~tracker point n=1, not measurable at
+   7/10), but owner~tracker span agrees 9/10, and the owner's own notes read as
+   a calibrated low placement flagging missing pilot/operation evidence, not
+   disagreement with the scoring. **Owner: rule on this reading** — accept it
+   and keep the weights table at v1 (the report's recommendation: this is a
+   source-coverage gap, not a scoring one), or order the plan's one permitted
+   weights revision anyway. This ruling folds into item 2 below.
 2. **Owner: the weights and threshold question the placement exposed.**
    No single research-setting claim comes near 0.5 (maximum 0.186), so a level
    is held only when many claims add up, which at levels 4 and above rarely

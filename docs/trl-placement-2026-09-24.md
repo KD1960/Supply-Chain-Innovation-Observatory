@@ -168,3 +168,108 @@ all ten at a number; the tracker now declines to for nine of them. Whether "insu
 evidence" against a reader's number counts as a disagreement for the gate (the plan's gate is
 "within one level on at least 7 of 10") is the owner's ruling; counted as disagreements, model
 vs tracker is 1 of 10 within one.
+
+## Owner's reading, 2026-09-25, and the verdict
+
+Kevin filled `docs/audit/trl-placement-verdicts.csv` on 2026-09-25, reading
+`docs/audit/trl-placement-sheet.md` without looking at the tracker's estimate first. No
+model call was made for this section; the computation is
+`docs/experiments/trl/placement_final.py`, run against the same three files as before
+(`docs/audit/trl-placement-verdicts.csv`, `docs/audit/trl-placement-model.csv`,
+`data/trl/estimates-2026-Q3.json`).
+
+| Technology | Owner | Owner's note | Model | Tracker point | Span | Held |
+|---|---|---|---|---|---|---|
+| supply_chain_digital_twin | 3 | "3 based on evidence but we're missing sources that would suggest 4-6" | 4 | insufficient | 1–5 | no |
+| agentic_procurement | 3 | "3 based on evidence but we're missing sources that would suggest 4-6" | 4 | insufficient | 1–5 | no |
+| delivery_drones | 3 | "3 based on evidence but we're missing sources that would suggest 4-9" | 3 | 2 | 1–3 | yes |
+| cv_inspection | 3 | "3 based on evidence but we're missing sources that would suggest 4-6" | 5 | insufficient | 1–5 | no |
+| supply_chain_llm | 2 | (blank) | 7 | insufficient | 7–8 | no |
+| autonomous_trucking | 3 | "3 based on evidence but we're missing sources that would suggest 4-6" | 6 | insufficient | 2–5 | no |
+| sidewalk_delivery_robots | 3 | "3 based on evidence but we're missing sources that would suggest 4-6" | 2 | insufficient | 1–2 | no |
+| additive_spares | 3 | (blank) | 3 | insufficient | 1–3 | no |
+| electric_trucks | 3 | "3 based on evidence but we're missing sources that would suggest 4-7" | 3 | insufficient | 1–3 | no |
+| humanoid_logistics | 2–3 | "2-3 based on evidence but we're missing sources that would suggest 4-6" | 4 | insufficient | 1–5 | no |
+
+For arithmetic, "2–3" (humanoid_logistics) is treated as 2.5.
+
+### The three comparisons
+
+`python3 docs/experiments/trl/placement_final.py`:
+
+1. **Owner vs model, all 10.** n=10, within one 6/10, exact 3, mean abs diff 1.45. Misses (diff
+   > 1): cv_inspection (owner 3, model 5, diff 2), supply_chain_llm (owner 2, model 7, diff 5),
+   autonomous_trucking (owner 3, model 6, diff 3), humanoid_logistics (owner 2.5, model 4, diff
+   1.5).
+2. **Owner vs tracker point, held only.** n=1 (delivery_drones is the only held point). Within
+   one 1/1, exact 0, mean abs diff 1.0 (owner 3, tracker point 2).
+3. **Owner vs tracker span ± 1, all 10 — an added measure, not the plan's gate.** n=10, within
+   9/10, mean abs diff 0.4. The one miss is supply_chain_llm: owner 2, span 7–8, outside the
+   [low−1, high+1] window by 4 levels.
+
+These match the controller's quick numbers (owner~model within one 6/10; owner~tracker point
+within one 1/1; owner within span±1 9/10, supply_chain_llm the miss). One correction to the
+task brief: the owner's note is not identical across nine rows — it appears on eight rows
+(all except `supply_chain_llm` and `additive_spares`, which he left blank), each a
+near-verbatim variant of "N based on evidence but we're missing sources that would suggest
+4-6" (with 4-9 for delivery_drones and 4-7 for electric_trucks).
+
+### The verdict, against the plan's gate
+
+**On the plan's rule (STATUS §7 item 1, Task 6 Step 5), the check FAILS.** The gate is: pass
+only if owner~tracker within one on ≥7 of 10 **and** owner~model within one on ≥7 of 10.
+Owner~model is 6/10, short of 7. Owner~tracker point is not measurable at 7/10 at all: after
+the scoring fix, only one technology (delivery_drones) has a held point, so n=1, and the gate
+as written cannot be satisfied by a single comparison. Both halves of the conjunction fail (or
+are unmeasurable), so the check fails on the letter of the plan.
+
+**The reading.** The owner placed every one of the ten technologies at 2–3, and on eight of
+them wrote essentially the same note: he is reading the evidence as it stands (research-band,
+consistent with the claims), while flagging explicitly that the pool is missing the pilot- and
+operation-band sources (4–6, and up to 4-9 for delivery_drones) that would let him place higher
+if they existed. That is a *calibrated* low placement, not a shrug: he is telling the tracker
+its ceiling, not guessing.
+
+The owner and the tracker's spans agree on 9 of 10 — his number falls inside the tracker's
+evidenced range (widened by one level either way) for every technology except one. The
+disagreements with the model reader are all in one direction: the model reads the same claims
+one or more levels *up* from where the owner does — supply_chain_llm 7 vs 2, autonomous_trucking
+6 vs 3, cv_inspection 5 vs 3 — the model treats a single strong claim (or a small handful) as
+sufficient to place at the top of what any one claim could support, where the owner is more
+conservative given how thin the pool is.
+
+The one span miss, supply_chain_llm, is not a new problem: it is the actor-unclear arXiv
+"production-deployed" claim already flagged in STATUS §7 item 4. The tracker's span (7–8) comes
+entirely from that single claim's own claim_type (`demonstrates_in_operation`) reading itself at
+face value; the owner, seeing the same one claim with an unclear actor, placed it at research
+band (2) instead. This is the item 4 question made concrete: should an actor-unclear
+operation-band claim be allowed to set a span at all.
+
+**What this means.** The instrument (extraction, claim typing, sheet) is consistent with a
+careful human reading research-stage evidence: owner and tracker-span agree 9 of 10, and the
+owner's notes show he is reading conservatively *because* the sources stop short of pilot and
+operation evidence, not because the scoring or the claim extraction misled him. The gap that
+fails the gate is a **source-coverage gap** (no free source reaches the pilot band — the same
+finding as the probe, `docs/trl-probe-2026-09-24.md`), not a scoring problem. The probe already
+found and named this; the placement check confirms it from the human side.
+
+**Do not revise the weights.** The plan's "revise the weights table once, then recompute and
+compare once more" step (Task 6 Step 5, STATUS §7 item 1) exists to correct a *scoring*
+disagreement — the instrument reading claims wrong. This is a *source-coverage* disagreement:
+the instrument and the owner agree on what the evidence in hand supports (9/10 span agreement);
+there is no pilot- or operation-band evidence in the pool to score. Revising weights v1 would not
+close the owner~model gap (the model's disagreement is about how much weight to give a single
+claim, not about the weights table) and would not manufacture evidence the sources don't have.
+The owner may overrule this reading and order a weights revision anyway; that is his call to
+make, not this report's.
+
+**Next steps.**
+
+- The news mining licence (spec §6 item 1) is the probe's own reversal condition
+  (`docs/trl-probe-2026-09-24.md`) and the most direct way to close the source-coverage gap
+  that this check confirms.
+- The owner's remaining rulings from STATUS §7: item 1 itself (accept the source-coverage
+  reading above and keep weights v1, or order a revision anyway), item 2 (the
+  threshold/insufficient-evidence rule), item 3 (Lens), and item 4 (whether the
+  actor-unclear `supply_chain_llm` claim should be allowed to set a span, given the miss
+  above).

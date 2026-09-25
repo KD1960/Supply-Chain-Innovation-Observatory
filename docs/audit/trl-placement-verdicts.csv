@@ -1,11 +1,11 @@
 tech_id,reader_trl,reader_note
-supply_chain_digital_twin,,
-agentic_procurement,,
-delivery_drones,,
-cv_inspection,,
-supply_chain_llm,,
-autonomous_trucking,,
-sidewalk_delivery_robots,,
-additive_spares,,
-electric_trucks,,
-humanoid_logistics,,
+supply_chain_digital_twin, 3, 3 based on evidence but we're missing sources that would suggest 4-6
+agentic_procurement,3, 3 based on evidence but we're missing sources that would suggest 4-6
+delivery_drones, 3, 3 based on evidence but we're missing sources that would suggest 4-9
+cv_inspection,3, 3 based on evidence but we're missing sources that would suggest 4-6
+supply_chain_llm, 2
+autonomous_trucking,3, 3 based on evidence but we're missing sources that would suggest 4-6
+sidewalk_delivery_robots, 3, 3 based on evidence but we're missing sources that would suggest 4-6
+additive_spares, 3
+electric_trucks, 3, 3 based on evidence but we're missing sources that would suggest 4-7
+humanoid_logistics, 2-3, 2-3 based on evidence but we're missing sources that would suggest 4-6
