@@ -158,6 +158,14 @@ def _with_retries(
         if raw.status_code not in RETRYABLE_STATUSES:
             raise HttpError(f"{url} failed with status {raw.status_code}",
                             url=url, status=raw.status_code)
+        # A server asking for more than two minutes ends the request: retrying
+        # sooner would contact it before its stated time, and waiting a day
+        # would hold the weekly cron for a day.
+        wait = _retry_after(raw)
+        if wait is not None and wait > MAX_RETRY_AFTER_SECONDS:
+            raise HttpError(f"{url} returned {raw.status_code} asking to wait {wait:g} s (Retry-After), "
+                            f"over {MAX_RETRY_AFTER_SECONDS:g} s; not retried",
+                            url=url, status=raw.status_code)
         if attempt == retries:
             break
         sleep_fn(_backoff_seconds(raw, attempt, limiter))
@@ -207,12 +215,19 @@ def _settle_encoding(raw: Any) -> None:
         raw.encoding = getattr(raw, "apparent_encoding", None) or "utf-8"
 
 
+def _retry_after(raw: Any) -> float | None:
+    value = raw.headers.get("Retry-After") if hasattr(raw, "headers") else None
+    try:
+        return float(value) if value else None
+    except ValueError:
+        return None
+
+
 def _backoff_seconds(raw: Any, attempt: int, limiter: RateLimiter | None = None) -> float:
     retry_after = raw.headers.get("Retry-After") if raw is not None and hasattr(raw, "headers") else None
     if retry_after:
-        # Capped: a Retry-After of a day would hold the weekly cron for a day.
         try:
-            return min(float(retry_after), MAX_RETRY_AFTER_SECONDS)
+            return float(retry_after)
         except ValueError:
             pass
     status = getattr(raw, "status_code", None) if raw is not None else None

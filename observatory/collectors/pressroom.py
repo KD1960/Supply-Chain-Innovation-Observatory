@@ -400,7 +400,11 @@ class PressroomCollector(BaseCollector):
             if elsewhere:
                 env["notes"].append(f"{len(elsewhere)} item pages on other sites not fetched")
                 wanted = [u for u in wanted if u not in elsewhere]
-            for u in wanted[:MAX_ITEM_PAGES]:
+            todo = wanted[:MAX_ITEM_PAGES]
+            for n, u in enumerate(todo):
+                if self.clock_fn() - began > self.max_seconds:
+                    env["notes"].append(f"time budget exhausted; {len(todo) - n} item pages not fetched")
+                    break
                 try:   # one retry: a hanging page costs two timeouts, not four
                     r, note = self._get(session, u, robots_cache, limiters, retries=1, item=True)
                 except (http.HttpError, ValueError) as e:

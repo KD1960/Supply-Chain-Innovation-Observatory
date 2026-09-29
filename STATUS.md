@@ -108,7 +108,7 @@ cadences are deliberately different (§6).
 
 | | |
 |---|---|
-| Tests | **883 passing** |
+| Tests | **885 passing** |
 | Lexicon | version **10**, 48 active technologies |
 | Observations | **2,413** |
 | Sources | 11, across 9 evidence families |
@@ -564,12 +564,15 @@ reason: 22 known page 404 with no feed or news sitemap, 14 no dated items, 3
 JavaScript-rendered, 13 no listing within 6 requests, 8 403, 6 robots
 unavailable, 3 nothing in 12 months, 2 JavaScript shell, 1 robots disallow (SAP
 News), 1 redirect to the homepage, 1 parked domain, 2 redirect to another firm,
-and by hand 5 third-party-coverage listings and 7 site blogs or marketing feeds
-(Jaggaer, Checkpoint, Pactum, Ambi, Vimaan, NFI, Amazon). **Collector changes:**
+and by hand 5 third-party-coverage listings, 6 site blogs or marketing feeds
+(Jaggaer, Checkpoint, Pactum, Ambi, Vimaan, NFI) and 1 on relevance (Amazon's
+corporate news feed across all of Amazon; reversal: an operations-only feed). **Collector changes:**
 item pages are fetched only on the newsroom's own site, off-site items are not
 documents, an item redirect that leaves the site stops; the listing gets one
-retry; `Retry-After` is capped at 120 s (all collectors); a 45-minute time
-budget per run, newsrooms not reached recorded as "time budget exhausted".
+retry; a server asking for more than two minutes (`Retry-After` over 120 s)
+ends that request for the week, for all collectors, with no sleep and no second
+request; a 45-minute time budget per run, checked before each newsroom and each
+item page, what it skips recorded as "time budget exhausted".
 **First yield, 2026-W40** (first pass fetched 60 newsrooms in 9 min 16 s after
 backing up the raw; after the review the dropped vendors' envelopes were moved
 to `data/backups/raw-2026-W40-pressroom-dropped/`, the pass's derived rows
@@ -673,6 +676,15 @@ had no DNS record on 2026-09-03). Semantic Scholar (429s unauthenticated).
 
 ### Known defects, unfixed
 
+- **`--only` overwrites a week's `candidate_terms` and re-renders that week
+  from one source.** `detect_rising` sees only the collectors passed in and
+  `upsert_candidates` replaces the week's rows; the pressroom widening's
+  `--only pressroom` runs cut 2026-W39's stored total from 228 to 73 and W40's
+  from 230 to 118 (restored from the pre-widen backup, 2026-09-29,
+  `docs/pressroom-widen-2026-09-29.md`). Until fixed, do not run a
+  single-source replay on a week the cron has already scored. The main
+  checkout's W39 page predates observations 2410–2412 and the cron will not
+  re-render it.
 - **The suite writes into the run log.**
   `test_a_future_week_never_takes_latest_html` (`tests/test_failures_durable.py`)
   redirects `OUTPUT_DIR` but not `RUN_LOG_PATH`, so every full suite run in the

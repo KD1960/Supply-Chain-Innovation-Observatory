@@ -42,12 +42,19 @@ The review (fix round 1) changed the following:
   visible characters. Four redirect reasons were also made specific:
   rcsglobal, kiwibot, gatik and dexterity.
 - **Cron protection (R5).**
-  - `Retry-After` is capped at 120 s in `http._backoff_seconds`.
+  - A server asking for more than two minutes (`Retry-After` over 120 s)
+    ends that request for the week: `http` raises at once, keeping the status,
+    without sleeping or asking again. A wait of 120 s or less is honoured in
+    full, as before. (Fix round 2; fix round 1 had capped the wait at 120 s and
+    retried, which would have contacted the server before its stated time.)
   - The listing fetch gets one retry, like robots.txt and item pages.
   - `PressroomCollector.max_seconds = 2700` (45 min) is measured on the
     injected clock. A newsroom not reached in time gets an envelope with an
     empty listing and the note "time budget exhausted; not fetched this run".
-    The source still fails only if no newsroom produced a listing.
+    The source still fails only if no newsroom produced a listing. The same
+    check runs inside a newsroom's item-page loop (fix round 2): past the
+    budget, the remaining pages are skipped with the note "time budget
+    exhausted; N item pages not fetched".
 - **Production data re-derived without fetching (below).**
 
 ## Discovery, permission first
@@ -126,7 +133,7 @@ every accepted listing. Thirteen candidates were rejected by hand.
 | Zeem | 49 | 2 |
 | Brightpick (items in the last 12 months) | 23 | 3 |
 
-**Site blogs or marketing feeds:**
+**Site blogs or marketing feeds (6):**
 
 - Jaggaer: the newsroom is a 404, and `/feed` is vendor-comparison posts.
 - Checkpoint: the advertised feed is `/blog/`.
@@ -135,8 +142,11 @@ every accepted listing. Thirteen candidates were rejected by hand.
 - Vimaan: the feed is its resources section, including reposted trade
   coverage.
 - NFI: the feed is about-page insight posts.
-- Amazon: consumer news. Ten items roll over in under a week, and none
-  matched. Reversal condition: an operations-only feed.
+
+**Relevance (1):** Amazon's feed is a corporate news feed across all of Amazon
+(entertainment, sellers, devices, climate). Its 10 items roll over in under a
+week, and none matched. This is a hand call on relevance, not a blog finding.
+Reversal condition: an operations-only feed.
 
 **Another firm's page:** DB Schenker's press page redirects to the DSV
 homepage. `dsv` is kept.
@@ -158,6 +168,11 @@ material:
 - Outrider: newest item 2025-11-20.
 - DSV: 3 dated items.
 - WattEV: WattEV's listing on its parent's site, `wattsystems.com`.
+- Circulor: its `/resources` listing, which mixes releases with blog posts.
+- Minespider: its `/blog`.
+
+NVIDIA, Circulor and Minespider are blog-type feeds kept under watch. **All
+four new observations this week came from them** (below).
 
 ### The collector's same-site rule
 
@@ -201,7 +216,8 @@ necessarily in-window ones.
 | Parked domain (Haddy) | 1 |
 | Redirects to another firm (RCS Global to SLR Consulting; DB Schenker to DSV) | 2 |
 | Third-party coverage (by hand) | 5 |
-| Site blog or marketing feed (by hand) | 7 |
+| Site blog or marketing feed (by hand) | 6 |
+| Not relevant: corporate news across all of Amazon (by hand) | 1 |
 | **Newsrooms now** | **52** |
 
 A 404 at a guessed URL is a weak rejection. Dexterity, Waabi, Einride, Wiliot,
@@ -317,13 +333,52 @@ wants:
 None of them is about a tracked technology in the lexicon's terms. What an
 item evidences is the matcher's decision, not the collector's.
 
+### Fix round 2: what the `--only` runs broke, and the repair
+
+**The defect.** `--only pressroom` overwrote `candidate_terms` for 2026-W39
+and 2026-W40. `detect_rising` saw only one collector, and `upsert_candidates`
+replaces a week's rows, so the stored `total` fell from 228 to 73 (W39) and
+from 230 to 118 (W40). The same runs also re-rendered those weeks' pages from
+one source, in the worktree's `output/`.
+
+**The repair.**
+
+1. The database was backed up to
+   `data/backups/observatory-before-candidates-restore-2026-09-29.db`.
+2. Both weeks' rows were restored from
+   `data/backups/observatory-before-widen-2026-09-29.db`:
+   - before: W39 25 rows, total 73; W40 25 rows, total 118;
+   - after: W39 25 rows, total 228; W40 25 rows, total 230;
+   - 50 rows deleted and 50 inserted, and an `EXCEPT` in both directions
+     against the backup returns 0 rows.
+
+**Rule until this is fixed.** A single-source replay must not be run on a
+week the cron has already scored. The main checkout's W39 page predates
+observations 2410–2412, and the cron will not re-render W39.
+
+**raw_fetch paths now point at where the bytes are.** Each file was matched
+by the `vendor` and `url` inside it before its row was updated, and every
+updated path exists on disk:
+
+- ids 3636–3651 (Monday's cron fetch of the 16 originals, whose files the
+  first pass overwrote) now point to
+  `data/backups/raw-2026-W40-pressroom-before-widen/000–015.json`;
+- ids 3668, 3669, 3677, 3685, 3686, 3688, 3695, 3699 and 3710 (ambi,
+  brightpick, amazon, jaggaer, the old ivalua feed, pactum, checkpoint,
+  vimaan and nfi) now point to
+  `data/backups/raw-2026-W40-pressroom-dropped/`.
+
+That is 25 rows in all.
+
 ## What the wider list costs, and what it yields
 
 - **Time.** Probably around 8 minutes a week. That is an estimate, not a
   measurement: the first pass took 9 min 16 s for 60 newsrooms, and the
   dropped nine are a small share of the requests. Monday's cron (2026-10-05)
-  is the first measured 52-newsroom run. The 45-minute budget and the 120 s
-  `Retry-After` cap bound the worst case.
+  is the first measured 52-newsroom run. The 45-minute budget bounds when
+  the run starts a new newsroom or item page; the last request begun inside
+  it can still take up to two 60 s timeouts, plus a wait of up to 120 s. A
+  longer `Retry-After` ends that request rather than being waited out.
 - **Yield.** One week, on-site releases only: 68 documents and 4
   observations, all passing mentions. This does not move the STATUS §5 (c)
   reversal condition, which is under 10 matched observations a quarter for
@@ -361,7 +416,7 @@ listing as `items_for` reads it.
 | Matternet (`matternet`) | delivery_drones | rejected |  |  |  | 5 | /news redirects to the homepage |
 | DroneUp (`droneup`) | delivery_drones | accepted | rss | 20 | 2026-07-28 | 3 |  |
 | Manna (`manna`) | delivery_drones | accepted | html | 17 | 2026-07-08 | 2 |  |
-| Amazon (`amazon`) | delivery_drones, user_firm | rejected (hand) |  |  |  | 3 | feed is consumer news (10 items rolling over in under a week, 0 matches); reversal: an operations-only feed |
+| Amazon (`amazon`) | delivery_drones, user_firm | rejected (hand) |  |  |  | 3 | corporate news feed across all of Amazon (entertainment, sellers, devices, climate); 10 items roll over in under a week, 0 matches; reversal: an operations-only feed |
 | Walmart (`walmart`) | delivery_drones, user_firm | rejected |  |  |  | 3 | listing loads but yields no dated items |
 | Waabi (`waabi`) | autonomous_trucking | rejected |  |  |  | 6 | no listing found (known page 404, no feed, no news sitemap) |
 | Torc Robotics (`torc`) | autonomous_trucking | accepted | rss | 10 | 2026-09-03 | 4 |  |

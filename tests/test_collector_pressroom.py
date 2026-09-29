@@ -608,3 +608,18 @@ def test_a_run_over_its_time_budget_records_the_newsrooms_it_did_not_reach(tmp_p
     assert [e["notes"] for e in envs[1:]] == [["time budget exhausted; not fetched this run"]] * 2
     assert not any(u.startswith(("https://b.test", "https://c.test")) for u in session.calls)
     assert _status(conn)["status"] == "ok"
+
+
+def test_the_time_budget_also_stops_a_newsrooms_item_pages(tmp_path, monkeypatch):
+    _one_room(tmp_path, monkeypatch)
+    session = FakeSession({"https://c.test/news": (200, _TWO_ITEMS),
+                           "https://c.test/news/one": (200, "<p>one</p>"),
+                           "https://c.test/news/two": (200, "<p>two</p>")},
+                          robots=(200, "User-agent: *\nCrawl-delay: 20\n"))
+    fake = _FakeClock()
+    collector = PressroomCollector(sleep_fn=fake.sleep, clock_fn=fake.clock)
+    collector.max_seconds = 30     # listing at 20 s, first page at 40 s: the second is not fetched
+    env = json.loads(next(collector.fetch_raw(session, "2026-W39")).text)
+    assert set(env["pages"]) == {"https://c.test/news/one"}
+    assert "https://c.test/news/two" not in session.calls
+    assert env["notes"] == ["time budget exhausted; 1 item pages not fetched"]
