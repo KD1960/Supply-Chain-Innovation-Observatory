@@ -5,9 +5,12 @@ technologies still had no newsroom: `battery_free_iot` and `microfactories`.
 This pass looked for vendor newsrooms for those two. It used the same method
 and the same membership rule, with the first pass's lessons applied.
 
-The collector now reads **62 newsrooms**: the 52 it already read, plus 10 new
-ones. **battery_free_iot now has 9. microfactories has 1**, Fathom, and that
-one is weak (below). Nothing was fetched through the collector, and no
+The collector now reads **60 newsrooms**: the 52 it already read, plus 8 new
+ones. **battery_free_iot now has 7. microfactories has 1**, Fathom.
+**microfactories is effectively still uncovered: its one newsroom (Fathom)
+has three dated items, none of which uses the technology's terms.** Ten
+listings passed; after review, Nexperia and EnOcean were dropped on
+relevance (fix round 1, below). Nothing was fetched through the collector, and no
 `observatory.run` or database statement was run. Monday's cron (2026-10-05)
 is the first run that will read the new newsrooms.
 
@@ -68,12 +71,18 @@ off-site requests before the budget stopped it:
 Robots.txt was checked before the page. The run was stopped, the filter was
 added (own site only, the collector's `_site`), and InPlay was re-run from
 its saved responses. The table below shows InPlay's replayed count of 3;
-the first run actually made 6 requests.
+the first run actually made 6 requests. After the review, the three saved
+off-site responses (metadata and body files) were deleted unread from
+`data/trl/widen2/responses/`.
 
 **What was spent.**
 
-- 127 requests in all, counting robots.txt files, retries and redirect hops.
-- Of those, 3 were off-site (InPlay, above).
+- 127 requests in all, counting robots.txt files, retries and redirect hops:
+  123 in the final decision files, plus 3 from InPlay's first run (the
+  off-site ones, above), plus 1 from Wiliot's first run (a `/feed` 404 before
+  the blog-precedence fix).
+- Ossia's `/press/rss.xml` was fetched twice: once as its advertised feed,
+  and again when the `links:` fallback took it for an item link.
 - Discovery took about 15 minutes, most of it network timeouts. Each
   unreachable robots.txt costs two 60 s timeouts.
 
@@ -126,22 +135,22 @@ Blank cells: no listing passed.
 
 | Vendor | Technology | Outcome | Kind | Items | Newest | On/Off | Press/Blog/Other | Pilot titles | Req. | Reason if rejected |
 |---|---|---|---|---:|---|---|---|---:|---:|---|
-| Wiliot | battery_free_iot, smart_labels | accepted (hand) | html | 89 | 2026-08-25 | 10/3 | 0/10/0 | 1 | 2 | |
+| Wiliot | battery_free_iot, smart_labels | accepted (hand) | html | 89 | 2026-08-25 | 10/3 | 0/10/0 | 1 | 3 | |
 | Everactive | battery_free_iot | rejected | | | | | | | 6 | no listing found (press category page 404, no feed, no news sitemap) |
 | Identiv | smart_labels, battery_free_iot | rejected (hand) | html | 9 | 2026-08-12 | 9/0 | 9/0/0 | | 6 | sold its IoT business to Trackonomy, renamed INVE Technologies (2026-08-12); 9 of 9 recent items earnings and corporate notices |
 | e-peas | battery_free_iot | accepted | rss | 12 | 2026-07-08 | 6/0 | 6/0/0 | 0 | 3 | |
 | Powercast | battery_free_iot | accepted | html | 146 | 2026-04-28 | 6/0 | 6/0/0 | 0 | 3 | |
 | Energous | battery_free_iot | rejected | | | | | | | 2 | robots unavailable (read timeout, twice) |
 | Ossia | battery_free_iot | rejected | | | | | | | 5 | no item in the last 12 months (newest 2024-06-12) |
-| EnOcean | battery_free_iot | accepted | html | 15 | 2026-03-04 | 3/0 | 0/0/3 | 0 | 2 | |
+| EnOcean | battery_free_iot | rejected (review) | html | 15 | 2026-03-04 | 3/0 | 0/0/3 | | 2 | press releases are building automation; 0 of 3 in the last 12 months on supply chain or logistics use |
 | ONiO | battery_free_iot | accepted | html | 6 | 2025-11-25 | 1/0 | 1/0/0 | 0 | 2 | |
-| Dracula Technologies | battery_free_iot | accepted | rss | 10 | 2026-06-09 | 10/0 | 0/0/10 | 0 | 3 | |
+| Dracula Technologies | battery_free_iot | accepted | rss | 10 (7 unique; 3 translated copies) | 2026-06-09 | 10/0 | 0/0/10 | 1 | 3 | |
 | Epishine | battery_free_iot | accepted | html | 12 | 2026-08-04 | 3/0 | 3/0/0 | 1 | 2 | |
 | Exeger | battery_free_iot | accepted | html | 15 | 2025-11-06 | 2/0 | 2/0/0 | 0 | 6 | |
 | InPlay | battery_free_iot | rejected | | | | | | | 3 (6 on the first run) | listing yields 1 dated item (2025-10-08); /feed not a dated press feed |
 | Trameto | battery_free_iot | rejected | | | | | | | 6 | no listing found (guessed page 404, no feed, no news sitemap) |
 | Trackonomy | battery_free_iot, smart_labels | rejected | | | | | | | 4 | listing yields no dated items; /feed not a dated press feed |
-| Nexperia | battery_free_iot | accepted | html | 10 | 2026-09-17 | 10/0 | 10/0/0 | 0 | 2 | |
+| Nexperia | battery_free_iot | rejected (review) | html | 10 | 2026-09-17 | 10/0 | 10/0/0 | | 2 | general corporate press feed; 0 of 10 recent releases on energy harvesting |
 | Ambient Photonics | battery_free_iot | rejected | | | | | | | 2 | robots unavailable (TLS handshake failure, twice) |
 | Divergent | microfactories | rejected | | | | | | | 2 | robots unavailable (connect timeout, twice; also so in the first pass) |
 | Hadrian | microfactories | rejected | html | 38 | 2026-03-05 | 0/9 | 0/0/0 | | 3 | listing is third-party coverage (9 of 9 recent on other sites) |
@@ -181,33 +190,55 @@ is removed.
 - **Azure Printed Homes.** `/press/` lists SEO guides such as "Do Modular
   Homes Depreciate?". Its releases go out on GlobeNewswire and Business Wire.
 
-**Kept, but weak:**
+**Dropped at review (fix round 1), on the relevance standard that dropped
+Amazon in the first pass.** Both passed the membership rule.
 
-- **Nexperia** passes the membership rule: 10 of 10 recent items are its own
-  releases. But none of those 10 is about energy harvesting; they cover power
-  semiconductors, results and a court dispute. It adds noise only if a
-  release says "energy harvesting" along with a supply chain word.
-- **ONiO** has 1 item in the last 12 months, and Exeger has 2 (newest
+- **Nexperia:** a general corporate press feed (power semiconductors,
+  results, legal). 0 of 10 releases in the last 12 months are on energy
+  harvesting. Reversal: a product-line feed.
+- **EnOcean:** its press releases are about building automation. 0 of 3 in
+  the last 12 months are on supply chain or logistics use. Reversal: a
+  logistics or asset-tracking release.
+
+**Kept, provisional.** ONiO, Exeger, Epishine and Fathom carry this comment
+in `pressrooms.yaml`: "provisional: thin or off-topic in the last 12 months;
+review 2026-12-01 and drop if nothing on topic has appeared."
+
+- **ONiO** has 1 item in the last 12 months, and **Exeger** 2 (newest
   2025-11-06).
-- **Fathom** has 3 dated items. The newest is its own recap of coverage in
-  the Rochester Business Journal.
-- **EnOcean and Dracula** keep their releases on paths without a press word
-  (`/enocean_pressrelease/`, and root slugs). Both are press listings by URL.
+- **Epishine** has 3, about consumer electronics and its own funding.
+- **Fathom** has 3 dated items, none of which uses the technology's terms.
+  The newest is its own recap of coverage in the Rochester Business Journal.
 
-**Unreachable at robots.txt.** Energous, Xometry and Protolabs are investor
-relations hosts that timed out on robots.txt, twice each. Each also has a
-second address found by search: `energous.com/company/newsroom/`, and the
-`gcs-web.com` IR mirrors for Xometry and Protolabs. None of these was tried.
-A host that does not answer could be refusing automated clients, and going
-round it would be evasion. The owner may rule otherwise.
+**Other notes.**
+
+- **Dracula** keeps its releases at root slugs; its feed is a press listing
+  by URL. Its 10 items are 7 unique releases, because 3 are translated
+  copies.
+
+### Left for the owner
+
+Energous, Xometry and Protolabs are investor-relations hosts that timed out
+on robots.txt, twice each.
+
+- **A different newsroom on the company's own site can be tried.** It is a
+  separate resource with its own robots file. Trying it is not evasion: a
+  timeout is a network fault, not a refusal. This pass already did exactly
+  that for Identiv, which moved from `investors.identiv.com` to
+  `ir.identiv.com`.
+- **`energous.com/company/newsroom/` was not tried.** It can be added on the
+  next pass.
+- **The `gcs-web.com` investor mirrors for Xometry and Protolabs are not to
+  be tried.** They are a third-party platform. The exception is if the
+  company's own site names one as its newsroom.
 
 ## Totals
 
 | | |
 |---|---|
 | Candidates | 34 (17 battery_free_iot, 17 microfactories) |
-| Accepted | 10 (8 html, 2 rss; 1 by hand) |
-| Rejected | 24 |
+| Accepted | 8 (6 html, 2 rss; 1 by hand) |
+| Rejected | 26 |
 | robots unavailable (network error) | 5 (Energous, Ambient Photonics, Divergent, Xometry, Protolabs) |
 | No listing found (404, no feed, no news sitemap) | 5 (Everactive, Trameto, Mighty Buildings, Reframe, SyBridge) |
 | Listing yields no dated items, or 1 | 6 (InPlay, Trackonomy, Machina Labs, Cuby, Fictiv, Isembard) |
@@ -215,14 +246,16 @@ round it would be evasion. The owner may rule otherwise.
 | Third-party coverage | 2 (Hadrian, Vention) |
 | By hand: blog or SEO posts | 2 (Re:Build, Azure) |
 | By hand: company sold the business | 1 (Identiv) |
+| At review: not relevant (Amazon standard) | 2 (Nexperia, EnOcean) |
 | 403, challenge page, JavaScript shell, robots disallow | 0 |
-| **Newsrooms now** | **62** (`pressrooms.yaml` version 2; `not_reachable` 113) |
+| **Newsrooms now** | **60** (`pressrooms.yaml` version 2; `not_reachable` 115) |
 
 **Coverage now:**
 
-- **battery_free_iot: 9.** Wiliot, e-peas, Powercast, EnOcean, ONiO,
-  Dracula, Epishine, Exeger and Nexperia.
-- **microfactories: 1.** Fathom.
+- **battery_free_iot: 7.** Wiliot, e-peas, Powercast, ONiO, Dracula,
+  Epishine and Exeger.
+- **microfactories: 1.** Fathom. It is effectively still uncovered: its one
+  newsroom has three dated items, none of which uses the technology's terms.
 - **smart_labels:** Wiliot is the first newsroom chosen for it.
 - **Still no newsroom:** `cv_inspection`.
 
@@ -238,19 +271,22 @@ only if it says "battery-free", "batteryless", "energy harvesting" or
 - The battery-free vendors use the technology words constantly.
 - Only Wiliot, and sometimes Powercast or Dracula (its Paragon ID
   traceability tags), write about supply chains.
-- e-peas, EnOcean, ONiO, Epishine, Exeger and Nexperia write about buildings,
-  consumer electronics and chips. Their releases will mostly fail the context
+- e-peas, ONiO, Epishine and Exeger write about buildings, consumer
+  electronics and components. Their releases will mostly fail the context
   gate.
-- In the last 12 months, 2 of the 9 accepted newsrooms carried a
-  pilot-type title: Wiliot with Walmart, and Epishine in Google's TV remote.
+- **Pilot-type titles:** 3 of the 8 kept newsrooms had one in the last 12
+  months:
+  - Wiliot with Walmart;
+  - Epishine in Google's TV remote;
+  - Dracula's traceability-tag partnership with Paragon ID.
+
   Only Wiliot's is a supply chain deployment.
 
 **Microfactories.** The vendors do not use the lexicon's words. Hadrian says
 "automated factories", Divergent "adaptive production", Machina "intelligent
 factory". The companies that say "on-demand manufacturing" (Xometry,
-Protolabs, Fictiv) could not be read. Fathom's one recent release that fits,
-Edgeworks, mentions supply chain volatility, but its listing posts about once
-a quarter.
+Protolabs, Fictiv) could not be read. Fathom's three dated items use none of
+the technology's terms, and its listing posts about once a quarter.
 
 **Expectation.** On Monday's cron, one or two battery-free matches a month,
 mostly from Wiliot, and microfactories at or near zero from this source. The

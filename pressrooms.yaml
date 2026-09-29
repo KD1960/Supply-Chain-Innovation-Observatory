@@ -60,12 +60,14 @@ newsrooms:
   - {vendor: wiliot, url: "https://www.wiliot.com/press", kind: html, chosen_for: [battery_free_iot, smart_labels]}
   - {vendor: epeas, url: "https://e-peas.com/category/press-releases/feed/", kind: rss, chosen_for: [battery_free_iot]}
   - {vendor: powercast, url: "https://www.powercastco.com/news", kind: html, chosen_for: [battery_free_iot]}
-  - {vendor: enocean, url: "https://www.enocean.com/en/news/press/", kind: html, chosen_for: [battery_free_iot]}
+  # provisional: thin or off-topic in the last 12 months; review 2026-12-01 and drop if nothing on topic has appeared.
   - {vendor: onio, url: "https://www.onio.com/news", kind: html, chosen_for: [battery_free_iot]}
   - {vendor: dracula, url: "https://dracula-technologies.com/press-releases/feed/", kind: rss, chosen_for: [battery_free_iot]}
+  # provisional: thin or off-topic in the last 12 months; review 2026-12-01 and drop if nothing on topic has appeared.
   - {vendor: epishine, url: "https://www.epishine.com/news/tag/press-release", kind: html, chosen_for: [battery_free_iot]}
+  # provisional: thin or off-topic in the last 12 months; review 2026-12-01 and drop if nothing on topic has appeared.
   - {vendor: exeger, url: "https://www.exeger.com/news-room/?filter=press-release", kind: html, chosen_for: [battery_free_iot]}
-  - {vendor: nexperia, url: "https://www.nexperia.com/about/news-events/press-releases", kind: html, chosen_for: [battery_free_iot]}
+  # provisional: thin or off-topic in the last 12 months; review 2026-12-01 and drop if nothing on topic has appeared.
   - {vendor: fathom, url: "https://fathommfg.com/company/news-press/", kind: html, chosen_for: [microfactories]}
 not_reachable:
   - {vendor: zipline, url: "https://www.flyzipline.com/newsroom", checked: 2026-09-25, reason: JavaScript shell}
@@ -181,3 +183,5 @@ not_reachable:
   - {vendor: sybridge, url: "https://www.sybridge.com/news", checked: 2026-09-29, reason: "www redirects to the apex, where /news is 404; no listing within 6 requests"}
   - {vendor: reframe, url: "https://www.reframe.systems/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
   - {vendor: isembard, url: "https://isembard.com/us/newsroom/", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: nexperia, url: "https://www.nexperia.com/about/news-events/press-releases", checked: 2026-09-29, reason: "general corporate press feed (power semiconductors, results, legal); 0 of 10 releases in the last 12 months on energy harvesting; reversal: a product-line feed"}
+  - {vendor: enocean, url: "https://www.enocean.com/en/news/press/", checked: 2026-09-29, reason: "press releases are building automation; 0 of 3 in the last 12 months on supply chain or logistics use; reversal: a logistics or asset-tracking release"}

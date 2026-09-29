@@ -588,36 +588,54 @@ One each: additive_spares (SPEE3D), autonomous_yard (Outrider), gs1_2d
 (GS1 US), private_5g_warehouse (Ericsson). Five user firms (GXO, FedEx,
 Maersk, Penske, DSV).
 
-**Second widening, same day: 62 newsrooms**
+**Second widening, same day: 60 newsrooms**
 (`docs/pressroom-widen2-2026-09-29.md`,
 `docs/experiments/trl/widen2_pressrooms.py`). 34 candidates for
-battery_free_iot and microfactories, 127 requests. Permission came first, as
-before. Redirect hops were counted before the budget check. The press
-listing was preferred over site-wide feeds, and the script applied the
-membership rule.
+battery_free_iot and microfactories. Permission came first, as before.
+Redirect hops were counted before the budget check. The press listing was
+preferred over site-wide feeds, and the script applied the membership rule.
 
-- **10 accepted:** Wiliot (by hand: its releases sit under `/blog/`), e-peas,
-  Powercast, EnOcean, ONiO, Dracula, Epishine, Exeger, Nexperia and Fathom.
-- **24 rejected:**
-  - 5 with robots unavailable: Energous, Xometry and Protolabs IR timed out;
-    Ambient Photonics failed TLS; Divergent timed out again.
+- **Requests: 127** = 123 in the final decisions + 3 from InPlay's first run
+  + 1 from Wiliot's first run.
+- **10 listings passed.** At review, Nexperia and EnOcean were dropped on the
+  relevance standard that dropped Amazon. Nexperia's feed is general
+  corporate news, with 0 of 10 recent releases on energy harvesting. EnOcean's
+  releases are about building automation, with 0 of 3 on supply chain use.
+- **8 kept:** Wiliot (by hand: its releases sit under `/blog/`), e-peas,
+  Powercast, ONiO, Dracula, Epishine, Exeger and Fathom.
+- **Provisional:** ONiO, Exeger, Epishine and Fathom are marked provisional
+  in the yaml. Review them on 2026-12-01 and drop any where nothing on topic
+  has appeared.
+- **26 rejected:**
+  - 5 with robots.txt unavailable: Energous, Xometry and Protolabs IR timed
+    out; Ambient Photonics failed TLS; Divergent timed out again.
   - 5 with no listing, 6 with no dated items, 3 with nothing in 12 months.
   - 2 third-party coverage: Hadrian, Vention.
-  - By hand: Re:Build and Azure (blog or SEO posts), and Identiv (sold its
-    IoT business to Trackonomy and is now INVE Technologies).
+  - By hand: Re:Build and Azure (blog or SEO posts), and Identiv (sold its IoT
+    business to Trackonomy and is now INVE Technologies).
+  - 2 at review on relevance: Nexperia, EnOcean.
 - **Coverage now:**
-  - **battery_free_iot: 9.**
-  - **microfactories: 1** (Fathom, three dated items).
+  - **battery_free_iot: 7.**
+  - **microfactories: 1.** Microfactories is effectively still uncovered: its
+    one newsroom (Fathom) has three dated items, none of which uses the
+    technology's terms.
   - smart_labels: 1 (Wiliot).
   - Still no newsroom: cv_inspection.
 - **Expected yield is low.** Both technologies need a supply chain context
-  word. Of the battery-free vendors, only Wiliot writes about supply chains.
-  Microfactory vendors do not use the lexicon's words.
-- **Pilot-type titles:** 2 of the 10 newsrooms had one in the last 12 months
-  (Wiliot with Walmart; Epishine in Google's TV remote).
+  word, and of the battery-free vendors only Wiliot writes about supply
+  chains.
+- **Pilot-type titles:** 3 of the 8 kept newsrooms had one in the last 12
+  months: Wiliot with Walmart, Epishine in Google's TV remote, and Dracula's
+  traceability-tag partnership with Paragon ID. Only Wiliot's is a supply
+  chain deployment.
 - **A mistake:** on its first run, the script's `links:` fallback fetched
-  three off-site URLs for InPlay (Avery Dennison's robots.txt and one of its
-  pages, and Business Wire's robots.txt). It now keeps to the listing's site.
+  three off-site URLs for InPlay: Avery Dennison's robots.txt, one of its
+  pages, and Business Wire's robots.txt. The script now keeps to the
+  listing's site. The saved responses were deleted unread after the review.
+- **Duplicate fetch:** Ossia's `rss.xml` was fetched twice.
+- **Left for the owner:** `energous.com/company/newsroom/` is the company's
+  own site, and can be tried on the next pass. The `gcs-web.com` IR mirrors
+  are a third-party platform and are not to be tried.
 - **Not fetched by the collector.** The 2026-10-05 cron is the first run of
   the new newsrooms.
 

@@ -126,6 +126,11 @@ HAND_REJECT: dict[str, str] = {
     "rebuild": ("on-site items are blog posts (8 of 8 recent on-site under /newsroom/blogs/); "
                 "its releases are on businesswire.com (6 off-site items)"),
     "azure": "/press/ lists SEO guide posts (8 of 8 recent, e.g. 'Do Modular Homes Depreciate?'), not releases",
+    # Fix round 1 (review), on the relevance standard that dropped Amazon in the first pass.
+    "nexperia": ("general corporate press feed (power semiconductors, results, legal); 0 of 10 releases "
+                 "in the last 12 months on energy harvesting; reversal: a product-line feed"),
+    "enocean": ("press releases are building automation; 0 of 3 in the last 12 months on supply chain "
+                "or logistics use; reversal: a logistics or asset-tracking release"),
 }
 # Hand acceptances of listings left for review: slug -> note.
 HAND_ACCEPT: dict[str, str] = {
@@ -139,6 +144,8 @@ PILOT_TITLES: dict[str, tuple[int, list[str]]] = {
     "wiliot": (1, ["Wiliot Collaborates with Walmart to Transform Retail Supply Chain with Ambient IoT and AI"]),
     "epishine": (1, ["Google TV's New G32 Remote Control is Powered by Swedish Indoor Solar Innovation "
                      "from Epishine"]),
+    "dracula": (1, ["Paragon ID and Dracula Technologies Strengthen Partnership to Scale Light-powered "
+                    "Bluetooth® Tags Globally for Sustainable Traceability"]),
 }
 
 PRESS_PATH = re.compile(r"/(?:news|press|newsroom|media|releases?|press-releases?|news-releases?|"
