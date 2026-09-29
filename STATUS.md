@@ -110,9 +110,9 @@ cadences are deliberately different (§6).
 |---|---|
 | Tests | **844 passing** |
 | Lexicon | version **10**, 48 active technologies |
-| Observations | **2,385** |
+| Observations | **2,409** |
 | Sources | 11, across 9 evidence families |
-| By source | github 828, arxiv 530, scopus 421, openalex 250, edgar 132, hn 67, lens 64, nsf 40, usaspending 29, federalregister 21, pressroom 3 |
+| By source | github 840, arxiv 535, scopus 421, openalex 251, edgar 137, hn 67, lens 64, nsf 40, usaspending 30, federalregister 21, pressroom 3 |
 | Precision | **70%** at lexicon v9, one model coder, 120 of 132 judged (`docs/precision-audit-2026-09-02.md`) — not comparable with the earlier 51%; the count lexicon's, not the tracker's |
 | Deliverable | the TRL page, below. The count report (`output/report-<period>.html`) still builds and is no longer the deliverable |
 | TRL tracked set | 24 technologies, the rows the owner ruled pre-practice on `docs/audit/tech-practice-sort-2026-09-23.xlsx` |
