@@ -21,6 +21,27 @@ def test_pressrooms_yaml_loads_and_every_kind_is_known():
     assert all(r.url.startswith("https://") for r in rooms)
 
 
+ORIGINAL_16 = {"aurora", "kodiak", "plus", "wing", "agility", "figure", "apptronik", "circularise",
+               "averydennison", "gs1us", "daimlertruck", "volvotrucks_us", "righthand", "berkshiregrey",
+               "symbotic", "locus"}
+
+
+def test_pressrooms_yaml_slugs_are_unique_and_the_original_16_are_kept_first():
+    rooms = pressroom.load_pressrooms()
+    slugs = [r.vendor for r in rooms]
+    assert len(slugs) == len(set(slugs))
+    assert all(s == s.lower() and " " not in s for s in slugs)
+    assert set(slugs[:16]) == ORIGINAL_16
+
+
+def test_every_chosen_for_is_a_watchlist_technology_or_user_firm():
+    from observatory import matcher
+    ids = {t.id for t in matcher.load_watchlist().technologies} | {"user_firm"}
+    rooms = pressroom.load_pressrooms()
+    assert all(r.chosen_for for r in rooms)
+    assert {c for r in rooms for c in r.chosen_for} <= ids
+
+
 def test_rss_items_become_documents_with_page_text_and_vendor():
     docs = _docs("pressroom_rss.json")
     assert [d.date for d in docs] == ["2026-09-16", "2026-09-15"]
@@ -467,19 +488,19 @@ def test_item_pages_on_a_host_whose_robots_is_unavailable_are_skipped_with_one_n
                                                                                    no_wait):
     monkeypatch.setattr(http, "_backoff_seconds", lambda *a, **k: 0)
     _one_room(tmp_path, monkeypatch)
-    listing = _TWO_ITEMS.replace('href="/news/', 'href="https://d.test/news/')
+    listing = _TWO_ITEMS.replace('href="/news/', 'href="https://ir.c.test/news/')
 
     class DownRobots(FakeSession):
         def get(self, url, params=None, headers=None, timeout=None, **kwargs):
-            if url == "https://d.test/robots.txt":
+            if url == "https://ir.c.test/robots.txt":
                 self.calls.append(url)
                 return FakeResponse(503, "")
             return super().get(url, params, headers, timeout, **kwargs)
 
     session = DownRobots({"https://c.test/news": (200, listing)})
     env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
-    assert env["pages"] == {} and not any(c.startswith("https://d.test/news") for c in session.calls)
-    assert env["notes"] == ["robots.txt unavailable (503); https://d.test skipped this run"]
+    assert env["pages"] == {} and not any(c.startswith("https://ir.c.test/news") for c in session.calls)
+    assert env["notes"] == ["robots.txt unavailable (503); https://ir.c.test skipped this run"]
 
 
 def test_a_malformed_item_url_costs_that_item_not_the_newsroom(tmp_path, monkeypatch, no_wait):
@@ -496,3 +517,29 @@ def test_the_robots_and_limiter_key_is_the_canonical_host():
     assert pressroom._host("HTTPS://WWW.X.test:443/a") == "https://www.x.test"
     assert pressroom._host("http://x.test:80/a") == "http://x.test"
     assert pressroom._host("https://x.test:8443/a") == "https://x.test:8443"
+
+
+def test_item_pages_on_another_site_are_not_fetched(tmp_path, monkeypatch, no_wait):
+    """A listing that links press coverage (a trade title, a wire) keeps the
+    item from the listing but does not fetch the other site's page: the
+    newsroom's robots.txt says nothing about that site."""
+    rooms = tmp_path / "rooms.yaml"
+    rooms.write_text('version: 1\nnewsrooms:\n  - {vendor: k, url: "https://www.k.test/news", kind: html}\n')
+    monkeypatch.setattr(pressroom, "PRESSROOMS_PATH", rooms)
+    listing = ('<li><a href="https://news.k.test/own">A long enough title for our own release here</a>'
+               '<span>September 24, 2026</span></li>'
+               '<li><a href="https://press.test/story">A long enough title for the coverage item here</a>'
+               '<span>September 23, 2026</span></li>')
+    session = FakeSession({"https://www.k.test/news": (200, listing),
+                           "https://news.k.test/own": (200, "<p>" + "z" * 100 + "</p>")})
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert set(env["pages"]) == {"https://news.k.test/own"}
+    assert not any(c.startswith("https://press.test/") for c in session.calls)
+    assert any("other sites" in n for n in env["notes"])
+    assert len(PressroomCollector().parse(json.dumps(env))) == 2
+
+
+def test_site_is_the_registrable_domain_approximately():
+    assert pressroom._site("https://ir.aurora.tech/x") == pressroom._site("https://aurora.tech/") == "aurora.tech"
+    assert pressroom._site("https://www.bbc.co.uk/news") == "bbc.co.uk"
+    assert pressroom._site("https://www.freightwaves.com/a") != pressroom._site("https://plus.ai/news")

@@ -1,7 +1,8 @@
 # Vendor newsrooms the pressroom collector reads weekly. kind: rss | sitemap | html | links:<path>.
 # chosen_for is provenance (why the newsroom is on the list); the matcher decides what an item evidences.
-# Newsrooms that could not be read on 2026-09-25 are listed at the bottom with the reason, not fetched.
-version: 1
+# Newsrooms that could not be read, or were not taken, are listed at the bottom with the date checked and the
+# reason, and are not fetched. Widened 2026-09-29: docs/pressroom-widen-2026-09-29.md.
+version: 2
 newsrooms:
   - {vendor: aurora, url: "https://ir.aurora.tech/news-events/press-releases", kind: html, chosen_for: [autonomous_trucking]}
   - {vendor: kodiak, url: "https://kodiak.ai/news", kind: html, chosen_for: [autonomous_trucking]}
@@ -19,9 +20,133 @@ newsrooms:
   - {vendor: berkshiregrey, url: "https://www.berkshiregrey.com/feed/", kind: rss, chosen_for: [piece_picking, warehouse_robotics]}
   - {vendor: symbotic, url: "https://www.symbotic.com/post-sitemap.xml", kind: sitemap, chosen_for: [warehouse_robotics]}
   - {vendor: locus, url: "https://locusrobotics.com/feed", kind: rss, chosen_for: [warehouse_robotics]}
-not_reachable_2026_09_25:
-  - {vendor: zipline, url: "https://www.flyzipline.com/newsroom", reason: JavaScript shell}
-  - {vendor: flytrex, url: "https://www.flytrex.com/news", reason: JavaScript shell}
-  - {vendor: tesla, url: "https://ir.tesla.com/press", reason: 403 Akamai}
-  - {vendor: gs1, url: "https://www.gs1.org/news-events/news", reason: 403}
-  - {vendor: covariant, url: "https://covariant.ai/news/", reason: 404}
+  - {vendor: ambi, url: "https://www.ambirobotics.com/feed/", kind: rss, chosen_for: [piece_picking]}
+  - {vendor: brightpick, url: "https://brightpick.ai/news/", kind: html, chosen_for: [piece_picking, microfulfillment]}
+  - {vendor: sanctuary, url: "https://sanctuary.ai/feed/", kind: rss, chosen_for: [humanoid_logistics]}
+  - {vendor: unitree, url: "https://www.unitree.com/news/", kind: html, chosen_for: [humanoid_logistics]}
+  - {vendor: outrider, url: "https://www.outrider.ai/feed/", kind: rss, chosen_for: [autonomous_yard]}
+  - {vendor: starship, url: "https://www.starship.xyz/press/", kind: html, chosen_for: [sidewalk_delivery_robots]}
+  - {vendor: coco, url: "https://www.cocodelivery.com/blog", kind: html, chosen_for: [sidewalk_delivery_robots]}
+  - {vendor: droneup, url: "https://www.droneup.com/news?format=rss", kind: rss, chosen_for: [delivery_drones]}
+  - {vendor: manna, url: "https://www.manna.aero/news", kind: html, chosen_for: [delivery_drones]}
+  - {vendor: amazon, url: "https://www.aboutamazon.com/rss/feed.rss", kind: rss, chosen_for: [delivery_drones, user_firm]}
+  - {vendor: torc, url: "https://torc.ai/feed/", kind: rss, chosen_for: [autonomous_trucking]}
+  - {vendor: botauto, url: "https://bot.auto/news", kind: html, chosen_for: [autonomous_trucking]}
+  - {vendor: harbinger, url: "https://harbingermotors.com/feed/", kind: rss, chosen_for: [electric_trucks]}
+  - {vendor: toyota, url: "https://pressroom.toyota.com/corporate/latest-news/feed/", kind: rss, chosen_for: [hydrogen_trucks]}
+  - {vendor: wattev, url: "https://www.wattsystems.com/news?brand=wattev", kind: html, chosen_for: [freight_charging]}
+  - {vendor: terawatt, url: "https://www.terawattinfrastructure.com/news", kind: html, chosen_for: [freight_charging]}
+  - {vendor: forummobility, url: "https://forummobility.com/feed/", kind: rss, chosen_for: [freight_charging]}
+  - {vendor: jaggaer, url: "https://www.jaggaer.com/feed", kind: rss, chosen_for: [agentic_procurement]}
+  - {vendor: ivalua, url: "https://www.ivalua.com/feed/", kind: rss, chosen_for: [agentic_procurement]}
+  - {vendor: gep, url: "https://www.gep.com/company/news", kind: html, chosen_for: [agentic_procurement]}
+  - {vendor: pactum, url: "https://pactum.com/blog/rss.xml", kind: rss, chosen_for: [agentic_procurement]}
+  - {vendor: globality, url: "https://www.globality.com/feed/", kind: rss, chosen_for: [agentic_procurement]}
+  - {vendor: kinaxis, url: "https://www.kinaxis.com/en/news", kind: html, chosen_for: [supply_chain_digital_twin, genai_planning, supply_chain_llm]}
+  - {vendor: o9, url: "https://o9solutions.com/news", kind: html, chosen_for: [supply_chain_digital_twin, genai_planning, supply_chain_llm]}
+  - {vendor: nvidia, url: "https://blogs.nvidia.com/feed/", kind: rss, chosen_for: [supply_chain_digital_twin]}
+  - {vendor: circulor, url: "https://circulor.com/resources", kind: html, chosen_for: [digital_product_passport, minerals_traceability]}
+  - {vendor: minespider, url: "https://www.minespider.com/blog", kind: html, chosen_for: [minerals_traceability, digital_product_passport]}
+  - {vendor: checkpoint, url: "https://checkpointsystems.com/feed/", kind: rss, chosen_for: [smart_labels]}
+  - {vendor: spee3d, url: "https://www.spee3d.com/feed/", kind: rss, chosen_for: [additive_spares]}
+  - {vendor: autostore, url: "https://www.autostoresystem.com/news/rss.xml", kind: rss, chosen_for: [microfulfillment]}
+  - {vendor: ocado, url: "https://www.ocadogroup.com/newsroom/news", kind: html, chosen_for: [microfulfillment]}
+  - {vendor: vimaan, url: "https://vimaan.ai/feed/", kind: rss, chosen_for: [cv_inspection]}
+  - {vendor: ericsson, url: "https://www.ericsson.com/en/newsroom/latest-news", kind: html, chosen_for: [private_5g_warehouse]}
+  - {vendor: dwave, url: "https://www.dwavequantum.com/company/newsroom/", kind: html, chosen_for: [quantum_logistics]}
+  - {vendor: ionq, url: "https://ionq.com/news", kind: html, chosen_for: [quantum_logistics]}
+  - {vendor: pasqal, url: "https://www.pasqal.com/newsroom/", kind: html, chosen_for: [quantum_logistics]}
+  - {vendor: knapp, url: "https://www.knapp.com/en/feed/", kind: rss, chosen_for: [microfulfillment, piece_picking]}
+  - {vendor: hairobotics, url: "https://www.hairobotics.com/news", kind: html, chosen_for: [microfulfillment]}
+  - {vendor: gxo, url: "https://gxo.com/news-and-insights/", kind: html, chosen_for: [user_firm]}
+  - {vendor: fedex, url: "https://newsroom.fedex.com/index.rss", kind: rss, chosen_for: [user_firm]}
+  - {vendor: maersk, url: "https://www.maersk.com/news", kind: html, chosen_for: [user_firm]}
+  - {vendor: penske, url: "https://www.penskelogistics.com/feeds/press-releases.rss", kind: rss, chosen_for: [user_firm]}
+  - {vendor: nfi, url: "https://www.nfiindustries.com/feed/", kind: rss, chosen_for: [user_firm]}
+  - {vendor: dsv, url: "https://www.dsv.com/en/about-dsv/press", kind: html, chosen_for: [user_firm]}
+not_reachable:
+  - {vendor: zipline, url: "https://www.flyzipline.com/newsroom", checked: 2026-09-25, reason: JavaScript shell}
+  - {vendor: flytrex, url: "https://www.flytrex.com/news", checked: 2026-09-25, reason: JavaScript shell}
+  - {vendor: tesla, url: "https://ir.tesla.com/press", checked: 2026-09-25, reason: 403 Akamai}
+  - {vendor: gs1, url: "https://www.gs1.org/news-events/news", checked: 2026-09-25, reason: 403}
+  - {vendor: covariant, url: "https://covariant.ai/news/", checked: 2026-09-25, reason: 404}
+  - {vendor: dexterity, url: "https://www.dexterity.ai/news", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: plusone, url: "https://www.plusonerobotics.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: mujin, url: "https://mujin-corp.com/news/", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: nimble, url: "https://www.nimble.ai/news", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: osaro, url: "https://www.osaro.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: pickle, url: "https://picklerobot.com/news", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: bostondynamics, url: "https://bostondynamics.com/news/", checked: 2026-09-29, reason: "listing is third-party coverage (3 dated items, 0 on its own site)"}
+  - {vendor: 1x, url: "https://www.1x.tech/discover", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: fernride, url: "https://www.fernride.com/news", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: isee, url: "https://isee.ai/news", checked: 2026-09-29, reason: "no item in the last 12 months (16 dated, newest 2025-04-29)"}
+  - {vendor: serve, url: "https://investors.serverobotics.com/news-events/press-releases", checked: 2026-09-29, reason: "robots unavailable (network error)"}
+  - {vendor: kiwibot, url: "https://www.kiwibot.com/blog", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: matternet, url: "https://mttr.net/news", checked: 2026-09-29, reason: "captcha"}
+  - {vendor: walmart, url: "https://corporate.walmart.com/news", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: waabi, url: "https://waabi.ai/news/", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: gatik, url: "https://gatik.ai/news/", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: volvoautonomous, url: "https://www.volvoautonomoussolutions.com/en-en/news-and-media/news.html", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: einride, url: "https://www.einride.tech/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: paccar, url: "https://www.paccar.com/news/", checked: 2026-09-29, reason: "403"}
+  - {vendor: kenworth, url: "https://www.kenworth.com/news/", checked: 2026-09-29, reason: "403"}
+  - {vendor: peterbilt, url: "https://www.peterbilt.com/about/news-events/news-releases", checked: 2026-09-29, reason: "captcha"}
+  - {vendor: freightliner, url: "https://northamerica.daimlertruck.com/pressreleases", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: windrose, url: "https://www.windrose.tech/news", checked: 2026-09-29, reason: "/news redirects to /about-us, a list of third-party coverage (5 dated, 0 on its own site)"}
+  - {vendor: hyundai, url: "https://www.hyundainews.com/en-us/releases", checked: 2026-09-29, reason: "captcha"}
+  - {vendor: htwo, url: "https://www.htwo.com/newsroom", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: symbio, url: "https://www.symbio.one/en/news", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: greenlane, url: "https://greenlane.com/news/", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: voltera, url: "https://www.voltera.com/news", checked: 2026-09-29, reason: "robots unavailable (network error)"}
+  - {vendor: zeem, url: "https://www.zeemsolutions.com/news", checked: 2026-09-29, reason: "listing is third-party coverage (49 dated items, 2 on its own site)"}
+  - {vendor: coupa, url: "https://www.coupa.com/newsroom/", checked: 2026-09-29, reason: "403"}
+  - {vendor: zip, url: "https://ziphq.com/press", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: keelvar, url: "https://www.keelvar.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: blueyonder, url: "https://blueyonder.com/news", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: manhattan, url: "https://ir.manh.com/news-releases", checked: 2026-09-29, reason: "robots unavailable (network error)"}
+  - {vendor: sap, url: "https://news.sap.com/", checked: 2026-09-29, reason: "robots.txt disallows /"}
+  - {vendor: oracle, url: "https://www.oracle.com/news/", checked: 2026-09-29, reason: "403"}
+  - {vendor: kezzler, url: "https://www.kezzler.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: eon, url: "https://www.eon.xyz/news", checked: 2026-09-29, reason: "no item in the last 12 months (55 dated, newest 2024-09-19)"}
+  - {vendor: spherity, url: "https://www.spherity.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: rcsglobal, url: "https://www.rcsglobal.com/news/", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: everledger, url: "https://everledger.io/news/", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: digimarc, url: "https://www.digimarc.com/press-releases", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: zebra, url: "https://www.zebra.com/us/en/about-zebra/newsroom/press-releases.html", checked: 2026-09-29, reason: "no item in the last 12 months (1 dated, newest 2023-12-31)"}
+  - {vendor: wiliot, url: "https://www.wiliot.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: everactive, url: "https://everactive.com/news/", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: atmosic, url: "https://atmosic.com/news/", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: identiv, url: "https://investors.identiv.com/news-events/press-releases", checked: 2026-09-29, reason: "robots unavailable (network error)"}
+  - {vendor: wurthadditive, url: "https://www.wurthadditive.com/news", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: markforged, url: "https://markforged.com/newsroom", checked: 2026-09-29, reason: "403"}
+  - {vendor: stratasys, url: "https://investors.stratasys.com/news-events/press-releases", checked: 2026-09-29, reason: "captcha"}
+  - {vendor: eos, url: "https://www.eos.info/en-us/about-us/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: haddy, url: "https://haddy.com/news", checked: 2026-09-29, reason: "domain parked (redirects to ww16.haddy.com, robots disallows)"}
+  - {vendor: divergent, url: "https://www.divergent3d.com/news", checked: 2026-09-29, reason: "robots unavailable (network error)"}
+  - {vendor: brightmachines, url: "https://www.brightmachines.com/news", checked: 2026-09-29, reason: "listing is third-party coverage (5 dated items, 0 on its own site)"}
+  - {vendor: fabric, url: "https://getfabric.com/news/", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: exotec, url: "https://www.exotec.com/news/", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: attabotics, url: "https://www.attabotics.com/news", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: cognex, url: "https://investor.cognex.com/news-releases", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: kargo, url: "https://www.kargo.ai/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: gatherai, url: "https://www.gather.ai/news", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: dexory, url: "https://www.dexory.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: verity, url: "https://verity.net/news/", checked: 2026-09-29, reason: "JavaScript shell (6 visible characters)"}
+  - {vendor: celona, url: "https://www.celona.io/news", checked: 2026-09-29, reason: "no listing found within 6 requests"}
+  - {vendor: nokia, url: "https://www.nokia.com/about-us/newsroom/", checked: 2026-09-29, reason: "403"}
+  - {vendor: betacom, url: "https://www.betacom.com/news", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: quantinuum, url: "https://www.quantinuum.com/news", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: qctrl, url: "https://q-ctrl.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: geekplus, url: "https://www.geekplus.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: dematic, url: "https://www.dematic.com/en-us/about/news/", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: swisslog, url: "https://www.swisslog.com/en-us/newsroom", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: dhl, url: "https://group.dhl.com/en/media-relations/press-releases.html", checked: 2026-09-29, reason: "robots unavailable (network error)"}
+  - {vendor: ups, url: "https://about.ups.com/us/en/newsroom.html", checked: 2026-09-29, reason: "403"}
+  - {vendor: ryder, url: "https://newsroom.ryder.com/", checked: 2026-09-29, reason: "captcha"}
+  - {vendor: jbhunt, url: "https://www.jbhunt.com/company/newsroom/", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: schneider, url: "https://schneider.com/newsroom", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: kroger, url: "https://ir.kroger.com/news/default.aspx", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: dbschenker, url: "https://www.dbschenker.com/global/about/press", checked: 2026-09-29, reason: "press page redirects to the DSV homepage (Schenker is part of DSV); covered by dsv"}
+  - {vendor: xpo, url: "https://news.xpo.com/", checked: 2026-09-29, reason: "403"}
+  - {vendor: werner, url: "https://www.werner.com/news/", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
+  - {vendor: lineage, url: "https://ir.onelineage.com/news-releases", checked: 2026-09-29, reason: "no listing found within 6 requests"}

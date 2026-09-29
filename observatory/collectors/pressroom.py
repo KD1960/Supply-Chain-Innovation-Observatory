@@ -263,6 +263,15 @@ def _host(url: str) -> str:
     return f"{scheme}://{host}"
 
 
+def _site(url: str) -> str:
+    """The registrable domain, near enough: the last two host labels, or three
+    under a two-letter country code's co/com/org/net/ac/gov. No public suffix
+    list; a newsroom and its IR subdomain share one site, a trade title does not."""
+    labels = (urlparse(url).hostname or "").split(".")
+    n = 3 if len(labels) > 2 and len(labels[-1]) == 2 and labels[-2] in ("co", "com", "org", "net", "ac", "gov") else 2
+    return ".".join(labels[-n:])
+
+
 def host_robots(session, url: str, cache: dict, limiter) -> tuple[robots.Robots, str | None]:
     """Read <scheme>://<host>/robots.txt once per host per run (RFC 9309).
     A 4xx means no robots file: allow all. A 5xx, a 429 or a network error
@@ -376,6 +385,13 @@ class PressroomCollector(BaseCollector):
                 for it in items_for(room.kind, env["listing"], base, {}):
                     if it.url and in_window(it, start, sunday):
                         wanted.append(it.url)
+            # Item pages only on the newsroom's own site: a listing that links press
+            # coverage (a trade title, a wire) keeps the item, from the listing's own
+            # text, but the other site's robots and terms were never checked.
+            elsewhere = [u for u in wanted if _site(u) != _site(base)]
+            if elsewhere:
+                env["notes"].append(f"{len(elsewhere)} in-window item pages on other sites not fetched")
+                wanted = [u for u in wanted if u not in elsewhere]
             for u in wanted[:MAX_ITEM_PAGES]:
                 try:   # one retry: a hanging page costs two timeouts, not four
                     r, note = self._get(session, u, robots_cache, limiters, retries=1, item=True)
