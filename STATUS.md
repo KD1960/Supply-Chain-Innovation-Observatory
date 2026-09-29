@@ -1,7 +1,7 @@
 # STATUS
 
 Supply Chain Innovation Observatory — state of the project, written for someone
-picking it up cold. Last updated 2026-09-25, on branch `pressroom`.
+picking it up cold. Last updated 2026-09-29, on `main`.
 
 Owner: Kevin Dooley, ASU W. P. Carey.
 
@@ -551,6 +551,27 @@ dated from the page, not the 1st; item pages and robots.txt get one retry, not
 three. **Reversal
 condition:** retire the source if two consecutive quarters yield under 10
 matched observations.
+
+**(d) The Nexis hand count — 2026-09-29; content passes, sources fail; do not buy**
+
+Before paying for a mining licence (Nexis Data Lab, about $10–15k a year), the
+owner counted by hand in Nexis Uni on a sheet with the pass line fixed first
+(`docs/nexis-hand-count-2026-09-27.md`; verdict
+`docs/nexis-hand-count-verdict-2026-09-29.md`). Content: 4 of 5 probe
+technologies returned 3 or more pilot-stage documents in the first 40 read
+(autonomous trucking 4, delivery drones 5, humanoid 6, product passport 6,
+2D barcode 0). Sources: 3 of 12 trade titles are in Nexis with full text
+(Supply Chain Dive, Commercial Carrier Journal, Journal of Commerce); the line
+was 6. The outlets that produced the hits are aggregators and wires (News
+Bites, MENAFN, Newstex, PR Newswire), so the pilot band found there is mostly
+company announcements at one remove, which the press-room collector reads at
+the source. One example headline was out of window and the research-stage
+column recorded "the rest", so neither is relied on. **Reversal condition:** a
+product holding at least 6 of the 12 titles in full text, mining and quotation
+rights in writing, and at least 10 verified pilot-band claims from a
+500-document sample. Next, cheapest first: probe the trade titles' own RSS
+feeds (terms and robots checked per title), widen `pressrooms.yaml`, ask
+Factiva for a title list and trial.
 
 ### The count pipeline
 
