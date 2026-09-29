@@ -108,7 +108,7 @@ cadences are deliberately different (§6).
 
 | | |
 |---|---|
-| Tests | **844 passing** |
+| Tests | **861 passing** |
 | Lexicon | version **10**, 48 active technologies |
 | Observations | **2,409** |
 | Sources | 11, across 9 evidence families |
@@ -601,9 +601,10 @@ item a week.
 **A defect in running code, found by the probe.** `pressroom.robots_allows`
 uses `urllib.robotparser`, which misreads robots files with an empty `Disallow`
 line, repeated `*` groups, or a broad `Allow: /` listed first, and can allow a
-path RFC 9309 disallows. The press-room collector runs weekly with this. Also
-`pressroom.parse_date` drops two-digit-year dates. Both are to be fixed before
-the next cron run (2026-10-05).
+path RFC 9309 disallows. The press-room collector ran weekly with this. Also
+`pressroom.parse_date` drops two-digit-year dates. Both were fixed on
+2026-09-29: robots files are now read by `observatory/robots.py` (RFC 9309,
+with Crawl-delay honoured), and two-digit RFC 822 years parse.
 
 ### The count pipeline
 

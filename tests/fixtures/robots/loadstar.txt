@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: 
+Disallow: /page/
+Disallow: /tag/
+Disallow: /category/
+Disallow: /wp-admin/
+Sitemap: https://theloadstar.com/sitemap_index.xml

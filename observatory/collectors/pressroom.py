@@ -17,19 +17,20 @@ import datetime as dt
 import hashlib
 import json
 import re
+import time
 from html import unescape
-import urllib.robotparser
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import yaml
 
-from .. import config, http
+from .. import config, http, robots
 from .base import BaseCollector, Document, RawPage
 
 PRESSROOMS_PATH = config.ROOT / "pressrooms.yaml"
 MAX_ITEM_PAGES = 15
+MAX_CRAWL_DELAY = 30.0   # seconds; a host asking for more gets its listing only
 
 MONTHS = {m: i for i, m in enumerate(
     ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
@@ -38,6 +39,10 @@ DATE_RES = [
     (re.compile(r"\b(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* (20\d\d)\b"), "dmy"),
     (re.compile(r"\b(20\d\d)-(\d\d)-(\d\d)"), "iso"),
     (re.compile(r"\b(\d{2})\.(\d{2})\.(20\d\d)\b"), "dotted"),
+    # RFC 822's two-digit year ("Tue, 29 Sep 26 11:47:15 EDT"), only with the
+    # time after it: "29 Sep 26" alone is as likely a page count as a date.
+    (re.compile(r"\b(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* (\d\d) "
+                r"(?:[01]\d|2[0-3]):[0-5]\d\b"), "dmy2"),
 ]
 URL_DATE_RES = [
     re.compile(r"/(20\d\d)[-/](\d\d)[-/](\d\d)"),
@@ -80,6 +85,9 @@ def parse_date(s: str) -> dt.date | None:
                 return dt.date(int(m[3]), MONTHS[m[1][:3].lower()], int(m[2]))
             if kind == "dmy":
                 return dt.date(int(m[3]), MONTHS[m[2][:3].lower()], int(m[1]))
+            if kind == "dmy2":   # 00-69 is 20xx, 70-99 19xx, as email.utils and POSIX %y read it
+                y = int(m[3])
+                return dt.date(y + (2000 if y < 70 else 1900), MONTHS[m[2][:3].lower()], int(m[1]))
             if kind == "iso":
                 return dt.date(int(m[1]), int(m[2]), int(m[3]))
             return dt.date(int(m[3]), int(m[2]), int(m[1]))
@@ -242,24 +250,31 @@ def items_for(kind: str, listing: str, base: str, pages: dict) -> list[Item]:
     return items_from_html(listing, base)
 
 
-def robots_allows(session, url: str, cache: dict, limiter) -> bool:
-    """Read <scheme>://<host>/robots.txt once per host per run and obey it. A
-    robots.txt that cannot be fetched (404, 403, network error) means allow;
-    a server error (5xx) means disallow all, as RFC 9309 asks. One retry: a
-    hanging origin costs two timeouts, not four."""
-    host = "{0.scheme}://{0.netloc}".format(urlparse(url))
+def _host(url: str) -> str:
+    return "{0.scheme}://{0.netloc}".format(urlparse(url))
+
+
+def host_robots(session, url: str, cache: dict, limiter) -> tuple[robots.Robots, str | None]:
+    """Read <scheme>://<host>/robots.txt once per host per run (RFC 9309).
+    A 4xx means no robots file: allow all. A 5xx or a network error means
+    disallow all, and the second value says why ("503", "network error"), so
+    the envelope can tell an unavailable file from a real disallow. One retry:
+    a hanging origin costs two timeouts, not four."""
+    host = _host(url)
     if host not in cache:
-        rp = urllib.robotparser.RobotFileParser()
         try:
             r = http.fetch(session, host + "/robots.txt", limiter=limiter, retries=1)
-            rp.parse(r.text.splitlines())
-        except (http.HttpError, ValueError) as e:
-            if isinstance(e, http.HttpError) and (e.status or 0) >= 500:
-                rp.parse(["User-agent: *", "Disallow: /"])
+            cache[host] = (robots.parse(r.text), None)
+        except http.HttpError as e:
+            if e.status is not None and e.status < 500:
+                cache[host] = (robots.Robots.allow_all(), None)
             else:
-                rp.parse([])        # no robots file: allow
-        cache[host] = rp
-    return cache[host].can_fetch(config.user_agent(), url)
+                cache[host] = (robots.Robots.disallow_all(), str(e.status) if e.status else "network error")
+    return cache[host]
+
+
+def robots_allows(session, url: str, cache: dict, limiter) -> bool:
+    return host_robots(session, url, cache, limiter)[0].allows(config.user_agent(), url)
 
 
 def _doc_id(url: str) -> str:
@@ -270,6 +285,23 @@ class PressroomCollector(BaseCollector):
     name = "pressroom"
     rate_limit_seconds = 2.0
 
+    def __init__(self, sleep_fn=time.sleep, clock_fn=time.monotonic):
+        self.sleep_fn, self.clock_fn = sleep_fn, clock_fn
+
+    def _robots(self, session, url: str, cache: dict, limiters: dict):
+        """The host's robots, why it was unavailable if it was, its crawl-delay,
+        and its limiter: requests to one host are at least max(rate limit,
+        crawl-delay) apart, the delay capped at MAX_CRAWL_DELAY."""
+        host = _host(url)
+        if host not in limiters:
+            limiters[host] = http.RateLimiter(self.rate_limit_seconds, sleep_fn=self.sleep_fn,
+                                              clock_fn=self.clock_fn)
+        limiter = limiters[host]
+        rules, problem = host_robots(session, url, cache, limiter)
+        delay = rules.crawl_delay(config.user_agent()) or 0.0
+        limiter.min_interval = max(self.rate_limit_seconds, min(delay, MAX_CRAWL_DELAY))
+        return rules, problem, delay, limiter
+
     def fetch_raw(self, session, week: str):
         """One envelope per newsroom, always: a newsroom that is disallowed or
         fails still yields one, with an empty listing and a note, so the raw
@@ -279,8 +311,9 @@ class PressroomCollector(BaseCollector):
         run.fetch_week records the source failed for the week (a hole) rather
         than ok, which would write press_releases = 0 for every technology.
         Some but not all failing is ok, with the failures in the notes."""
-        limiter = http.RateLimiter(self.rate_limit_seconds)
-        robots: dict = {}
+        limiters: dict = {}
+        robots_cache: dict = {}
+        agent = config.user_agent()
         monday, sunday = config.week_bounds(week)
         start = monday - dt.timedelta(days=config.LOOKBACK_DAYS)
         rooms = load_pressrooms()
@@ -289,7 +322,12 @@ class PressroomCollector(BaseCollector):
             env = {"vendor": room.vendor, "kind": room.kind, "url": room.url, "fetched_week": week,
                    "listing": "", "pages": {}, "notes": []}
             status = 0
-            if not robots_allows(session, room.url, robots, limiter):
+            rules, problem, _, limiter = self._robots(session, room.url, robots_cache, limiters)
+            if problem:
+                env["notes"].append(f"robots.txt unavailable ({problem}); host skipped this run")
+                yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
+                continue
+            if not rules.allows(agent, room.url):
                 env["notes"].append("robots.txt disallows the listing; not fetched")
                 yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
                 continue
@@ -312,7 +350,18 @@ class PressroomCollector(BaseCollector):
                     if it.url and in_window(it, start, sunday):
                         wanted.append(it.url)
             for u in wanted[:MAX_ITEM_PAGES]:
-                if not robots_allows(session, u, robots, limiter):
+                rules, problem, delay, limiter = self._robots(session, u, robots_cache, limiters)
+                skip = None
+                if problem:
+                    skip = f"robots.txt unavailable ({problem}); {_host(u)} skipped this run"
+                elif delay > MAX_CRAWL_DELAY:
+                    skip = (f"robots.txt crawl-delay {delay:g} s is over {MAX_CRAWL_DELAY:g} s; "
+                            f"item pages on {_host(u)} skipped this run")
+                if skip:
+                    if skip not in env["notes"]:
+                        env["notes"].append(skip)
+                    continue
+                if not rules.allows(agent, u):
                     env["notes"].append(f"robots.txt disallows {u}")
                     continue
                 try:   # one retry: a hanging page costs two timeouts, not four

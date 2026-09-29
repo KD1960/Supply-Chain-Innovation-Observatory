@@ -136,13 +136,13 @@ class FakeResponse:
 class FakeSession:
     """Answers by URL; records requests. robots.txt disallows /private/."""
 
-    def __init__(self, answers):
-        self.answers, self.calls, self.headers = answers, [], {}
+    def __init__(self, answers, robots=(200, "User-agent: *\nDisallow: /private/\n")):
+        self.answers, self.calls, self.headers, self.robots = answers, [], {}, robots
 
     def get(self, url, params=None, headers=None, timeout=None):
         self.calls.append(url)
         if url.endswith("/robots.txt"):
-            return FakeResponse(200, "User-agent: *\nDisallow: /private/\n")
+            return FakeResponse(*self.robots)
         status, text = self.answers.get(url, (404, ""))
         return FakeResponse(status, text)
 
@@ -322,3 +322,100 @@ def test_an_undated_card_does_not_borrow_its_neighbours_date():
             '<li><a href="/news/second">A long enough title for the second card here</a></li></ul>')
     items = pressroom.items_from_html(html, "https://k.test/news")
     assert [(i.url, i.date) for i in items] == [("https://k.test/news/first", dt.date(2026, 9, 24))]
+
+
+def test_parse_date_reads_a_two_digit_year_only_in_the_rfc_822_shape():
+    assert pressroom.parse_date("Tue, 29 Sep 26 11:47:15 EDT") == dt.date(2026, 9, 29)
+    assert pressroom.parse_date("29 Sep 26 11:47 GMT") == dt.date(2026, 9, 29)
+    assert pressroom.parse_date("Fri, 01 Jan 99 00:00:00 +0000") == dt.date(1999, 1, 1)
+    assert pressroom.parse_date("Thu, 31 Dec 70 23:59:59 GMT") == dt.date(1970, 12, 31)
+    assert pressroom.parse_date("Tue, 01 Jan 69 12:00:00 GMT") == dt.date(2069, 1, 1)
+    assert pressroom.parse_date("chapter 29 Sep 26 pages") is None
+    assert pressroom.parse_date("129 Sep 261 11:47") is None
+    assert pressroom.parse_date("Tue, 29 Sep 2026 11:47:15 EDT") == dt.date(2026, 9, 29)   # four digits still win
+
+
+def _one_room(tmp_path, monkeypatch, kind="html"):
+    rooms = tmp_path / "rooms.yaml"
+    rooms.write_text(f'version: 1\nnewsrooms:\n  - {{vendor: c, url: "https://c.test/news", kind: {kind}}}\n')
+    monkeypatch.setattr(pressroom, "PRESSROOMS_PATH", rooms)
+
+
+def test_a_robots_server_error_skips_the_host_with_a_note_that_says_why(tmp_path, monkeypatch, no_wait):
+    """Unavailable is not the same finding as disallowed: the note keeps them apart."""
+    monkeypatch.setattr(http, "_backoff_seconds", lambda *a, **k: 0)
+    _one_room(tmp_path, monkeypatch)
+    session = FakeSession({"https://c.test/news": (200, "<p>listing</p>")}, robots=(503, ""))
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert env["listing"] == "" and "https://c.test/news" not in session.calls
+    assert "robots.txt unavailable (503); host skipped this run" in env["notes"]
+    assert not any("disallows" in n for n in env["notes"])
+
+
+def test_a_robots_network_error_means_disallow(monkeypatch, no_wait):
+    """RFC 9309 2.3.1.4: unreachable is complete disallow, like a 5xx."""
+    monkeypatch.setattr(http, "_backoff_seconds", lambda *a, **k: 0)
+    import requests
+
+    class Unreachable(FakeSession):
+        def get(self, url, params=None, headers=None, timeout=None):
+            if url.endswith("/robots.txt"):
+                raise requests.ConnectionError("refused")
+            return super().get(url, params, headers, timeout)
+
+    assert not pressroom.robots_allows(Unreachable({}), "https://u.test/news", {}, _NoWait())
+
+
+def test_a_robots_404_allows_the_listing(tmp_path, monkeypatch, no_wait):
+    _one_room(tmp_path, monkeypatch)
+    session = FakeSession({"https://c.test/news": (200, "<p>listing</p>")}, robots=(404, ""))
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert env["listing"] == "<p>listing</p>" and not any("robots" in n for n in env["notes"])
+
+
+_TWO_ITEMS = ('<li><a href="/news/one">A long enough title for the first item here</a>'
+              '<span>September 24, 2026</span></li>'
+              '<li><a href="/news/two">A long enough title for the second item here</a>'
+              '<span>September 23, 2026</span></li>')
+
+
+class _FakeClock:
+    """A clock that only moves when slept on, and records each sleep."""
+
+    def __init__(self):
+        self.now, self.sleeps = 0.0, []
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+    def clock(self):
+        return self.now
+
+
+def test_crawl_delay_spaces_requests_to_its_host(tmp_path, monkeypatch):
+    _one_room(tmp_path, monkeypatch)
+    session = FakeSession({"https://c.test/news": (200, _TWO_ITEMS),
+                           "https://c.test/news/one": (200, "<p>one</p>"),
+                           "https://c.test/news/two": (200, "<p>two</p>")},
+                          robots=(200, "User-agent: *\nCrawl-delay: 5\n"))
+    fake = _FakeClock()
+    env = json.loads(next(PressroomCollector(sleep_fn=fake.sleep, clock_fn=fake.clock)
+                          .fetch_raw(session, "2026-W39")).text)
+    assert set(env["pages"]) == {"https://c.test/news/one", "https://c.test/news/two"}
+    # robots, listing, two pages: three gaps, each the crawl-delay, not the 2 s rate limit
+    assert len(fake.sleeps) == 3 and all(s >= 5 for s in fake.sleeps)
+
+
+def test_a_crawl_delay_over_30_s_fetches_the_listing_only(tmp_path, monkeypatch):
+    _one_room(tmp_path, monkeypatch)
+    session = FakeSession({"https://c.test/news": (200, _TWO_ITEMS),
+                           "https://c.test/news/one": (200, "<p>one</p>")},
+                          robots=(200, "User-agent: *\nCrawl-delay: 60\n"))
+    fake = _FakeClock()
+    env = json.loads(next(PressroomCollector(sleep_fn=fake.sleep, clock_fn=fake.clock)
+                          .fetch_raw(session, "2026-W39")).text)
+    assert env["listing"] == _TWO_ITEMS and env["pages"] == {}
+    assert "https://c.test/news/one" not in session.calls
+    assert any("crawl-delay 60" in n for n in env["notes"])
+    assert fake.sleeps == [30]            # the one wait, before the listing, is capped

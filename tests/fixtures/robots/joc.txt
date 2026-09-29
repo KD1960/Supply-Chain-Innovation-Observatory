@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://www.joc.com/sitemap.xml
+
+User-agent: *
+Disallow: /search
+
+User-agent: *
+Disallow: /subscription/subscribe
+
+User-agent: *
+Disallow: /user/profile
+
+User-agent: *
+Disallow: /rail-directories
