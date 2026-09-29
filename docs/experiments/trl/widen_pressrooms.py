@@ -249,7 +249,8 @@ HAND_REJECT = {
     "ambi": "newsroom 404; /feed is the site blog (35 of 37 items under /blog/)",
     "vimaan": "newsroom 404; /feed is the resources section (blog, application notes, reposted trade coverage)",
     "nfi": "newsroom 404; /feed is about-page insight posts (10 of 10 under /about-nfi/insights/)",
-    "amazon": "feed is consumer news (10 items rolling over in under a week, 0 matches)",
+    "amazon": ("corporate news feed across all of Amazon (entertainment, sellers, devices, climate); "
+               "10 items roll over in under a week, 0 matches; reversal: an operations-only feed"),
     # Rejections whose recorded reason was wrong, corrected from the saved responses.
     "peterbilt": "JavaScript-rendered listing (no dated items in the HTML)",
     "stratasys": "JavaScript-rendered listing (no dated items in the HTML)",

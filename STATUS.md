@@ -582,10 +582,44 @@ envelopes, **68 documents** (50 from the new newsrooms, 16 of 36 with one),
 physical-AI safety essay twice, Circulor's DPP-registry explainer,
 Minespider's battery-passport post), 0 false positives (the first pass's 6
 all came from Jaggaer's blog feed). `raw_fetch` paths under `.worktrees/` (76
-rows) now point at the main checkout. **Still no newsroom: battery_free_iot,
-cv_inspection, microfactories, smart_labels**; one each: additive_spares
-(SPEE3D), autonomous_yard (Outrider), gs1_2d (GS1 US), private_5g_warehouse
-(Ericsson). Five user firms (GXO, FedEx, Maersk, Penske, DSV).
+rows) now point at the main checkout. After this widening there was still no
+newsroom for battery_free_iot, cv_inspection, microfactories or smart_labels.
+One each: additive_spares (SPEE3D), autonomous_yard (Outrider), gs1_2d
+(GS1 US), private_5g_warehouse (Ericsson). Five user firms (GXO, FedEx,
+Maersk, Penske, DSV).
+
+**Second widening, same day: 62 newsrooms**
+(`docs/pressroom-widen2-2026-09-29.md`,
+`docs/experiments/trl/widen2_pressrooms.py`). 34 candidates for
+battery_free_iot and microfactories, 127 requests. Permission came first, as
+before. Redirect hops were counted before the budget check. The press
+listing was preferred over site-wide feeds, and the script applied the
+membership rule.
+
+- **10 accepted:** Wiliot (by hand: its releases sit under `/blog/`), e-peas,
+  Powercast, EnOcean, ONiO, Dracula, Epishine, Exeger, Nexperia and Fathom.
+- **24 rejected:**
+  - 5 with robots unavailable: Energous, Xometry and Protolabs IR timed out;
+    Ambient Photonics failed TLS; Divergent timed out again.
+  - 5 with no listing, 6 with no dated items, 3 with nothing in 12 months.
+  - 2 third-party coverage: Hadrian, Vention.
+  - By hand: Re:Build and Azure (blog or SEO posts), and Identiv (sold its
+    IoT business to Trackonomy and is now INVE Technologies).
+- **Coverage now:**
+  - **battery_free_iot: 9.**
+  - **microfactories: 1** (Fathom, three dated items).
+  - smart_labels: 1 (Wiliot).
+  - Still no newsroom: cv_inspection.
+- **Expected yield is low.** Both technologies need a supply chain context
+  word. Of the battery-free vendors, only Wiliot writes about supply chains.
+  Microfactory vendors do not use the lexicon's words.
+- **Pilot-type titles:** 2 of the 10 newsrooms had one in the last 12 months
+  (Wiliot with Walmart; Epishine in Google's TV remote).
+- **A mistake:** on its first run, the script's `links:` fallback fetched
+  three off-site URLs for InPlay (Avery Dennison's robots.txt and one of its
+  pages, and Business Wire's robots.txt). It now keeps to the listing's site.
+- **Not fetched by the collector.** The 2026-10-05 cron is the first run of
+  the new newsrooms.
 
 **(d) The Nexis hand count — 2026-09-29; content passes, sources fail; do not buy**
 

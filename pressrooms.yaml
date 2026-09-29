@@ -1,7 +1,8 @@
 # Vendor newsrooms the pressroom collector reads weekly. kind: rss | sitemap | html | links:<path>.
 # chosen_for is provenance (why the newsroom is on the list); the matcher decides what an item evidences.
 # Newsrooms that could not be read, or were not taken, are listed at the bottom with the date checked and the
-# reason, and are not fetched. Widened 2026-09-29: docs/pressroom-widen-2026-09-29.md.
+# reason, and are not fetched. Widened 2026-09-29: docs/pressroom-widen-2026-09-29.md; battery_free_iot and
+# microfactories the same day: docs/pressroom-widen2-2026-09-29.md.
 version: 2
 newsrooms:
   - {vendor: aurora, url: "https://ir.aurora.tech/news-events/press-releases", kind: html, chosen_for: [autonomous_trucking]}
@@ -56,6 +57,16 @@ newsrooms:
   - {vendor: maersk, url: "https://www.maersk.com/news", kind: html, chosen_for: [user_firm]}
   - {vendor: penske, url: "https://www.penskelogistics.com/feeds/press-releases.rss", kind: rss, chosen_for: [user_firm]}
   - {vendor: dsv, url: "https://www.dsv.com/en/about-dsv/press", kind: html, chosen_for: [user_firm]}
+  - {vendor: wiliot, url: "https://www.wiliot.com/press", kind: html, chosen_for: [battery_free_iot, smart_labels]}
+  - {vendor: epeas, url: "https://e-peas.com/category/press-releases/feed/", kind: rss, chosen_for: [battery_free_iot]}
+  - {vendor: powercast, url: "https://www.powercastco.com/news", kind: html, chosen_for: [battery_free_iot]}
+  - {vendor: enocean, url: "https://www.enocean.com/en/news/press/", kind: html, chosen_for: [battery_free_iot]}
+  - {vendor: onio, url: "https://www.onio.com/news", kind: html, chosen_for: [battery_free_iot]}
+  - {vendor: dracula, url: "https://dracula-technologies.com/press-releases/feed/", kind: rss, chosen_for: [battery_free_iot]}
+  - {vendor: epishine, url: "https://www.epishine.com/news/tag/press-release", kind: html, chosen_for: [battery_free_iot]}
+  - {vendor: exeger, url: "https://www.exeger.com/news-room/?filter=press-release", kind: html, chosen_for: [battery_free_iot]}
+  - {vendor: nexperia, url: "https://www.nexperia.com/about/news-events/press-releases", kind: html, chosen_for: [battery_free_iot]}
+  - {vendor: fathom, url: "https://fathommfg.com/company/news-press/", kind: html, chosen_for: [microfactories]}
 not_reachable:
   - {vendor: zipline, url: "https://www.flyzipline.com/newsroom", checked: 2026-09-25, reason: JavaScript shell}
   - {vendor: flytrex, url: "https://www.flytrex.com/news", checked: 2026-09-25, reason: JavaScript shell}
@@ -105,16 +116,12 @@ not_reachable:
   - {vendor: everledger, url: "https://everledger.io/news/", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
   - {vendor: digimarc, url: "https://www.digimarc.com/press-releases", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
   - {vendor: zebra, url: "https://www.zebra.com/us/en/about-zebra/newsroom/press-releases.html", checked: 2026-09-29, reason: "no item in the last 12 months (1 dated, newest 2023-12-31)"}
-  - {vendor: wiliot, url: "https://www.wiliot.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
-  - {vendor: everactive, url: "https://everactive.com/news/", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
   - {vendor: atmosic, url: "https://atmosic.com/news/", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
-  - {vendor: identiv, url: "https://investors.identiv.com/news-events/press-releases", checked: 2026-09-29, reason: "robots unavailable (network error)"}
   - {vendor: wurthadditive, url: "https://www.wurthadditive.com/news", checked: 2026-09-29, reason: "no listing found within 6 requests"}
   - {vendor: markforged, url: "https://markforged.com/newsroom", checked: 2026-09-29, reason: "403"}
   - {vendor: stratasys, url: "https://investors.stratasys.com/news-events/press-releases", checked: 2026-09-29, reason: "JavaScript-rendered listing (no dated items in the HTML)"}
   - {vendor: eos, url: "https://www.eos.info/en-us/about-us/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
   - {vendor: haddy, url: "https://haddy.com/news", checked: 2026-09-29, reason: "domain parked (redirects to ww16.haddy.com, robots disallows)"}
-  - {vendor: divergent, url: "https://www.divergent3d.com/news", checked: 2026-09-29, reason: "robots unavailable (network error)"}
   - {vendor: brightmachines, url: "https://www.brightmachines.com/news", checked: 2026-09-29, reason: "listing is third-party coverage (5 dated items, 0 on its own site)"}
   - {vendor: fabric, url: "https://getfabric.com/news/", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
   - {vendor: exotec, url: "https://www.exotec.com/news/", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
@@ -150,3 +157,27 @@ not_reachable:
   - {vendor: vimaan, url: "https://vimaan.ai/news/", checked: 2026-09-29, reason: "newsroom 404; /feed is the resources section (blog, application notes, reposted trade coverage)"}
   - {vendor: nfi, url: "https://www.nfiindustries.com/news/", checked: 2026-09-29, reason: "newsroom 404; /feed is about-page insight posts (10 of 10 under /about-nfi/insights/)"}
   - {vendor: amazon, url: "https://www.aboutamazon.com/news", checked: 2026-09-29, reason: "corporate news feed across all of Amazon (entertainment, sellers, devices, climate); 10 items roll over in under a week, 0 matches; reversal: an operations-only feed"}
+  - {vendor: everactive, url: "https://everactive.com/posts/category/press/", checked: 2026-09-29, reason: "no listing found (press category page 404, no feed, no news sitemap)"}
+  - {vendor: identiv, url: "https://ir.identiv.com/news-events/press-releases", checked: 2026-09-29, reason: "Identiv sold its IoT business to Trackonomy and renamed itself INVE Technologies (2026-08-12); the press page redirects to invetechnologies.com, 9 of 9 recent items earnings and corporate notices"}
+  - {vendor: divergent, url: "https://www.divergent3d.com/company/news", checked: 2026-09-29, reason: "robots unavailable (network error: connect timeout, twice)"}
+  - {vendor: energous, url: "https://ir.energous.com/news-events/news-releases", checked: 2026-09-29, reason: "robots unavailable (network error: read timeout, twice)"}
+  - {vendor: ossia, url: "https://www.ossia.com/press", checked: 2026-09-29, reason: "no item in the last 12 months (listing and its press RSS, newest 2024-06-12)"}
+  - {vendor: inplay, url: "https://inplay-tech.com/news", checked: 2026-09-29, reason: "listing loads but yields 1 dated item (2025-10-08); /feed not a dated press feed"}
+  - {vendor: trameto, url: "https://www.trameto.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: trackonomy, url: "https://trackonomy.ai/newsroom/", checked: 2026-09-29, reason: "listing loads but yields no dated items; /feed not a dated press feed"}
+  - {vendor: ambientphotonics, url: "https://ambientphotonics.com/newsroom", checked: 2026-09-29, reason: "robots unavailable (network error: TLS handshake failure, twice)"}
+  - {vendor: hadrian, url: "https://www.hadrian.co/press", checked: 2026-09-29, reason: "listing is third-party coverage (9 of 9 items in the last 12 months on other sites)"}
+  - {vendor: rebuild, url: "https://rebuildmanufacturing.com/newsroom/", checked: 2026-09-29, reason: "on-site items are blog posts (8 of 8 recent on-site under /newsroom/blogs/); its releases are on businesswire.com (6 off-site items)"}
+  - {vendor: machinalabs, url: "https://machinalabs.ai/resources", checked: 2026-09-29, reason: "listing loads but yields no dated items; no press listing within 6 requests"}
+  - {vendor: vention, url: "https://vention.io/press-release", checked: 2026-09-29, reason: "redirects to vention.com/press, a list of third-party coverage (11 of 11 items in the last 12 months on other sites)"}
+  - {vendor: formic, url: "https://formic.co/resources/press", checked: 2026-09-29, reason: "no item in the last 12 months (12 dated, newest 2025-08-25)"}
+  - {vendor: orbitalcomposites, url: "https://www.orbitalcomposites.com/news", checked: 2026-09-29, reason: "no item in the last 12 months (listing and its RSS, newest 2024-07-08)"}
+  - {vendor: mightybuildings, url: "https://www.mightybuildings.com/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no sitemap)"}
+  - {vendor: azure, url: "https://www.azureprintedhomes.com/press/", checked: 2026-09-29, reason: "/press/ lists SEO guide posts (8 of 8 recent), not releases"}
+  - {vendor: cuby, url: "https://cubytechnologies.com/press", checked: 2026-09-29, reason: "listing loads but yields no dated items; /feed not a dated press feed"}
+  - {vendor: xometry, url: "https://investors.xometry.com/news-and-events/news-releases", checked: 2026-09-29, reason: "robots unavailable (network error: read timeout, twice)"}
+  - {vendor: protolabs, url: "https://investors.protolabs.com/news-events/news-releases", checked: 2026-09-29, reason: "robots unavailable (network error: read timeout, twice)"}
+  - {vendor: fictiv, url: "https://www.fictiv.com/newsroom", checked: 2026-09-29, reason: "listing loads but yields no dated items (/feed: 2 dated, newest 2025-04-13)"}
+  - {vendor: sybridge, url: "https://www.sybridge.com/news", checked: 2026-09-29, reason: "www redirects to the apex, where /news is 404; no listing within 6 requests"}
+  - {vendor: reframe, url: "https://www.reframe.systems/news", checked: 2026-09-29, reason: "no listing found (known page 404, no feed, no news sitemap)"}
+  - {vendor: isembard, url: "https://isembard.com/us/newsroom/", checked: 2026-09-29, reason: "listing loads but yields no dated items"}
