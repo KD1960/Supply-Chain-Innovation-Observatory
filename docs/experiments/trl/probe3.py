@@ -162,20 +162,15 @@ def classify(status, text):
 
 
 def get(session, url, retries=1):
-    """(status, final_url, text). A refusal is data, not an exception; its body is
-    re-read once with the same headers so the report can say what the refusal was."""
+    """(status, final_url, text). A refusal is data, not an exception, and is recorded from
+    the first response: http.HttpError carries the status but not the body, so the body is
+    left empty rather than asked for a second time. (Until 2026-09-29 a refusal was re-read
+    once for its body; that doubled every 404 and sent CCJ's challenged host 6 requests.)"""
     try:
         r = http.fetch(session, url, limiter=limiter(url), retries=retries)
         return r.status, r.url, r.text
     except http.HttpError as e:
-        body = ""
-        if e.status is not None and e.status != 429:
-            try:
-                limiter(url).wait()
-                body = session.get(url, timeout=http.TIMEOUT_SECONDS).text
-            except Exception:  # noqa: BLE001
-                body = ""
-        return e.status, url, body
+        return e.status, url, ""
 
 
 def cached(session, name, url, refresh, retries=1):
@@ -529,7 +524,8 @@ HAND = {
     "freightwaves": {
         "tracked": [("Lowe’s test drives drone delivery", "delivery_drones"),
                     ("Tesla Marked the Start of High Volume Semi Production", "electric_trucks")],
-        "other": ["Clarios takes its battery subscription", "Coretura selects Vector-QNX",
+        # not counted: "Coretura selects Vector-QNX" (a selection, no deployment)
+        "other": ["Clarios takes its battery subscription",
                   "Union Pacific begins battery-electric locomotive testing",
                   "Amazon rolls out safety tech, pay bump"],
         "research": [],
@@ -541,8 +537,9 @@ HAND = {
     },
     "mmh": {
         "tracked": [],
+        # not counted: "Amazon plans to deploy AutoStore" (no purchasing commitment) and
+        # "Amazon Germany invests in forklift safety" (forklifts "will be outfitted")
         "other": ["Productivity Solutions: Mrs. Gerry’s automates", "System Report: GEODIS doubles picking",
-                  "Amazon Germany invests in forklift safety", "Amazon plans to deploy AutoStore",
                   "Netherlands terminal to deploy electric Hyster"],
         "research": [],
     },
