@@ -573,6 +573,38 @@ rights in writing, and at least 10 verified pilot-band claims from a
 feeds (terms and robots checked per title), widen `pressrooms.yaml`, ask
 Factiva for a title list and trial.
 
+**(e) The trade-feed probe — 2026-09-29; green-only fails; green + amber not established**
+
+Sixteen trade titles, permission first (`docs/trl-probe3-2026-09-29.md`; not
+legal advice). Six are green (robots allow, terms silent on feeds): DC Velocity,
+Logistics Management, Modern Materials Handling, Supply Chain Management
+Review, Supply Chain Brain, The Robot Report. Six are amber (terms restrict
+automated access or mining in general words while publishing a feed): Supply
+Chain Dive, Trucking Dive, FreightWaves, Transport Topics, Journal of Commerce,
+Material Handling & Logistics. Four are red: The Loadstar (terms exclude
+mining), Commercial Carrier Journal (challenge page), Robotics 24/7 and
+Automotive Logistics (no feed). On the pass line (one pilot-stage item a week
+about a tracked technology; four titles), green-only gives 1 of 6 (DC
+Velocity). Green + amber reaches 4 of 12 only on the most favourable reading;
+any of three plausible readings gives 3, and three of the passes rest on feeds
+a week deep or less. The feeds do carry pilot news for electric trucks,
+delivery drones and autonomous trucking, none for humanoids, product passports,
+2D barcodes or piece picking. The probe itself made mistakes and says so: four
+pages fetched that should not have been (deleted unread), crawl-delays ignored
+on the first run, error URLs requested twice. **Owner rulings needed:** whether
+a program may read amber titles' public feeds; whether trade-press text may go
+to the model at all (DC Velocity, MMH, Logistics Management and Industry
+Dive's parent host block AI crawlers in robots.txt). **Reversal condition:** four
+weeks of daily polling of the green feeds showing four titles at one pilot-stage
+item a week.
+
+**A defect in running code, found by the probe.** `pressroom.robots_allows`
+uses `urllib.robotparser`, which misreads robots files with an empty `Disallow`
+line, repeated `*` groups, or a broad `Allow: /` listed first, and can allow a
+path RFC 9309 disallows. The press-room collector runs weekly with this. Also
+`pressroom.parse_date` drops two-digit-year dates. Both are to be fixed before
+the next cron run (2026-10-05).
+
 ### The count pipeline
 
 **The corpus double-counts across the 7-day lookback.** A document dated in
