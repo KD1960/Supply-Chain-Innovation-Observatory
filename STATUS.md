@@ -108,7 +108,7 @@ cadences are deliberately different (§6).
 
 | | |
 |---|---|
-| Tests | **861 passing** |
+| Tests | **873 passing** |
 | Lexicon | version **10**, 48 active technologies |
 | Observations | **2,409** |
 | Sources | 11, across 9 evidence families |
@@ -604,7 +604,8 @@ line, repeated `*` groups, or a broad `Allow: /` listed first, and can allow a
 path RFC 9309 disallows. The press-room collector ran weekly with this. Also
 `pressroom.parse_date` drops two-digit-year dates. Both were fixed on
 2026-09-29: robots files are now read by `observatory/robots.py` (RFC 9309,
-with Crawl-delay honoured), and two-digit RFC 822 years parse.
+with Crawl-delay honoured), redirects are followed by hand with robots.txt
+checked for every hop, and two-digit RFC 822 years parse.
 
 ### The count pipeline
 

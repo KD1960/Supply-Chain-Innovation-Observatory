@@ -15,10 +15,12 @@ from dataclasses import dataclass, field
 from urllib.parse import quote, urlsplit
 
 # RFC 9309 2.2.1: a product token is letters, "_" and "-". A user-agent line's
-# value is cut to its leading token, so "WordPress/6.0.5" names "wordpress".
-_TOKEN = re.compile(r"\*|[A-Za-z_-]+")
+# value is cut to its leading token, so "WordPress/6.0.5" names "wordpress";
+# only a bare "*" is the wildcard, so "*bot" names nobody.
+_TOKEN = re.compile(r"[A-Za-z_-]+")
 _LINES = re.compile(r"\r\n|\r|\n")
 _PERCENT = re.compile(r"%[0-9a-fA-F]{2}")
+_UNRESERVED = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
 
 
 @dataclass(frozen=True)
@@ -27,9 +29,25 @@ class Rule:
     pattern: str        # normalised: see _normalise
 
     def matches(self, path: str) -> bool:
+        """Linear: each piece between stars is placed leftmost after the last.
+        A `.*` regex backtracks exponentially in the number of stars, and
+        robots.txt is third-party input. Only a trailing `$` anchors."""
         body, anchored = (self.pattern[:-1], True) if self.pattern.endswith("$") else (self.pattern, False)
-        rx = ".*".join(re.escape(part) for part in body.split("*")) + (r"\Z" if anchored else "")
-        return re.match(rx, path) is not None
+        first, *rest = body.split("*")
+        if not path.startswith(first):
+            return False
+        pos = len(first)
+        if not rest:
+            return not anchored or pos == len(path)
+        for piece in rest[:-1]:
+            found = path.find(piece, pos)
+            if found < 0:
+                return False
+            pos = found + len(piece)
+        last = rest[-1]
+        if anchored:
+            return len(path) - len(last) >= pos and path.endswith(last)
+        return path.find(last, pos) >= 0
 
 
 @dataclass
@@ -39,11 +57,18 @@ class Group:
     delays: list[float] = field(default_factory=list)
 
 
+def _unescape_unreserved(m: re.Match) -> str:
+    char = chr(int(m[0][1:], 16))
+    return char if char in _UNRESERVED else m[0].upper()
+
+
 def _normalise(s: str) -> str:
-    """Percent-encode what is not ASCII and upper-case existing escapes, so
-    "%3c" and "%3C", and "é" and "%C3%A9", compare equal (RFC 9309 2.2.2)."""
+    """Percent-encode what is not ASCII, decode escapes of unreserved
+    characters and upper-case the rest, so "%7ejoe" and "~joe", "%3c" and
+    "%3C", and "é" and "%C3%A9" compare equal while "%2F" stays apart from
+    "/" (RFC 9309 2.2.2)."""
     s = quote(s, safe="".join(chr(c) for c in range(33, 127)))
-    return _PERCENT.sub(lambda m: m[0].upper(), s)
+    return _PERCENT.sub(_unescape_unreserved, s)
 
 
 def _product_token(agent: str) -> str:
@@ -107,8 +132,9 @@ def parse(text: str) -> Robots:
                 current, in_rules = Group(), False
                 groups.append(current)
             m = _TOKEN.match(value)
-            if m:
-                current.agents.append(m[0].lower())
+            token = "*" if value == "*" else m[0].lower() if m else None
+            if token:
+                current.agents.append(token)
         elif name in ("allow", "disallow", "crawl-delay") and current is not None:
             in_rules = True
             if name == "crawl-delay":

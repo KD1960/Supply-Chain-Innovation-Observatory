@@ -129,22 +129,23 @@ def test_parse_keeps_only_items_dated_inside_the_envelopes_own_window():
 
 
 class FakeResponse:
-    def __init__(self, status, text):
-        self.status_code, self.text, self.url, self.headers = status, text, "", {}
+    def __init__(self, status, text, location=None):
+        self.status_code, self.text, self.url = status, text, ""
+        self.headers = {"Location": location} if location else {}
 
 
 class FakeSession:
-    """Answers by URL; records requests. robots.txt disallows /private/."""
+    """Answers by URL with (status, text) or (status, text, location); records
+    requests. robots.txt disallows /private/ unless told otherwise."""
 
     def __init__(self, answers, robots=(200, "User-agent: *\nDisallow: /private/\n")):
         self.answers, self.calls, self.headers, self.robots = answers, [], {}, robots
 
-    def get(self, url, params=None, headers=None, timeout=None):
+    def get(self, url, params=None, headers=None, timeout=None, **kwargs):
         self.calls.append(url)
         if url.endswith("/robots.txt"):
             return FakeResponse(*self.robots)
-        status, text = self.answers.get(url, (404, ""))
-        return FakeResponse(status, text)
+        return FakeResponse(*self.answers.get(url, (404, "")))
 
 
 class _NoWait:
@@ -212,11 +213,11 @@ def test_a_failed_newsroom_still_yields_an_envelope_with_the_status(tmp_path, mo
 
 def test_a_robots_txt_that_cannot_be_fetched_means_allow(monkeypatch, no_wait):
     class NoRobots(FakeSession):
-        def get(self, url, params=None, headers=None, timeout=None):
+        def get(self, url, params=None, headers=None, timeout=None, **kwargs):
             if url.endswith("/robots.txt"):
                 self.calls.append(url)
                 return FakeResponse(404, "")
-            return super().get(url, params, headers, timeout)
+            return super().get(url, params, headers, timeout, **kwargs)
 
     assert pressroom.robots_allows(NoRobots({}), "https://n.test/private/x", {}, _NoWait())
 
@@ -225,11 +226,11 @@ def test_a_robots_txt_server_error_means_disallow(monkeypatch, no_wait):
     monkeypatch.setattr(http, "_backoff_seconds", lambda *a, **k: 0)
 
     class BrokenRobots(FakeSession):
-        def get(self, url, params=None, headers=None, timeout=None):
+        def get(self, url, params=None, headers=None, timeout=None, **kwargs):
             if url.endswith("/robots.txt"):
                 self.calls.append(url)
                 return FakeResponse(503, "")
-            return super().get(url, params, headers, timeout)
+            return super().get(url, params, headers, timeout, **kwargs)
 
     session = BrokenRobots({})
     assert not pressroom.robots_allows(session, "https://s.test/news", {}, _NoWait())
@@ -251,25 +252,21 @@ def test_fetch_raw_fetches_a_month_only_sitemap_item_when_its_month_meets_the_wi
 
 def test_item_hrefs_resolve_against_the_listings_final_url(tmp_path, monkeypatch, no_wait):
     """A listing that redirects to another host: relative hrefs belong to the
-    host that served the listing, not the one in pressrooms.yaml."""
+    host that served the listing, not the one in pressrooms.yaml, and that
+    host's robots.txt is read before the listing is fetched from it."""
     rooms = tmp_path / "rooms.yaml"
     rooms.write_text('version: 1\nnewsrooms:\n  - {vendor: r, url: "https://old.test/news", kind: html}\n')
     monkeypatch.setattr(pressroom, "PRESSROOMS_PATH", rooms)
     listing = ('<li><a href="/news/item">A long enough title for the moved item here</a>'
                '<span>September 24, 2026</span></li>')
-
-    class Redirecting(FakeSession):
-        def get(self, url, params=None, headers=None, timeout=None):
-            r = super().get(url, params, headers, timeout)
-            if url == "https://old.test/news":
-                r.status_code, r.text, r.url = 200, listing, "https://new.test/news"
-            return r
-
-    session = Redirecting({"https://new.test/news/item": (200, "<p>" + "y" * 100 + "</p>")})
+    session = FakeSession({"https://old.test/news": (301, "", "https://new.test/news"),
+                           "https://new.test/news": (200, listing),
+                           "https://new.test/news/item": (200, "<p>" + "y" * 100 + "</p>")})
     env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
     assert env["resolved_url"] == "https://new.test/news"
     assert set(env["pages"]) == {"https://new.test/news/item"}
     assert [d.url for d in PressroomCollector().parse(json.dumps(env))] == ["https://new.test/news/item"]
+    assert session.calls.index("https://new.test/robots.txt") < session.calls.index("https://new.test/news")
 
 
 def _two_rooms(tmp_path, monkeypatch):
@@ -358,10 +355,10 @@ def test_a_robots_network_error_means_disallow(monkeypatch, no_wait):
     import requests
 
     class Unreachable(FakeSession):
-        def get(self, url, params=None, headers=None, timeout=None):
+        def get(self, url, params=None, headers=None, timeout=None, **kwargs):
             if url.endswith("/robots.txt"):
                 raise requests.ConnectionError("refused")
-            return super().get(url, params, headers, timeout)
+            return super().get(url, params, headers, timeout, **kwargs)
 
     assert not pressroom.robots_allows(Unreachable({}), "https://u.test/news", {}, _NoWait())
 
@@ -419,3 +416,83 @@ def test_a_crawl_delay_over_30_s_fetches_the_listing_only(tmp_path, monkeypatch)
     assert "https://c.test/news/one" not in session.calls
     assert any("crawl-delay 60" in n for n in env["notes"])
     assert fake.sleeps == [30]            # the one wait, before the listing, is capped
+
+
+def test_a_listing_redirected_to_a_disallowed_path_is_not_fetched(tmp_path, monkeypatch, no_wait):
+    _one_room(tmp_path, monkeypatch)
+    session = FakeSession({"https://c.test/news": (301, "", "/private/news"),
+                           "https://c.test/private/news": (200, "<p>listing</p>")})
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert env["listing"] == "" and "https://c.test/private/news" not in session.calls
+    assert "robots.txt disallows redirect target https://c.test/private/news" in env["notes"]
+
+
+def test_a_redirect_loop_stops_after_five_hops(tmp_path, monkeypatch, no_wait):
+    _one_room(tmp_path, monkeypatch)
+    session = FakeSession({"https://c.test/news": (302, "", "https://c.test/news2"),
+                           "https://c.test/news2": (302, "", "https://c.test/news")})
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert env["listing"] == ""
+    assert len([c for c in session.calls if not c.endswith("robots.txt")]) == 6    # the request and 5 hops
+    assert any("more than 5 redirects" in n for n in env["notes"])
+
+
+def test_a_robots_429_skips_the_host_like_a_server_error(tmp_path, monkeypatch, no_wait):
+    monkeypatch.setattr(http, "_backoff_seconds", lambda *a, **k: 0)
+    _one_room(tmp_path, monkeypatch)
+    session = FakeSession({"https://c.test/news": (200, "<p>listing</p>")}, robots=(429, ""))
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert "https://c.test/news" not in session.calls
+    assert "robots.txt unavailable (429); host skipped this run" in env["notes"]
+
+
+def test_a_robots_network_error_is_noted_as_unavailable(tmp_path, monkeypatch, no_wait):
+    monkeypatch.setattr(http, "_backoff_seconds", lambda *a, **k: 0)
+    _one_room(tmp_path, monkeypatch)
+    import requests
+
+    class Unreachable(FakeSession):
+        def get(self, url, params=None, headers=None, timeout=None, **kwargs):
+            if url.endswith("/robots.txt"):
+                raise requests.ConnectionError("refused")
+            return super().get(url, params, headers, timeout, **kwargs)
+
+    session = Unreachable({"https://c.test/news": (200, "<p>listing</p>")})
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert "https://c.test/news" not in session.calls
+    assert "robots.txt unavailable (network error); host skipped this run" in env["notes"]
+
+
+def test_item_pages_on_a_host_whose_robots_is_unavailable_are_skipped_with_one_note(tmp_path, monkeypatch,
+                                                                                   no_wait):
+    monkeypatch.setattr(http, "_backoff_seconds", lambda *a, **k: 0)
+    _one_room(tmp_path, monkeypatch)
+    listing = _TWO_ITEMS.replace('href="/news/', 'href="https://d.test/news/')
+
+    class DownRobots(FakeSession):
+        def get(self, url, params=None, headers=None, timeout=None, **kwargs):
+            if url == "https://d.test/robots.txt":
+                self.calls.append(url)
+                return FakeResponse(503, "")
+            return super().get(url, params, headers, timeout, **kwargs)
+
+    session = DownRobots({"https://c.test/news": (200, listing)})
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert env["pages"] == {} and not any(c.startswith("https://d.test/news") for c in session.calls)
+    assert env["notes"] == ["robots.txt unavailable (503); https://d.test skipped this run"]
+
+
+def test_a_malformed_item_url_costs_that_item_not_the_newsroom(tmp_path, monkeypatch, no_wait):
+    _one_room(tmp_path, monkeypatch)
+    listing = _TWO_ITEMS.replace('href="/news/one"', 'href="https://c.test:99999/news/one"')
+    session = FakeSession({"https://c.test/news": (200, listing), "https://c.test/news/two": (200, "<p>two</p>")})
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert set(env["pages"]) == {"https://c.test/news/two"}
+    assert not any("99999" in c for c in session.calls)          # never requested
+    assert any("99999" in n for n in env["notes"])
+
+
+def test_the_robots_and_limiter_key_is_the_canonical_host():
+    assert pressroom._host("HTTPS://WWW.X.test:443/a") == "https://www.x.test"
+    assert pressroom._host("http://x.test:80/a") == "http://x.test"
+    assert pressroom._host("https://x.test:8443/a") == "https://x.test:8443"

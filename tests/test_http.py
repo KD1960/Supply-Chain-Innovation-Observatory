@@ -228,3 +228,20 @@ def test_json_without_a_charset_stays_utf8():
     body = '{"name": "Wing\u2019s"}'.encode("utf-8")
     result = http.fetch(FakeSession([_real_response(body, "application/json")]), "https://x.test/")
     assert "Wing\u2019s" in result.text
+
+
+def test_fetch_can_leave_a_redirect_to_the_caller():
+    """The press-room collector checks robots.txt for each hop, so it asks
+    for the 3xx itself rather than letting requests follow it."""
+    class Recording(FakeSession):
+        def get(self, url, **kwargs):
+            self.calls.append(kwargs)
+            return self._responses.pop(0)
+
+    session = Recording([FakeResponse(301, "", headers={"Location": "https://other.test/y"})])
+    result = http.fetch(session, "https://example.test/x", allow_redirects=False)
+    assert (result.status, result.location) == (301, "https://other.test/y")
+    assert session.calls[0]["allow_redirects"] is False
+    session = Recording([FakeResponse(200, "ok")])
+    http.fetch(session, "https://example.test/x")
+    assert "allow_redirects" not in session.calls[0]          # every other collector: unchanged

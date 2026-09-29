@@ -98,3 +98,44 @@ def test_the_three_probe_3_files():
     loadstar = robots.parse((FIX / "loadstar.txt").read_text())
     assert not loadstar.allows(UA, "https://theloadstar.com/tag/ports/")
     assert loadstar.allows(UA, "https://theloadstar.com/some-story/")
+
+
+def test_matching_is_linear_in_the_path_not_exponential_in_the_stars():
+    """A joined `.*` regex took over 60 s on `/*a*a*a*a*a*b` against 200 a's;
+    robots.txt is third-party input and the cron has no watchdog."""
+    import time
+    r = robots.parse("User-agent: *\nDisallow: /*a*a*a*a*a*a*a*a*a*b\n")
+    started = time.perf_counter()
+    assert r.allows(UA, "/" + "a" * 100_000)
+    assert time.perf_counter() - started < 0.1
+
+
+def test_the_matcher_agrees_with_a_reference_regex():
+    import random
+    import re
+    rng = random.Random(9309)
+
+    def reference(pattern, path):
+        body, anchored = (pattern[:-1], True) if pattern.endswith("$") else (pattern, False)
+        rx = ".*".join(re.escape(p) for p in body.split("*")) + (r"\Z" if anchored else "")
+        return re.match(rx, path) is not None
+
+    for _ in range(500):
+        pieces = ["".join(rng.choice("ab/$") for _ in range(rng.randint(0, 3)))
+                  for _ in range(rng.randint(1, 4))]            # at most 3 stars
+        pattern = "/" + "*".join(pieces) + rng.choice(["", "$"])
+        path = "/" + "".join(rng.choice("ab/$") for _ in range(rng.randint(0, 8)))
+        assert robots.Rule(False, pattern).matches(path) == reference(pattern, path), (pattern, path)
+
+
+def test_percent_encoded_unreserved_characters_are_decoded_and_reserved_ones_are_not():
+    r = robots.parse("User-agent: *\nDisallow: /~joe\n")
+    assert not r.allows(UA, "/%7Ejoe") and not r.allows(UA, "/%7ejoe")
+    assert robots.parse("User-agent: *\nDisallow: /%7Ejoe\n").allows(UA, "/~jo") is True
+    assert not robots.parse("User-agent: *\nDisallow: /%7Ejoe\n").allows(UA, "/~joe")
+    assert robots.parse("User-agent: *\nDisallow: /a%2Fb\n").allows(UA, "/a/b")
+
+
+def test_only_a_bare_star_is_the_wildcard_group():
+    r = robots.parse("User-agent: *bot\nDisallow: /x\n")
+    assert r.allows(UA, "/x")

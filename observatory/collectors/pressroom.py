@@ -19,7 +19,7 @@ import json
 import re
 import time
 from html import unescape
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -31,6 +31,7 @@ from .base import BaseCollector, Document, RawPage
 PRESSROOMS_PATH = config.ROOT / "pressrooms.yaml"
 MAX_ITEM_PAGES = 15
 MAX_CRAWL_DELAY = 30.0   # seconds; a host asking for more gets its listing only
+MAX_REDIRECTS = 5        # RFC 9309 2.3.1.2 asks crawlers to follow at least five
 
 MONTHS = {m: i for i, m in enumerate(
     ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
@@ -251,13 +252,21 @@ def items_for(kind: str, listing: str, base: str, pages: dict) -> list[Item]:
 
 
 def _host(url: str) -> str:
-    return "{0.scheme}://{0.netloc}".format(urlparse(url))
+    """scheme://host[:port], lower-cased and without a default port: one
+    robots file and one pacing clock per origin. A bad port raises ValueError."""
+    p = urlparse(url)
+    scheme, host, port = p.scheme.lower(), p.hostname or "", p.port
+    if ":" in host:   # IPv6
+        host = f"[{host}]"
+    if port is not None and port != {"http": 80, "https": 443}.get(scheme):
+        host += f":{port}"
+    return f"{scheme}://{host}"
 
 
 def host_robots(session, url: str, cache: dict, limiter) -> tuple[robots.Robots, str | None]:
     """Read <scheme>://<host>/robots.txt once per host per run (RFC 9309).
-    A 4xx means no robots file: allow all. A 5xx or a network error means
-    disallow all, and the second value says why ("503", "network error"), so
+    A 4xx means no robots file: allow all. A 5xx, a 429 or a network error
+    means disallow all, and the second value says why ("503", "network error"), so
     the envelope can tell an unavailable file from a real disallow. One retry:
     a hanging origin costs two timeouts, not four."""
     host = _host(url)
@@ -266,7 +275,7 @@ def host_robots(session, url: str, cache: dict, limiter) -> tuple[robots.Robots,
             r = http.fetch(session, host + "/robots.txt", limiter=limiter, retries=1)
             cache[host] = (robots.parse(r.text), None)
         except http.HttpError as e:
-            if e.status is not None and e.status < 500:
+            if e.status is not None and e.status < 500 and e.status != 429:
                 cache[host] = (robots.Robots.allow_all(), None)
             else:
                 cache[host] = (robots.Robots.disallow_all(), str(e.status) if e.status else "network error")
@@ -302,6 +311,32 @@ class PressroomCollector(BaseCollector):
         limiter.min_interval = max(self.rate_limit_seconds, min(delay, MAX_CRAWL_DELAY))
         return rules, problem, delay, limiter
 
+    def _get(self, session, url: str, cache: dict, limiters: dict, *, retries: int = 3, item: bool = False):
+        """Fetch url, following up to MAX_REDIRECTS redirects by hand so that
+        robots.txt and the host's pacing are checked for every hop, not only
+        the first (requests would follow them unasked). Returns the final
+        response and None, or None and the note saying why nothing was fetched.
+        An item page is also skipped on a host whose crawl-delay is over
+        MAX_CRAWL_DELAY."""
+        agent, start = config.user_agent(), url
+        for hop in range(MAX_REDIRECTS + 1):
+            rules, problem, delay, limiter = self._robots(session, url, cache, limiters)
+            if problem:
+                where = "host" if hop == 0 and not item else _host(url)
+                return None, f"robots.txt unavailable ({problem}); {where} skipped this run"
+            if item and delay > MAX_CRAWL_DELAY:
+                return None, (f"robots.txt crawl-delay {delay:g} s is over {MAX_CRAWL_DELAY:g} s; "
+                              f"item pages on {_host(url)} skipped this run")
+            if not rules.allows(agent, url):
+                if hop:
+                    return None, f"robots.txt disallows redirect target {url}"
+                return None, f"robots.txt disallows {url}" if item else "robots.txt disallows the listing; not fetched"
+            r = http.fetch(session, url, limiter=limiter, retries=retries, allow_redirects=False)
+            if not 300 <= r.status < 400:
+                return replace(r, url=r.url or url), None
+            url = urljoin(url, r.location)
+        return None, f"{start}: more than {MAX_REDIRECTS} redirects; stopped"
+
     def fetch_raw(self, session, week: str):
         """One envelope per newsroom, always: a newsroom that is disallowed or
         fails still yields one, with an empty listing and a note, so the raw
@@ -313,7 +348,6 @@ class PressroomCollector(BaseCollector):
         Some but not all failing is ok, with the failures in the notes."""
         limiters: dict = {}
         robots_cache: dict = {}
-        agent = config.user_agent()
         monday, sunday = config.week_bounds(week)
         start = monday - dt.timedelta(days=config.LOOKBACK_DAYS)
         rooms = load_pressrooms()
@@ -322,25 +356,18 @@ class PressroomCollector(BaseCollector):
             env = {"vendor": room.vendor, "kind": room.kind, "url": room.url, "fetched_week": week,
                    "listing": "", "pages": {}, "notes": []}
             status = 0
-            rules, problem, _, limiter = self._robots(session, room.url, robots_cache, limiters)
-            if problem:
-                env["notes"].append(f"robots.txt unavailable ({problem}); host skipped this run")
-                yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
-                continue
-            if not rules.allows(agent, room.url):
-                env["notes"].append("robots.txt disallows the listing; not fetched")
-                yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
-                continue
             try:
-                r = http.fetch(session, room.url, limiter=limiter)
-                status, env["listing"] = r.status, r.text
-                env["resolved_url"] = r.url or room.url   # after redirects: the base for item hrefs
-                listed += bool(r.text)
-            except http.HttpError as e:
-                status = e.status or 0
-                env["notes"].append(f"listing: {e}")
+                r, note = self._get(session, room.url, robots_cache, limiters)
+            except (http.HttpError, ValueError) as e:
+                r, note = None, f"listing: {e}"
+                status = getattr(e, "status", None) or 0
+            if r is None:
+                env["notes"].append(note)
                 yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
                 continue
+            status, env["listing"] = r.status, r.text
+            env["resolved_url"] = r.url   # after redirects: the base for item hrefs
+            listed += bool(r.text)
             base = env["resolved_url"]
             wanted = []
             if room.kind.startswith("links:"):
@@ -350,24 +377,14 @@ class PressroomCollector(BaseCollector):
                     if it.url and in_window(it, start, sunday):
                         wanted.append(it.url)
             for u in wanted[:MAX_ITEM_PAGES]:
-                rules, problem, delay, limiter = self._robots(session, u, robots_cache, limiters)
-                skip = None
-                if problem:
-                    skip = f"robots.txt unavailable ({problem}); {_host(u)} skipped this run"
-                elif delay > MAX_CRAWL_DELAY:
-                    skip = (f"robots.txt crawl-delay {delay:g} s is over {MAX_CRAWL_DELAY:g} s; "
-                            f"item pages on {_host(u)} skipped this run")
-                if skip:
-                    if skip not in env["notes"]:
-                        env["notes"].append(skip)
-                    continue
-                if not rules.allows(agent, u):
-                    env["notes"].append(f"robots.txt disallows {u}")
-                    continue
                 try:   # one retry: a hanging page costs two timeouts, not four
-                    env["pages"][u] = http.fetch(session, u, limiter=limiter, retries=1).text
+                    r, note = self._get(session, u, robots_cache, limiters, retries=1, item=True)
                 except (http.HttpError, ValueError) as e:
-                    env["notes"].append(f"page {u}: {e}")
+                    r, note = None, f"page {u}: {e}"
+                if r is not None:
+                    env["pages"][u] = r.text
+                elif note not in env["notes"]:   # one note per host, not one per item
+                    env["notes"].append(note)
             yield RawPage(room.url, status, json.dumps(env, ensure_ascii=False), "json")
         if not listed:
             raise http.HttpError(f"pressroom: none of {len(rooms)} newsrooms returned a listing for {week}")

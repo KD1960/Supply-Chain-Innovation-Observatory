@@ -46,6 +46,7 @@ class Response:
     status: int
     text: str
     content_type: str
+    location: str = ""      # a 3xx's Location, when the caller asked to follow redirects itself
 
 
 class RateLimiter:
@@ -87,10 +88,14 @@ def fetch(
     limiter: RateLimiter | None = None,
     retries: int = 3,
     sleep_fn: Callable[[float], Any] = time.sleep,
+    allow_redirects: bool = True,
 ) -> Response:
+    """With allow_redirects=False a 3xx is returned, with its Location, for the
+    caller to follow (the press-room collector checks robots.txt per hop)."""
+    extra = {} if allow_redirects else {"allow_redirects": False}
     return _with_retries(
-        lambda: session.get(url, params=params, headers=headers, timeout=TIMEOUT_SECONDS),
-        url, retries, limiter, sleep_fn,
+        lambda: session.get(url, params=params, headers=headers, timeout=TIMEOUT_SECONDS, **extra),
+        url, retries, limiter, sleep_fn, redirects_to_caller=not allow_redirects,
     )
 
 
@@ -116,6 +121,7 @@ def _with_retries(
     retries: int,
     limiter: RateLimiter | None,
     sleep_fn: Callable[[float], Any],
+    redirects_to_caller: bool = False,
 ) -> Response:
     last_status = None
     last_exception: requests.RequestException | None = None
@@ -144,6 +150,10 @@ def _with_retries(
                 text=raw.text,
                 content_type=raw.headers.get("Content-Type", ""),
             )
+        if redirects_to_caller and 300 <= raw.status_code < 400:
+            return Response(url=getattr(raw, "url", url), status=raw.status_code, text="",
+                            content_type=raw.headers.get("Content-Type", ""),
+                            location=raw.headers.get("Location", ""))
         if raw.status_code not in RETRYABLE_STATUSES:
             raise HttpError(f"{url} failed with status {raw.status_code}",
                             url=url, status=raw.status_code)
