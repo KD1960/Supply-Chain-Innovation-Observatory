@@ -302,6 +302,7 @@ def _doc_id(url: str) -> str:
 class PressroomCollector(BaseCollector):
     name = "pressroom"
     rate_limit_seconds = 2.0
+    max_seconds = 2700.0   # 45 minutes: past this, newsrooms not yet reached wait for next week
 
     def __init__(self, sleep_fn=time.sleep, clock_fn=time.monotonic):
         self.sleep_fn, self.clock_fn = sleep_fn, clock_fn
@@ -329,6 +330,8 @@ class PressroomCollector(BaseCollector):
         MAX_CRAWL_DELAY."""
         agent, start = config.user_agent(), url
         for hop in range(MAX_REDIRECTS + 1):
+            if item and hop and _site(url) != _site(start):   # the listing may move hosts; an item may not
+                return None, f"redirect leaves the newsroom's site: {url}"
             rules, problem, delay, limiter = self._robots(session, url, cache, limiters)
             if problem:
                 where = "host" if hop == 0 and not item else _host(url)
@@ -361,12 +364,17 @@ class PressroomCollector(BaseCollector):
         start = monday - dt.timedelta(days=config.LOOKBACK_DAYS)
         rooms = load_pressrooms()
         listed = 0
+        began = self.clock_fn()
         for room in rooms:
             env = {"vendor": room.vendor, "kind": room.kind, "url": room.url, "fetched_week": week,
                    "listing": "", "pages": {}, "notes": []}
+            if self.clock_fn() - began > self.max_seconds:
+                env["notes"].append("time budget exhausted; not fetched this run")
+                yield RawPage(room.url, 0, json.dumps(env, ensure_ascii=False), "json")
+                continue
             status = 0
-            try:
-                r, note = self._get(session, room.url, robots_cache, limiters)
+            try:   # one retry, like robots.txt and item pages
+                r, note = self._get(session, room.url, robots_cache, limiters, retries=1)
             except (http.HttpError, ValueError) as e:
                 r, note = None, f"listing: {e}"
                 status = getattr(e, "status", None) or 0
@@ -385,12 +393,12 @@ class PressroomCollector(BaseCollector):
                 for it in items_for(room.kind, env["listing"], base, {}):
                     if it.url and in_window(it, start, sunday):
                         wanted.append(it.url)
-            # Item pages only on the newsroom's own site: a listing that links press
-            # coverage (a trade title, a wire) keeps the item, from the listing's own
-            # text, but the other site's robots and terms were never checked.
+            # Item pages only on the newsroom's own site. A listing that links press
+            # coverage (a trade title, a wire) links someone else's article, not the
+            # vendor's release: parse() drops it, and its site's terms were never read.
             elsewhere = [u for u in wanted if _site(u) != _site(base)]
             if elsewhere:
-                env["notes"].append(f"{len(elsewhere)} in-window item pages on other sites not fetched")
+                env["notes"].append(f"{len(elsewhere)} item pages on other sites not fetched")
                 wanted = [u for u in wanted if u not in elsewhere]
             for u in wanted[:MAX_ITEM_PAGES]:
                 try:   # one retry: a hanging page costs two timeouts, not four
@@ -416,6 +424,8 @@ class PressroomCollector(BaseCollector):
         base = env.get("resolved_url") or env["url"]
         for item in items_for(env["kind"], env["listing"], base, pages):
             if not item.url or not in_window(item, start, sunday):
+                continue
+            if _site(item.url) != _site(base):   # press coverage under the vendor's name is not its release
                 continue
             page = pages.get(item.url)
             if item.month_only:   # the URL gave only the month: the page must give the day

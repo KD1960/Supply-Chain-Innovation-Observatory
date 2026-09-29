@@ -34,6 +34,16 @@ def test_pressrooms_yaml_slugs_are_unique_and_the_original_16_are_kept_first():
     assert set(slugs[:16]) == ORIGINAL_16
 
 
+def test_no_vendor_is_both_read_and_not_reachable_and_the_dropped_ones_are_listed():
+    import yaml
+    raw = yaml.safe_load(pressroom.PRESSROOMS_PATH.read_text())
+    read = {r["vendor"] for r in raw["newsrooms"]}
+    unreachable = {r["vendor"] for r in raw["not_reachable"]}
+    assert not read & unreachable
+    assert {"jaggaer", "brightpick", "checkpoint", "pactum", "ambi", "vimaan", "nfi", "amazon"} <= unreachable
+    assert all(r.get("checked") and r.get("reason") for r in raw["not_reachable"])
+
+
 def test_every_chosen_for_is_a_watchlist_technology_or_user_firm():
     from observatory import matcher
     ids = {t.id for t in matcher.load_watchlist().technologies} | {"user_firm"}
@@ -536,10 +546,65 @@ def test_item_pages_on_another_site_are_not_fetched(tmp_path, monkeypatch, no_wa
     assert set(env["pages"]) == {"https://news.k.test/own"}
     assert not any(c.startswith("https://press.test/") for c in session.calls)
     assert any("other sites" in n for n in env["notes"])
-    assert len(PressroomCollector().parse(json.dumps(env))) == 2
+    # Press coverage under a vendor's name is not its release: the off-site item
+    # is not a document either, only the newsroom's own.
+    assert [d.url for d in PressroomCollector().parse(json.dumps(env))] == ["https://news.k.test/own"]
 
 
 def test_site_is_the_registrable_domain_approximately():
     assert pressroom._site("https://ir.aurora.tech/x") == pressroom._site("https://aurora.tech/") == "aurora.tech"
     assert pressroom._site("https://www.bbc.co.uk/news") == "bbc.co.uk"
     assert pressroom._site("https://www.freightwaves.com/a") != pressroom._site("https://plus.ai/news")
+
+
+def test_an_item_redirect_that_leaves_the_newsrooms_site_is_not_followed(tmp_path, monkeypatch, no_wait):
+    _one_room(tmp_path, monkeypatch)
+    listing = ('<li><a href="/news/moved">A long enough title for the moved item here</a>'
+               '<span>September 24, 2026</span></li>')
+    session = FakeSession({"https://c.test/news": (200, listing),
+                           "https://c.test/news/moved": (301, "", "https://press.test/story")})
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert env["pages"] == {}
+    assert "https://press.test/story" not in session.calls and "https://press.test/robots.txt" not in session.calls
+    assert "redirect leaves the newsroom's site: https://press.test/story" in env["notes"]
+
+
+def test_the_listing_may_still_redirect_to_another_host(tmp_path, monkeypatch, no_wait):
+    _one_room(tmp_path, monkeypatch)
+    session = FakeSession({"https://c.test/news": (301, "", "https://d.test/news"),
+                           "https://d.test/news": (200, "<rss></rss>")})
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert env["resolved_url"] == "https://d.test/news" and env["listing"] == "<rss></rss>"
+
+
+def test_the_listing_gets_one_retry(tmp_path, monkeypatch, no_wait):
+    monkeypatch.setattr(http, "_backoff_seconds", lambda *a, **k: 0)
+    _one_room(tmp_path, monkeypatch)
+    session = FakeSession({"https://c.test/news": (503, "")})
+    env = json.loads(next(PressroomCollector().fetch_raw(session, "2026-W39")).text)
+    assert session.calls.count("https://c.test/news") == 2 and env["listing"] == ""
+
+
+def test_a_run_over_its_time_budget_records_the_newsrooms_it_did_not_reach(tmp_path, monkeypatch, conn):
+    """A cron run must end: past max_seconds, each newsroom not reached gets an
+    envelope saying it was not fetched, and the source is still ok because one
+    newsroom produced a listing."""
+    from observatory import run
+    rooms = tmp_path / "rooms.yaml"
+    rooms.write_text('version: 1\nnewsrooms:\n'
+                     '  - {vendor: a, url: "https://a.test/news", kind: rss}\n'
+                     '  - {vendor: b, url: "https://b.test/news", kind: rss}\n'
+                     '  - {vendor: c, url: "https://c.test/news", kind: rss}\n')
+    monkeypatch.setattr(pressroom, "PRESSROOMS_PATH", rooms)
+    session = FakeSession({f"https://{h}.test/news": (200, "<rss></rss>") for h in "abc"},
+                          robots=(200, "User-agent: *\nCrawl-delay: 20\n"))
+    fake = _FakeClock()
+    collector = PressroomCollector(sleep_fn=fake.sleep, clock_fn=fake.clock)
+    collector.max_seconds = 10     # robots then listing on a.test: one 20 s wait
+    assert run.fetch_week(conn, "2026-W39", [collector], session) == {"pressroom"}
+    envs = [json.loads(p.read_text()) for p in sorted((tmp_path / "raw" / "2026-W39" / "pressroom").iterdir())]
+    assert [e["vendor"] for e in envs] == ["a", "b", "c"]
+    assert envs[0]["listing"] == "<rss></rss>"
+    assert [e["notes"] for e in envs[1:]] == [["time budget exhausted; not fetched this run"]] * 2
+    assert not any(u.startswith(("https://b.test", "https://c.test")) for u in session.calls)
+    assert _status(conn)["status"] == "ok"

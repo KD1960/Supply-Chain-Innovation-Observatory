@@ -240,7 +240,30 @@ HAND_REJECT = {
     "windrose": "/news redirects to /about-us, a list of third-party coverage (5 dated, 0 on its own site)",
     "zeem": "listing is third-party coverage (49 dated items, 2 on its own site)",
     "dbschenker": "press page redirects to the DSV homepage (Schenker is part of DSV); covered by dsv",
+    # Fix round 2026-09-29, the controller's ruling: a newsroom stays only if its listing
+    # is mostly the company's own releases on its own site.
+    "jaggaer": "newsroom 404; /feed is the site blog (10 of 10 items vendor-comparison and how-to posts)",
+    "brightpick": "listing is mostly third-party coverage (20 of 23 items in the last 12 months on other sites)",
+    "checkpoint": "advertised feed is the site blog (10 of 10 items under /blog/)",
+    "pactum": "/news/ redirects to a blog tag; the feed is the site blog (48 of 48 items under /blog/)",
+    "ambi": "newsroom 404; /feed is the site blog (35 of 37 items under /blog/)",
+    "vimaan": "newsroom 404; /feed is the resources section (blog, application notes, reposted trade coverage)",
+    "nfi": "newsroom 404; /feed is about-page insight posts (10 of 10 under /about-nfi/insights/)",
+    "amazon": "feed is consumer news (10 items rolling over in under a week, 0 matches)",
+    # Rejections whose recorded reason was wrong, corrected from the saved responses.
+    "peterbilt": "JavaScript-rendered listing (no dated items in the HTML)",
+    "stratasys": "JavaScript-rendered listing (no dated items in the HTML)",
+    "ryder": "JavaScript-rendered listing (no dated items in the HTML)",
+    "matternet": "/news redirects to the homepage",
+    "hyundai": "JavaScript shell (7 visible characters)",
+    "rcsglobal": "/news/ redirects to slrconsulting.com (RCS Global is now part of SLR Consulting)",
+    "kiwibot": "redirects to robot.com, where /blog is 404; no listing within 6 requests",
+    "gatik": "/news redirects (via www) to archive.gatik.ai; no listing within 6 requests",
+    "dexterity": "404 after the www-to-apex redirect; no listing within 6 requests",
 }
+# Accepted, but re-pointed by hand: ivalua's advertised feed is the site blog; its html
+# newsroom (the redirect target of the known URL) passed on its own, 13 dated items.
+HAND_REPOINT = {"ivalua": ("https://www.ivalua.com/company/newsroom/", "html")}
 
 # Hand calls on notices found in a listing's own text (step 4), slug -> (reject?, quote).
 HAND_NOTICE: dict[str, tuple[bool, str]] = {}
@@ -250,8 +273,10 @@ NOTICE_RE = re.compile(
     r"spider|data mining|text and data mining|bots?\b)[^.]{0,160}\b(?:prohibit\w*|forbid\w*|"
     r"not (?:be )?permitted|may not|must not|reserve\w*)[^.]{0,120}",
     re.I)
-CHALLENGE_TITLES = re.compile(r"<title>\s*(?:just a moment|attention required|access denied|"
-                              r"security check|are you a robot|pardon our interruption)", re.I)
+# A challenge page names itself; the word "captcha" alone is not one (a newsletter
+# form's reCAPTCHA settings put it on ordinary pages: Peterbilt, Stratasys, Ryder,
+# Matternet and Hyundai were misread so on the first pass, fix round 2026-09-29).
+CHALLENGE_MARKERS = re.compile(r"just a moment|enable javascript and cookies|cf-chl|attention required", re.I)
 RSS_LINK_RE = re.compile(r"<link\b[^>]*type=[\"']application/rss\+xml[\"'][^>]*>", re.I)
 
 
@@ -337,12 +362,10 @@ def assess(kind: str, text: str, base: str, pages: dict) -> dict:
 def looks_blocked(r) -> str | None:
     """A challenge page or a JavaScript shell, on an HTML listing."""
     text = r.text or ""
-    if CHALLENGE_TITLES.search(text[:5000]):
-        return "challenge page"
     vis = visible_text(text)
-    if "captcha" in text.lower() and len(vis) < 1500:
-        return "captcha"
     if len(vis) < SHELL_CHARS:
+        if CHALLENGE_MARKERS.search(text):
+            return "challenge page"
         return f"JavaScript shell ({len(vis)} visible characters)"
     return None
 
@@ -552,7 +575,10 @@ def report() -> int:
             continue
         d = json.loads(p.read_text())
         if slug in HAND_REJECT:
-            d.update(outcome="rejected (hand)", reason=HAND_REJECT[slug])
+            d.update(outcome="rejected (hand)" if d["outcome"] == "accepted" else d["outcome"],
+                     reason=HAND_REJECT[slug])
+        if slug in HAND_REPOINT:
+            d.update(url=HAND_REPOINT[slug][0], kind=HAND_REPOINT[slug][1], dated=13, newest="2026-09-25")
         print("\t".join(str(x) for x in (slug, name, ",".join(techs), d["outcome"], d.get("kind", ""),
                                           d.get("dated", ""), d.get("newest", ""), d.get("url", ""),
                                           d.get("reason", ""), d.get("requests", ""))))

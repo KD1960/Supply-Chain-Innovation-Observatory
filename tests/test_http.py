@@ -73,6 +73,16 @@ def test_fetch_honours_retry_after_header():
     assert slept == [7.0]
 
 
+def test_a_retry_after_is_capped_at_two_minutes():
+    """A server asking for a day's wait would hold the weekly cron for a day."""
+    slept = []
+    session = FakeSession(
+        [FakeResponse(429, headers={"Retry-After": "86400"}), FakeResponse(200, "ok")]
+    )
+    http.fetch(session, "https://example.test/x", sleep_fn=slept.append)
+    assert slept == [120.0]
+
+
 def test_fetch_gives_up_after_retry_budget():
     session = FakeSession([FakeResponse(500)] * 4)
     with pytest.raises(http.HttpError) as excinfo:

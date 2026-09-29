@@ -15,6 +15,7 @@ from . import config
 
 TIMEOUT_SECONDS = 60
 RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
+MAX_RETRY_AFTER_SECONDS = 120.0
 
 # The patterns of requests.utils.get_encodings_from_content, copied because
 # that function is deprecated (it warns, and is slated for removal).
@@ -209,8 +210,9 @@ def _settle_encoding(raw: Any) -> None:
 def _backoff_seconds(raw: Any, attempt: int, limiter: RateLimiter | None = None) -> float:
     retry_after = raw.headers.get("Retry-After") if raw is not None and hasattr(raw, "headers") else None
     if retry_after:
+        # Capped: a Retry-After of a day would hold the weekly cron for a day.
         try:
-            return float(retry_after)
+            return min(float(retry_after), MAX_RETRY_AFTER_SECONDS)
         except ValueError:
             pass
     status = getattr(raw, "status_code", None) if raw is not None else None

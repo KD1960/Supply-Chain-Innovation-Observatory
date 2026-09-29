@@ -108,11 +108,11 @@ cadences are deliberately different (§6).
 
 | | |
 |---|---|
-| Tests | **877 passing** |
+| Tests | **883 passing** |
 | Lexicon | version **10**, 48 active technologies |
-| Observations | **2,419** |
+| Observations | **2,413** |
 | Sources | 11, across 9 evidence families |
-| By source | github 840, arxiv 535, scopus 421, openalex 251, edgar 137, hn 67, lens 64, nsf 40, usaspending 30, federalregister 21, pressroom 13 |
+| By source | github 840, arxiv 535, scopus 421, openalex 251, edgar 137, hn 67, lens 64, nsf 40, usaspending 30, federalregister 21, pressroom 7 |
 | Precision | **70%** at lexicon v9, one model coder, 120 of 132 judged (`docs/precision-audit-2026-09-02.md`) — not comparable with the earlier 51%; the count lexicon's, not the tracker's |
 | Deliverable | the TRL page, below. The count report (`output/report-<period>.html`) still builds and is no longer the deliverable |
 | TRL tracked set | 24 technologies, the rows the owner ruled pre-practice on `docs/audit/tech-practice-sort-2026-09-23.xlsx` |
@@ -552,33 +552,37 @@ three. **Reversal
 condition:** retire the source if two consecutive quarters yield under 10
 matched observations.
 
-**Widened 2026-09-29: 60 newsrooms** (`docs/pressroom-widen-2026-09-29.md`,
+**Widened 2026-09-29: 52 newsrooms** (`docs/pressroom-widen-2026-09-29.md`,
 `pressrooms.yaml` version 2). 124 candidates, vendors and user firms, over all
 24 tracked technologies, were checked permission first by
 `docs/experiments/trl/widen_pressrooms.py` (robots.txt through the collector's
-own fetch path, at most 6 requests each, 509 requests in about 30 minutes):
-**44 accepted** (22 rss, 22 html), **80 rejected** and listed under
-`not_reachable` with the reason (22 no listing at the known page, feed paths
-or a news sitemap; 14 no listing within 6 requests; 14 a listing with no
-dated items; 3 nothing in the last 12 months; 8 403; 6 robots unavailable;
-5 captcha; 1 robots disallow (SAP News); 1 JavaScript shell; 1 parked
-domain; 5 by hand after reading the items: four listings of third-party press
-coverage and DB Schenker's redirect to DSV). The collector now fetches item pages only on the
-newsroom's own site: several listings link trade-press and wire coverage
-whose own robots and terms were never checked (Plus's already linked
-FreightWaves). **First yield** (`--only pressroom --week 2026-W40`, raw backed
-up first to `data/backups/raw-2026-W40-pressroom-before-widen/`): 60 of 60
-newsrooms answered, 0 notes, 102 item pages, **91 documents** (73 from the new
-newsrooms, 20 of 44 with one), **10 new observations** (4 filed under 2026-W39 by their dates), **none
-pilot-stage**: 6
-false positives (Jaggaer's feed is vendor-comparison articles matching `ERP`
-and `agentic AI`), 4 passing mentions (NVIDIA's physical-AI safety post twice,
-Circulor's DPP-registry explainer, Minespider's battery-passport post). The
-fetch took 9 min 16 s against under 2 min for 16. **Still no newsroom:
-battery_free_iot and microfactories**; one each: additive_spares (SPEE3D),
-autonomous_yard (Outrider), cv_inspection (Vimaan), gs1_2d (GS1 US),
-private_5g_warehouse (Ericsson), smart_labels (Checkpoint). Seven user firms
-(Amazon, GXO, FedEx, Maersk, Penske, NFI, DSV).
+own fetch path, at most 6 requests each, 509 requests in about 30 minutes).
+**Membership rule** (controller, at review): a newsroom stays only if its
+listing is mostly the company's own releases on its own site. **36 accepted**
+(22 html, 14 rss); **88 rejected** and listed under `not_reachable` with the
+reason: 22 known page 404 with no feed or news sitemap, 14 no dated items, 3
+JavaScript-rendered, 13 no listing within 6 requests, 8 403, 6 robots
+unavailable, 3 nothing in 12 months, 2 JavaScript shell, 1 robots disallow (SAP
+News), 1 redirect to the homepage, 1 parked domain, 2 redirect to another firm,
+and by hand 5 third-party-coverage listings and 7 site blogs or marketing feeds
+(Jaggaer, Checkpoint, Pactum, Ambi, Vimaan, NFI, Amazon). **Collector changes:**
+item pages are fetched only on the newsroom's own site, off-site items are not
+documents, an item redirect that leaves the site stops; the listing gets one
+retry; `Retry-After` is capped at 120 s (all collectors); a 45-minute time
+budget per run, newsrooms not reached recorded as "time budget exhausted".
+**First yield, 2026-W40** (first pass fetched 60 newsrooms in 9 min 16 s after
+backing up the raw; after the review the dropped vendors' envelopes were moved
+to `data/backups/raw-2026-W40-pressroom-dropped/`, the pass's derived rows
+deleted and the week re-parsed with `--skip-fetch`, no new fetch): 52
+envelopes, **68 documents** (50 from the new newsrooms, 16 of 36 with one),
+**4 observations, none pilot-stage**, all passing mentions (NVIDIA's
+physical-AI safety essay twice, Circulor's DPP-registry explainer,
+Minespider's battery-passport post), 0 false positives (the first pass's 6
+all came from Jaggaer's blog feed). `raw_fetch` paths under `.worktrees/` (76
+rows) now point at the main checkout. **Still no newsroom: battery_free_iot,
+cv_inspection, microfactories, smart_labels**; one each: additive_spares
+(SPEE3D), autonomous_yard (Outrider), gs1_2d (GS1 US), private_5g_warehouse
+(Ericsson). Five user firms (GXO, FedEx, Maersk, Penske, DSV).
 
 **(d) The Nexis hand count — 2026-09-29; content passes, sources fail; do not buy**
 
